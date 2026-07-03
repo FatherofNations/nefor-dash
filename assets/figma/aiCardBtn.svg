@@ -1,0 +1,53 @@
+<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="40" height="40" fill="#DDDEE2"/>
+<g id="&#209;&#129;&#208;&#176;&#208;&#185;&#208;&#180;&#208;&#191;&#208;&#176;&#208;&#189;&#208;&#181;&#208;&#187;&#209;&#140;">
+<rect x="-43.5" y="-307.5" width="307" height="867" rx="15.5" fill="white" fill-opacity="0.52"/>
+<rect x="-43.5" y="-307.5" width="307" height="867" rx="15.5" stroke="url(#paint0_linear_488_89642)"/>
+<g id="Frame 2147237551">
+<rect x="-19.5" y="-19.5" width="259" height="139" rx="23.5" fill="white" fill-opacity="0.4"/>
+<rect x="-19.5" y="-19.5" width="259" height="139" rx="23.5" fill="#676767" fill-opacity="0.02"/>
+<rect x="-19.5" y="-19.5" width="259" height="139" rx="23.5" fill="url(#paint1_radial_488_89642)" fill-opacity="0.1"/>
+<rect x="-19.5" y="-19.5" width="259" height="139" rx="23.5" stroke="url(#paint2_radial_488_89642)"/>
+<rect x="-19.5" y="-19.5" width="259" height="139" rx="23.5" stroke="white"/>
+<g id="RightAddon">
+<rect x="0.5" y="0.5" width="39" height="39" rx="11.5" fill="white" fill-opacity="0.4"/>
+<rect x="0.5" y="0.5" width="39" height="39" rx="11.5" stroke="url(#paint3_radial_488_89642)"/>
+<rect x="0.5" y="0.5" width="39" height="39" rx="11.5" stroke="url(#paint4_radial_488_89642)"/>
+<g id="[D] IconButton">
+<g id="Icon">
+<g id="Fixer">
+<path id="PaintMe" d="M26 23H24V17.4141L15.207 26.207L13.793 24.793L22.5859 16H17V14H26V23Z" fill="#897EFF"/>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+<defs>
+<linearGradient id="paint0_linear_488_89642" x1="-26.5" y1="-297.744" x2="302.201" y2="536.754" gradientUnits="userSpaceOnUse">
+<stop stop-color="white"/>
+<stop offset="0.5" stop-color="white" stop-opacity="0"/>
+<stop offset="1" stop-color="white"/>
+</linearGradient>
+<radialGradient id="paint1_radial_488_89642" cx="0" cy="0" r="1" gradientTransform="matrix(-221.282 -16.625 4.62696 -717.177 222.051 50)" gradientUnits="userSpaceOnUse">
+<stop stop-color="#897EFF"/>
+<stop offset="1" stop-color="white" stop-opacity="0"/>
+</radialGradient>
+<radialGradient id="paint2_radial_488_89642" cx="0" cy="0" r="1" gradientTransform="matrix(-113.559 188.561 -198.287 -46.6473 209.429 -33.2143)" gradientUnits="userSpaceOnUse">
+<stop stop-color="white"/>
+<stop offset="0.25" stop-color="white" stop-opacity="0"/>
+<stop offset="0.755737" stop-color="white" stop-opacity="0"/>
+<stop offset="1" stop-color="white"/>
+</radialGradient>
+<radialGradient id="paint3_radial_488_89642" cx="0" cy="0" r="1" gradientTransform="matrix(-17.4707 53.8745 -30.5057 -13.3278 35.2967 -3.77551)" gradientUnits="userSpaceOnUse">
+<stop stop-color="white"/>
+<stop offset="0.25" stop-color="white" stop-opacity="0"/>
+<stop offset="0.755737" stop-color="white" stop-opacity="0"/>
+<stop offset="1" stop-color="white"/>
+</radialGradient>
+<radialGradient id="paint4_radial_488_89642" cx="0" cy="0" r="1" gradientTransform="matrix(-7.50001 65 -312.158 -922.258 27.5 -38.75)" gradientUnits="userSpaceOnUse">
+<stop stop-color="#897EFF"/>
+<stop offset="1" stop-color="white" stop-opacity="0"/>
+</radialGradient>
+</defs>
+</svg>
