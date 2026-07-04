@@ -16,6 +16,7 @@
       <img src="assets/figma/sbBgImg.png" alt="Альфа-Банк">
     </div>
     <img class="sb-logo-ai" src="assets/figma/sbAiLogo.svg" alt="" width="40" height="40">
+    <button class="sb-back" aria-label="Назад к балансу"><i></i></button>
 
     <div class="sb-toggle">
       <button class="sb-toggle-opt active" data-mode="main" aria-label="Обычный вид"><i class="ico ico-list"></i></button>
@@ -28,8 +29,8 @@
     </button>
 
     <div class="sb-main">
-    <!-- Баланс -->
-    <div class="sb-cell" style="top: 97px;">
+    <!-- Баланс (клик раскрывает остатки по банкам) -->
+    <div class="sb-cell sb-multibank" style="top: 97px;" role="button" aria-label="Показать счета по банкам">
       <div class="sb-ico se40">
         <div class="sb-banks">
           <span class="sb-bank"><img src="assets/figma/sbBgImg1.png" alt="" style="left:0; top:0; width:100%; height:100%; object-fit:cover;"></span>
@@ -47,6 +48,7 @@
 
     <div class="sb-div" style="top: 169px;"></div>
 
+    <div class="sb-below">
     <!-- Счета -->
     <div class="sb-cell" style="top: 192px;">
       <div class="sb-ico se40 bg"><img src="assets/figma/sbFixer2.svg" alt="" width="20" height="20"></div>
@@ -116,6 +118,32 @@
     <div class="sb-menu mv" style="bottom: 35px;">
       <span class="sb-mi"><img src="assets/figma/sbDotsThree.svg" alt="" width="20" height="20"></span>
       <span class="sb-ml">Все действия</span>
+    </div>
+    </div><!-- /sb-below -->
+
+    <!-- Мультибанк: остатки по каждому банку (клик по балансу, назад — стрелка на месте лого) -->
+    <div class="sb-bankview" aria-hidden="true">
+      <div class="sb-cell" style="--i:0; top: 192px;">
+        <div class="sb-ico bank"><img src="assets/figma/sbBgImg1.png" alt="Альфа-Банк"></div>
+        <div class="sb-txt">
+          <p class="sb-amt">570 880,95 ₽</p>
+          <p class="sb-sub">2 счёта</p>
+        </div>
+      </div>
+      <div class="sb-cell" style="--i:1; top: 258px;">
+        <div class="sb-ico bank"><img src="assets/figma/sbBgColor2.png" alt="Т-Банк" style="left:-7.28%; top:-6.25%; width:116.19%; height:116.19%;"></div>
+        <div class="sb-txt">
+          <p class="sb-amt">1 200 000,00 ₽</p>
+          <p class="sb-sub">1 счёт</p>
+        </div>
+      </div>
+      <div class="sb-cell" style="--i:2; top: 324px;">
+        <div class="sb-ico bank"><img src="assets/figma/sbBgColor.png" alt="ПСБ" style="left:-14.35%; top:-13.86%; width:128.69%; height:128.69%;"></div>
+        <div class="sb-txt">
+          <p class="sb-amt">530 000,00 ₽</p>
+          <p class="sb-sub">1 счёт</p>
+        </div>
+      </div>
     </div>
 
     <div class="sb-fade"></div>
@@ -816,6 +844,16 @@
       sb.classList.add('no-credit');
     });
 
+    // мультибанк: клик по балансу через блюр раскрывает остатки по банкам,
+    // лого меняется на стрелку назад — клик по ней возвращает обычный вид
+    const bankview = document.querySelector('.sb-bankview');
+    function setBanks(open) {
+      sb.classList.toggle('banks', open);
+      bankview.setAttribute('aria-hidden', !open);
+    }
+    document.querySelector('.sb-multibank').addEventListener('click', () => setBanks(true));
+    document.querySelector('.sb-back').addEventListener('click', () => setBanks(false));
+
     // «мышление» строки задач при загрузке: Ищу платежи → Проверяю контрагентов → финальный текст
     // (старая фраза уезжает вверх, новая въезжает снизу), после чего появляется «Больше»
     const tasksP = document.querySelector('.pane-ai .tasks');
@@ -823,9 +861,9 @@
     const tasksFinal = tasksP.textContent;
     tasksP.textContent = '';
     let tasksCur = null;
-    function setTasks(text) {
+    function setTasks(text, fin) {
       const line = document.createElement('span');
-      line.className = 'tasks-line';
+      line.className = 'tasks-line' + (fin ? ' fin' : '');
       line.textContent = text;
       if (tasksCur) line.classList.add('below');
       tasksP.appendChild(line);
@@ -845,7 +883,7 @@
       if (tasksCur) tasksP.style.width = tasksCur.getBoundingClientRect().width + 'px';
     });
     setTimeout(() => setTasks('Проверяю контрагентов'), 1200);
-    setTimeout(() => setTasks(tasksFinal), 2400);
+    setTimeout(() => setTasks(tasksFinal, true), 2400);
     setTimeout(() => tasksRowEl.classList.add('ai-done'), 2800);
 
     // дропдаун чипсы «Дела в работе»

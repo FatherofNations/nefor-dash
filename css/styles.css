@@ -60,6 +60,22 @@ p { margin: 0; }
   pointer-events: none;
 }
 .sidebar.ai .sb-resize { pointer-events: auto; }
+/* вертикальная «ручка» — подсказка, что грань тянется; видна при ховере на меню в AI-виде */
+.sb-resize::after {
+  content: '';
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 48px;
+  border-radius: 4px;
+  background: rgba(3, 3, 6, 0.2);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+.sidebar.ai:hover .sb-resize::after,
+.sidebar.ai.dragging .sb-resize::after { opacity: 1; }
 
 .sb-logo {
   position: absolute;
@@ -330,17 +346,21 @@ p { margin: 0; }
   white-space: nowrap;
 }
 
+/* весь блок размыт: правый край растворяется плавно (виден в раскрытом меню),
+   выносы за левую/нижнюю грани прячут мягкие края под overflow:hidden панели;
+   стопы пересчитаны под новую геометрию — видимый градиент тот же */
 .sb-fade {
   position: absolute;
-  left: -1px;
-  bottom: 1px;
-  width: 307px;
-  height: 195px;
-  background: linear-gradient(to bottom, rgba(239, 239, 241, 0) 22.308%, #efeff1 75.128%);
+  left: -25px;
+  bottom: -25px;
+  width: 355px;
+  height: 240px;
+  background: linear-gradient(to bottom, rgba(239, 239, 241, 0) 26%, #efeff1 69%);
+  filter: blur(22px);
   pointer-events: none;
 }
-/* в AI-виде фейд тянется вместе с панелью */
-.sidebar.ai .sb-fade { width: auto; right: 0; }
+/* в AI-виде фейд тянется вместе с панелью (вынос вправо прячет размытый край) */
+.sidebar.ai .sb-fade { width: auto; right: -25px; }
 
 .sb-search {
   position: absolute;
@@ -412,6 +432,74 @@ p { margin: 0; }
               transform 0.55s cubic-bezier(0.32, 0.72, 0, 1);
   transition-delay: calc(120ms + var(--i, 0) * 30ms);
 }
+
+/* ══════════ Мультибанк: клик по балансу раскрывает остатки по банкам ══════════ */
+.sb-multibank { cursor: pointer; }
+/* обёртки на всё крыло не перехватывают клики (тот же паттерн, что .sb-main/.sb-ai) */
+.sidebar .sb-main > .sb-below,
+.sidebar .sb-main > .sb-bankview { position: absolute; inset: 0; pointer-events: none; }
+.sidebar:not(.ai):not(.banks) .sb-below > * { pointer-events: auto; }
+.sidebar.banks:not(.ai) .sb-bankview > * { pointer-events: auto; }
+.sb-below {
+  opacity: 1;
+  filter: blur(0);
+  transform: translateY(0);
+  transition: opacity 0.5s cubic-bezier(0.25, 0.1, 0.25, 1),
+              filter 0.5s cubic-bezier(0.25, 0.1, 0.25, 1),
+              transform 0.55s cubic-bezier(0.32, 0.72, 0, 1);
+  transition-delay: 120ms;
+}
+.sidebar.banks .sb-below {
+  opacity: 0;
+  filter: blur(12px);
+  transform: translateY(10px);
+  transition: opacity 0.22s ease-in, filter 0.22s ease-in, transform 0.22s ease-in;
+  transition-delay: 0s;
+}
+.sb-bankview > * {
+  opacity: 0;
+  filter: blur(12px);
+  transform: translateY(10px);
+  transition: opacity 0.22s ease-in, filter 0.22s ease-in, transform 0.22s ease-in;
+  transition-delay: 0s;
+}
+.sidebar.banks .sb-bankview > * {
+  opacity: 1;
+  filter: blur(0);
+  transform: translateY(0);
+  transition: opacity 0.5s cubic-bezier(0.25, 0.1, 0.25, 1),
+              filter 0.5s cubic-bezier(0.25, 0.1, 0.25, 1),
+              transform 0.55s cubic-bezier(0.32, 0.72, 0, 1);
+  transition-delay: calc(120ms + var(--i, 0) * 30ms);
+}
+/* круглые логотипы банков (кропы как у мини-кластера баланса) */
+.sb-ico.bank { border-radius: 50%; overflow: hidden; background: #fff; }
+.sb-ico.bank img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; }
+/* лого «А» ⇄ стрелка назад (тот же кроссфейд, что лого ⇄ AI-лого) */
+.sb-back {
+  position: absolute;
+  left: 23px;
+  top: 23px;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  filter: blur(8px);
+  pointer-events: none;
+  transition: opacity 0.35s ease, filter 0.35s ease;
+}
+.sb-back i {
+  width: 24px;
+  height: 24px;
+  background: rgba(3, 3, 6, 0.88);
+  -webkit-mask: url('../assets/figma/sbArrowBack.svg') center / 24px 24px no-repeat;
+  mask: url('../assets/figma/sbArrowBack.svg') center / 24px 24px no-repeat;
+}
+.sidebar.banks:not(.ai) .sb-logo { opacity: 0; filter: blur(8px); }
+.sidebar.banks:not(.ai) .sb-back { opacity: 1; filter: blur(0); pointer-events: auto; }
 
 .ai-title {
   position: absolute;
@@ -1169,11 +1257,15 @@ body.tariffs .pane-tar > * {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  color: var(--text-primary);
+  transition: transform 0.45s cubic-bezier(0.32, 0.72, 0, 1);
+}
+/* серый градиент — только у финальной фразы; «думающие» этапы 1–2 просто чёрные */
+.tasks-line.fin {
   background: linear-gradient(to right, rgba(3, 3, 6, 0.88), rgba(3, 3, 6, 0.32));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  transition: transform 0.45s cubic-bezier(0.32, 0.72, 0, 1);
 }
 .tasks-line.above { transform: translate(-50%, -28px); }
 .tasks-line.below { transform: translate(-50%, 28px); }
