@@ -18,8 +18,8 @@
     <img class="sb-logo-ai" src="assets/figma/sbAiLogo.svg" alt="" width="40" height="40">
 
     <div class="sb-toggle">
-      <button class="sb-toggle-opt active" data-mode="main" aria-label="Обычный вид"><img src="assets/figma/sbListBulleted.svg" alt="" width="20" height="20"></button>
-      <button class="sb-toggle-opt search" data-mode="ai" aria-label="AI-вид"><img src="assets/figma/sbMagnifier.svg" alt="" width="19.2" height="19.2"></button>
+      <button class="sb-toggle-opt active" data-mode="main" aria-label="Обычный вид"><i class="ico ico-list"></i></button>
+      <button class="sb-toggle-opt search" data-mode="ai" aria-label="AI-вид"><i class="ico ico-magn"></i></button>
     </div>
 
     <button class="sb-burger" id="sbBurger" aria-label="Открыть меню" aria-expanded="false">
@@ -163,6 +163,9 @@
         <p class="s lh20">Онлайн гарантия <br>до 10+ лет&nbsp;</p>
       </div>
     </div>
+
+    <!-- зона захвата правой грани (растяжение AI-меню мышкой) -->
+    <div class="sb-resize" aria-hidden="true"></div>
   </aside>
 
   <!-- ═══════════ Кружки справа (fixed) ═══════════ -->
@@ -214,6 +217,7 @@
 
       <!-- Header-табы -->
       <nav class="tabs">
+        <i class="tab-pill" aria-hidden="true"></i>
         <button class="tab active" data-pane="ai">AI-Сводка</button>
         <button class="tab" data-pane="prod">Мои продукты</button>
         <button class="tab" data-pane="tar">Тарифы</button>
@@ -642,6 +646,69 @@
     </div>
   </main>
 
+  <!-- ═══════════ Spotlight «Нейропомощник» (стрелки разворота в AI-виде) ═══════════ -->
+  <div class="spot" aria-hidden="true">
+    <aside class="spot-menu">
+      <div class="spot-logo">
+        <i class="glow"></i>
+        <img src="assets/figma/spotLogo.svg" alt="" width="40" height="40">
+        <span>Нейропомощник</span>
+      </div>
+      <nav class="spot-nav">
+        <div class="spot-cell dim">
+          <span class="ic"><img src="assets/figma/spotHome.svg" alt="" width="20" height="20"></span>
+          <span class="lb">Главная</span>
+        </div>
+        <div class="spot-cell active">
+          <span class="ic"><img src="assets/figma/spotChat.svg" alt="" width="20" height="20"></span>
+          <span class="lb">Чат</span>
+        </div>
+      </nav>
+    </aside>
+    <div class="spot-body">
+      <div class="spot-gradi"><i class="g1"></i><i class="g2"></i><i class="g3"></i><i class="g4"></i></div>
+      <div class="spot-head">
+        <button class="spot-hbtn" aria-label="Информация"><img src="assets/figma/spotInfoBtn.svg" alt="" width="40" height="40"></button>
+        <button class="spot-hbtn spot-close" aria-label="Закрыть"><img src="assets/figma/spotCloseBtn.svg" alt="" width="40" height="40"></button>
+      </div>
+      <div class="spot-content">
+        <div class="spot-hello">
+          <h2><span class="dash">—</span> Привет!</h2>
+          <p>Помогу найти нужный раздел или отвечу на ваши вопросы о банке</p>
+        </div>
+        <div class="spot-search">
+          <div class="spot-input">
+            <span class="ic"><img src="assets/figma/spotClip.svg" alt="" width="24" height="24"></span>
+            <input type="text" placeholder="Спросите что угодно">
+          </div>
+          <div class="spot-btns">
+            <button class="spot-btn"><img src="assets/figma/spotBtnMagn.svg" alt="" width="20" height="23">Скачай выписку</button>
+            <button class="spot-btn"><img src="assets/figma/spotBtnMagn.svg" alt="" width="20" height="23">Покажи реквизиты</button>
+            <button class="spot-btn"><img src="assets/figma/spotBtnMagn.svg" alt="" width="20" height="23">Расскажи про тариф</button>
+          </div>
+        </div>
+        <div class="spot-cards">
+          <div class="spot-card">
+            <p class="t">Популярное</p>
+            <div class="rows">
+              <div class="spot-row"><img src="assets/figma/spotDep.svg" alt="" width="24" height="24"><span>Депозиты</span></div>
+              <div class="spot-row"><img src="assets/figma/spotRisk.svg" alt="" width="24" height="24"><span>Индикатор риска</span></div>
+              <div class="spot-row"><img src="assets/figma/spotCalc.svg" alt="" width="24" height="24"><span>Бухгалтерия</span></div>
+            </div>
+          </div>
+          <div class="spot-card">
+            <p class="t">История</p>
+            <div class="rows">
+              <div class="spot-row"><img src="assets/figma/spotMagn.svg" alt="" width="24" height="24"><span>Дебиторская задолженность с длинным текстом</span></div>
+              <div class="spot-row"><img src="assets/figma/spotMagn.svg" alt="" width="24" height="24"><span>Деньги сверху</span></div>
+              <div class="spot-row"><img src="assets/figma/spotMagn.svg" alt="" width="24" height="24"><span>ООО «Ландыш и партнеры»</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
     const sb = document.querySelector('.sidebar');
     const sbBurger = document.getElementById('sbBurger');
@@ -670,14 +737,71 @@
       el.addEventListener('click', () => setSbAiMode(true));
     });
 
+    // Spotlight «Нейропомощник»: стрелки разворота (бургер в AI-виде) поднимают панель снизу
+    const spot = document.querySelector('.spot');
+    function setSpot(open) {
+      spot.classList.toggle('open', open);
+      spot.setAttribute('aria-hidden', !open);
+    }
+    sbBurger.addEventListener('click', () => {
+      if (sb.classList.contains('ai')) setSpot(true);
+    });
+    document.querySelector('.spot-close').addEventListener('click', () => setSpot(false));
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') setSpot(false); });
+
+    // растяжение AI-меню за правую грань: 428px (дефолт AI-вида) … 700px
+    document.querySelector('.sb-resize').addEventListener('mousedown', e => {
+      e.preventDefault();
+      const startX = e.clientX;
+      const startW = sb.getBoundingClientRect().width;
+      sb.classList.add('dragging');
+      document.body.style.cursor = 'ew-resize';
+      document.body.style.userSelect = 'none';
+      const move = ev => {
+        const w = Math.min(700, Math.max(428, startW + ev.clientX - startX));
+        sb.style.setProperty('--sb-ai-w', w + 'px');
+      };
+      const up = () => {
+        window.removeEventListener('mousemove', move);
+        window.removeEventListener('mouseup', up);
+        sb.classList.remove('dragging');
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      };
+      window.addEventListener('mousemove', move);
+      window.addEventListener('mouseup', up);
+    });
+
     const panes = {
       ai: document.querySelector('.pane-ai'),
       prod: document.querySelector('.pane-prod'),
       ind: document.querySelector('.pane-ind'),
       tar: document.querySelector('.pane-tar'),
     };
+    // скользящая капсула активного таба: едет к кликнутому пункту, приседая в полёте
+    const tabPill = document.querySelector('.tabs .tab-pill');
+    function placePill(tab) {
+      const r = tab.getBoundingClientRect();
+      const c = tabPill.parentElement.getBoundingClientRect();
+      tabPill.style.left = (r.left - c.left) + 'px';
+      tabPill.style.width = r.width + 'px';
+    }
+    placePill(document.querySelector('.tabs .tab.active'));
+    // шрифт мог доехать позже первого замера — ставим капсулу заново без анимации
+    document.fonts.ready.then(() => {
+      tabPill.style.transition = 'none';
+      placePill(document.querySelector('.tabs .tab.active'));
+      void tabPill.offsetWidth;
+      tabPill.style.transition = '';
+    });
     document.querySelectorAll('.tabs .tab[data-pane]').forEach(tab => {
       tab.addEventListener('click', () => {
+        if (!tab.classList.contains('active')) {
+          placePill(tab);
+          tabPill.classList.remove('squish');
+          void tabPill.offsetWidth;
+          tabPill.classList.add('squish');
+        }
         document.querySelectorAll('.tabs .tab').forEach(t => t.classList.toggle('active', t === tab));
         const key = tab.dataset.pane;
         document.body.classList.toggle('products', key === 'prod');

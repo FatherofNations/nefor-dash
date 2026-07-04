@@ -39,6 +39,27 @@ p { margin: 0; }
   width: 629px;
   background: rgba(255, 255, 255, 0.92);
 }
+/* AI-вид шире на 120px; ширину можно тянуть за правую грань (JS пишет --sb-ai-w) */
+/* --wing — внутренняя ширина «крыла» (минус 2px бордера): от неё центрируется .sb-toggle;
+   при раскрытии бургером не меняется (переключатель остаётся в центре левого крыла) */
+.sidebar { --wing: 306px; }
+.sidebar.ai {
+  width: var(--sb-ai-w, 428px);
+  --wing: calc(var(--sb-ai-w, 428px) - 2px);
+}
+.sidebar.dragging, .sidebar.dragging .sb-toggle { transition: none; }
+/* невидимая зона захвата вдоль правой грани — активна только в AI-виде */
+.sb-resize {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 10px;
+  cursor: ew-resize;
+  z-index: 10;
+  pointer-events: none;
+}
+.sidebar.ai .sb-resize { pointer-events: auto; }
 
 .sb-logo {
   position: absolute;
@@ -66,8 +87,10 @@ p { margin: 0; }
 
 .sb-toggle {
   position: absolute;
-  left: 112px; /* центр левого крыла — не должен уезжать при раскрытии панели */
+  left: calc(var(--wing) / 2 - 41px); /* центр крыла (41 = половина ширины 82) */
   top: 21px;
+  /* та же кривая, что у ширины панели → при входе/выходе AI едет к центру синхронно */
+  transition: left 0.55s cubic-bezier(0.32, 0.72, 0, 1);
   display: flex;
   gap: 2px;
   align-items: center;
@@ -99,10 +122,29 @@ p { margin: 0; }
   justify-content: center;
 }
 .sb-toggle-opt.search { padding-top: 6px; padding-bottom: 8px; align-items: flex-start; }
+/* иконки переключателя — маски: активная чёрная, неактивная серая */
+.sb-toggle-opt .ico {
+  display: block;
+  background: #686973;
+  transition: background-color 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.sb-toggle-opt.active .ico { background: rgba(3, 3, 6, 0.88); }
+.ico-list {
+  width: 20px;
+  height: 20px;
+  -webkit-mask: url('../assets/figma/sbListBulleted.svg') center / 20px 20px no-repeat;
+  mask: url('../assets/figma/sbListBulleted.svg') center / 20px 20px no-repeat;
+}
+.ico-magn {
+  width: 19.2px;
+  height: 19.2px;
+  -webkit-mask: url('../assets/figma/sbMagnifier.svg') center / 19.2px 19.2px no-repeat;
+  mask: url('../assets/figma/sbMagnifier.svg') center / 19.2px 19.2px no-repeat;
+}
 
 .sb-burger {
   position: absolute;
-  left: 243px;
+  right: 23px; /* якорь к правой грани (внутри 1px бордера): в AI-виде едет вместе с ней */
   top: 23px;
   width: 40px;
   height: 40px;
@@ -128,7 +170,9 @@ p { margin: 0; }
 .sidebar.open .sb-burger .b2 { opacity: 0; transform: scaleX(0.2); }
 .sidebar.open .sb-burger .b3 { transform: translateY(-4px) rotate(-45deg) scaleX(0.884); }
 /* в AI-виде кнопка становится прозрачной со стрелками «развернуть» */
-.sb-burger { transition: background-color 0.4s ease; }
+.sb-burger { transition: background-color 0.4s ease, right 0.55s cubic-bezier(0.32, 0.72, 0, 1); }
+/* right синхронен с шириной панели (та же кривая) → при раскрытии бургер визуально на месте */
+.sidebar.open .sb-burger { right: 344px; }
 .sb-burger .expand {
   position: absolute;
   left: 12px;
@@ -137,7 +181,7 @@ p { margin: 0; }
   filter: blur(6px);
   transition: opacity 0.3s ease, filter 0.3s ease;
 }
-.sidebar.ai .sb-burger { background: transparent; cursor: default; }
+.sidebar.ai .sb-burger { background: transparent; }
 .sidebar.ai .sb-burger .bar { opacity: 0; }
 .sidebar.ai .sb-burger .expand { opacity: 1; filter: blur(0); }
 
@@ -295,20 +339,24 @@ p { margin: 0; }
   background: linear-gradient(to bottom, rgba(239, 239, 241, 0) 22.308%, #efeff1 75.128%);
   pointer-events: none;
 }
+/* в AI-виде фейд тянется вместе с панелью */
+.sidebar.ai .sb-fade { width: auto; right: 0; }
 
 .sb-search {
   position: absolute;
   left: 7px;
+  right: 8px; /* ширина от граней (было width:291) — в AI-виде тянется с панелью */
   bottom: 9px;
-  width: 291px;
   height: 52px;
   background: #fff;
   border-radius: 999px;
   overflow: hidden;
   transition: left 0.55s cubic-bezier(0.32, 0.72, 0, 1),
-              width 0.55s cubic-bezier(0.32, 0.72, 0, 1),
+              right 0.55s cubic-bezier(0.32, 0.72, 0, 1),
               bottom 0.55s cubic-bezier(0.32, 0.72, 0, 1);
 }
+/* right синхронен с шириной панели → при раскрытии меню пилюля визуально на месте */
+.sidebar.open .sb-search { right: 329px; }
 .sb-search img { position: absolute; left: 12px; top: 12px; transition: opacity 0.3s ease, filter 0.3s ease; }
 .sb-search span {
   position: absolute;
@@ -322,7 +370,7 @@ p { margin: 0; }
   white-space: nowrap;
   transition: left 0.55s cubic-bezier(0.32, 0.72, 0, 1);
 }
-.sidebar.ai .sb-search { left: 19px; bottom: 19px; width: 268px; }
+.sidebar.ai .sb-search { left: 19px; right: 19px; bottom: 19px; }
 .sidebar.ai .sb-search img { opacity: 0; filter: blur(6px); }
 .sidebar.ai .sb-search span { left: 20px; }
 
@@ -380,7 +428,7 @@ p { margin: 0; }
   position: absolute;
   left: 23px;
   top: 143px;
-  width: 260px;
+  right: 23px; /* было width:260 — тянется с панелью */
   font-size: 14px;
   line-height: 20px;
   letter-spacing: var(--ls-14-regular);
@@ -391,7 +439,7 @@ p { margin: 0; }
   position: absolute;
   left: 23px;
   top: 287px;
-  width: 260px;
+  right: 23px; /* было width:260 — тянется с панелью */
   height: 140px;
   border: 1px solid #fff;
   border-radius: 24px;
@@ -402,7 +450,7 @@ p { margin: 0; }
   justify-content: center;
   overflow: hidden;
   background:
-    radial-gradient(222px 717px at 242px 70px, rgba(137, 126, 255, 0.1), rgba(196, 191, 255, 0.05) 50%, rgba(255, 255, 255, 0) 100%),
+    radial-gradient(222px 717px at calc(100% - 18px) 70px, rgba(137, 126, 255, 0.1), rgba(196, 191, 255, 0.05) 50%, rgba(255, 255, 255, 0) 100%),
     linear-gradient(rgba(103, 103, 103, 0.02), rgba(103, 103, 103, 0.02)),
     linear-gradient(rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0.4));
 }
@@ -768,10 +816,28 @@ main { margin-left: 324px; }
   white-space: nowrap;
 }
 .tab.active {
-  background: var(--nt-100);
   color: var(--text-primary);
 }
-.tab { transition: background-color 0.3s ease, color 0.3s ease; }
+.tab { position: relative; z-index: 1; transition: color 0.3s ease; }
+/* капсула активного таба — отдельный слой под кнопками: JS двигает её к активному
+   табу (left/width), в полёте она приседает по scale и доезжает в полный размер */
+.tab-pill {
+  position: absolute;
+  top: 8px;
+  height: 52px;
+  border-radius: 999px;
+  background: var(--nt-100);
+  transition: left 0.65s cubic-bezier(0.32, 0.72, 0, 1),
+              width 0.45s cubic-bezier(0.32, 0.72, 0, 1);
+}
+/* таймлайн 1.15s: сжатие 0.15s → едет и ждёт уменьшенной (полёт 0.45 + пауза 0.4) →
+   возврат к полному размеру за 0.3s */
+.tab-pill.squish { animation: pill-squish 0.35s ease; }
+@keyframes pill-squish {
+  0% { transform: scale(1); }
+  50% { transform: scale(0.9); }
+  100% { transform: scale(1); }
+}
 
 /* ══════════ Hero: переключение AI-Сводка ⇄ Мои продукты ══════════ */
 .hero {
@@ -1935,4 +2001,285 @@ body.tariffs .pane-tar > * {
   font-weight: 500;
   letter-spacing: var(--ls-16-medium);
   color: var(--text-primary);
+}
+
+/* ══════════ Spotlight «Нейропомощник» (узел 931:64797, 1600×829) ══════════ */
+/* панель поднимается снизу по стрелкам разворота AI-вида; шрифт макета — SF Pro */
+.spot {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 100vh; /* фуллскрин: вся высота, без скруглений сверху */
+  z-index: 100;
+  display: flex;
+  align-items: stretch;
+  overflow: hidden;
+  background: #fff;
+  font-family: -apple-system, 'SF Pro Text', system-ui, sans-serif;
+  transform: translateY(100%);
+  visibility: hidden;
+  transition: transform 0.65s cubic-bezier(0.32, 0.72, 0, 1), visibility 0s 0.65s;
+}
+.spot.open {
+  transform: translateY(0);
+  visibility: visible;
+  transition: transform 0.65s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* ── левое меню 248px ── */
+.spot-menu {
+  width: 248px;
+  min-width: 248px;
+  background: #fff;
+}
+.spot-logo {
+  position: relative;
+  padding: 12px 0 0 12px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+/* глоу за логотипом (Light 58px в макете экспортируется пустым — рисуем градиентом) */
+.spot-logo .glow {
+  position: absolute;
+  left: 6px;
+  top: 6px;
+  width: 58px;
+  height: 58px;
+  background: radial-gradient(circle at 50% 50%, rgba(177, 163, 255, 0.55), rgba(255, 20, 24, 0.18) 60%, transparent 75%);
+  filter: blur(6px);
+}
+.spot-logo img { position: relative; }
+.spot-logo span {
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 700;
+  background: linear-gradient(to right, #6868e9, #904bff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  white-space: nowrap;
+}
+.spot-nav { padding: 16px 0; margin-top: 12px; }
+.spot-cell {
+  position: relative;
+  height: 64px;
+  padding: 8px 12px 8px 16px;
+  display: flex;
+  align-items: center;
+}
+.spot-cell .ic {
+  width: 32px;
+  height: 48px;
+  margin-right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.spot-cell .lb {
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 500;
+  color: rgba(3, 3, 6, 0.88);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.spot-cell.dim .lb { color: rgba(4, 4, 19, 0.55); }
+/* красный индикатор активного пункта: 4×54, скругление справа */
+.spot-cell.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 54px;
+  border-radius: 0 4px 4px 0;
+  background: #ef3124;
+}
+
+/* ── тело модалки ── */
+.spot-body {
+  position: relative;
+  flex: 1;
+  min-width: 1px;
+  background: #fff;
+  border: 1px solid rgba(30, 43, 68, 0.08);
+  box-shadow: inset 1px 1px 2px #fff;
+  overflow: hidden;
+}
+/* размытые градиенты фона (Gradi 1352×830, CSS по значениям из макета) */
+.spot-gradi { position: absolute; inset: 0; pointer-events: none; }
+.spot-gradi i { position: absolute; display: block; }
+.spot-gradi .g1 {
+  left: 50%;
+  top: -531.7px;
+  width: 889px;
+  height: 1302.58px;
+  transform: translateX(-50%) rotate(60deg);
+  border-radius: 2244px;
+  filter: blur(369.5px);
+  opacity: 0.3;
+  background: linear-gradient(0deg, #b1a3ff 34.762%, rgba(255, 55, 55, 0) 100%),
+              linear-gradient(90deg, #ff1418, #ff1418);
+}
+/* mini gradi: контейнер 323×345 при left 573 в макете 1352 → от центра -103px */
+.spot-gradi .g2 {
+  left: calc(50% + 51.9px); /* 573+154.91 от центра тела 1352 */
+  top: -347.06px;
+  width: 162.51px;
+  height: 529.12px;
+  transform: translateX(-50%) rotate(60deg);
+  border-radius: 855px;
+  filter: blur(184.6px);
+  background: linear-gradient(0deg, #b1a3ff 34.762%, rgba(255, 55, 55, 0) 100%),
+              linear-gradient(90deg, #ff1418, #ff1418);
+}
+.spot-gradi .g3 {
+  left: calc(50% + 51.9px); /* 573+154.91 от центра тела 1352 */
+  top: -199.08px;
+  width: 162.51px;
+  height: 233.17px;
+  transform: translateX(-50%) rotate(60deg);
+  border-radius: 855px;
+  filter: blur(117.2px);
+  background: linear-gradient(0deg, #b1a3ff 34.762%, rgba(255, 55, 55, 0) 100%),
+              linear-gradient(90deg, #ff1418, #ff1418);
+}
+.spot-gradi .g4 {
+  left: calc(50% + 51.9px); /* 573+154.91 от центра тела 1352 */
+  top: -177.89px;
+  width: 113.05px;
+  height: 190.78px;
+  transform: translateX(-50%) rotate(60deg);
+  border-radius: 577px;
+  filter: blur(58.4px);
+  background: linear-gradient(0deg, #b1a3ff 34.762%, rgba(255, 55, 55, 0) 100%),
+              linear-gradient(90deg, #ff1418, #ff1418);
+}
+
+.spot-head {
+  position: absolute;
+  top: 24px;
+  right: 20px;
+  display: flex;
+  gap: 16px;
+  z-index: 2;
+}
+.spot-hbtn { padding: 0; width: 40px; height: 40px; display: block; }
+.spot-hbtn img { display: block; }
+
+.spot-content {
+  position: relative;
+  width: 824px;
+  margin: 0 auto;
+  padding-top: 234px;
+  z-index: 1;
+}
+.spot-hello h2 {
+  position: relative;
+  margin: 0;
+  padding-left: 6px;
+  font-family: -apple-system, 'SF Pro Display', system-ui, sans-serif;
+  font-size: 48px;
+  line-height: 52px;
+  font-weight: 700;
+  color: rgba(3, 3, 6, 0.88);
+  white-space: nowrap;
+}
+.spot-hello .dash { position: absolute; left: -60px; top: 0; }
+.spot-hello p {
+  margin-top: 16px;
+  font-size: 18px;
+  line-height: 24px;
+  color: rgba(4, 4, 19, 0.55);
+}
+.spot-hello { height: 92px; }
+
+.spot-search { margin-top: 24px; }
+.spot-input {
+  height: 72px;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 0 20px rgba(73, 0, 255, 0.05);
+  display: flex;
+  align-items: center;
+}
+.spot-input .ic {
+  width: 32px;
+  height: 32px;
+  margin-left: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.spot-input input {
+  flex: 1;
+  min-width: 1px;
+  height: 100%;
+  border: none;
+  outline: none;
+  background: none;
+  padding: 0 20px 0 12px;
+  font-family: inherit;
+  font-size: 16px;
+  line-height: 20px;
+  color: rgba(3, 3, 6, 0.88);
+}
+.spot-input input::placeholder { color: rgba(4, 4, 19, 0.55); }
+.spot-btns { margin-top: 20px; display: flex; gap: 12px; }
+.spot-btn {
+  height: 48px;
+  padding: 0 16px;
+  border-radius: 12px;
+  background: var(--nt-100);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-family: inherit;
+  font-size: 16px;
+  line-height: 20px;
+  font-weight: 500;
+  color: rgba(3, 3, 6, 0.88);
+}
+
+.spot-cards { margin-top: 56px; display: flex; gap: 12px; }
+.spot-card {
+  flex: 1;
+  min-width: 1px;
+  padding: 20px 24px;
+  border: 1px solid #fff;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(32px);
+  -webkit-backdrop-filter: blur(32px);
+  box-shadow: inset 0 4px 74px rgba(255, 255, 255, 0.25);
+}
+.spot-card .t {
+  padding-left: 4px;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 700;
+  color: rgba(3, 3, 6, 0.88);
+}
+.spot-card .rows { margin-top: 20px; display: flex; flex-direction: column; gap: 16px; }
+.spot-card .spot-row {
+  padding: 4px 12px 4px 4px;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  min-width: 1px;
+}
+.spot-card .spot-row img { flex-shrink: 0; }
+.spot-card .spot-row span {
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 500;
+  color: rgba(3, 3, 6, 0.88);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
