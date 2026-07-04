@@ -865,6 +865,13 @@
       const line = document.createElement('span');
       line.className = 'tasks-line' + (fin ? ' fin' : '');
       line.textContent = text;
+      if (!fin) {
+        // анимированное троеточие: . → .. → ... (место под 3 точки занято сразу)
+        const dots = document.createElement('i');
+        dots.className = 'tl-dots';
+        dots.innerHTML = '<s>.</s><s>.</s><s>.</s>';
+        line.appendChild(dots);
+      }
       if (tasksCur) line.classList.add('below');
       tasksP.appendChild(line);
       // getBoundingClientRect даёт reflow: стартовая позиция .below применена до снятия класса

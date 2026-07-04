@@ -1267,6 +1267,13 @@ body.tariffs .pane-tar > * {
   background-clip: text;
   color: transparent;
 }
+/* троеточие «думающих» фаз: точки проявляются по кругу . → .. → ...
+   (все 3 глифа в строке сразу — ширина/центровка фразы не дёргаются) */
+.tl-dots s { text-decoration: none; }
+.tl-dots s:nth-child(2) { opacity: 0; animation: tl-dot2 1.05s linear infinite; }
+.tl-dots s:nth-child(3) { opacity: 0; animation: tl-dot3 1.05s linear infinite; }
+@keyframes tl-dot2 { 0%, 33% { opacity: 0; } 34%, 100% { opacity: 1; } }
+@keyframes tl-dot3 { 0%, 66% { opacity: 0; } 67%, 100% { opacity: 1; } }
 .tasks-line.above { transform: translate(-50%, -28px); }
 .tasks-line.below { transform: translate(-50%, 28px); }
 .more { display: flex; gap: 4px; align-items: center; }
