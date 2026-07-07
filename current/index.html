@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Дашборд ИП — current</title>
+  <link rel="stylesheet" href="../css/fonts.css">
+  <link rel="stylesheet" href="../css/tokens.css">
+  <link rel="stylesheet" href="../css/styles.css">
+  <link rel="stylesheet" href="../css/neuro-bar.css">
+  <link rel="stylesheet" href="../css/current.css">
+</head>
+<body class="cur">
+
+  <!-- ═══════════ Боковое меню (fixed слева, плоское на фоне; Figma 132:34616) ═══════════ -->
+  <aside class="cur-side">
+    <div class="cur-logo">
+      <img src="../assets/figma/curLogo.svg" width="248" height="64" alt="Альфа-Бизнес">
+      <img class="cur-logo-grad" src="../assets/figma/curLogoGrad.png" width="248" height="8" alt="">
+    </div>
+
+    <nav class="cur-nav">
+      <a class="cur-cell"><span class="cur-ico"><img src="../assets/figma/curNavAll.svg" width="20" height="20" alt=""></span><span class="cur-cell-t">Все сервисы</span></a>
+      <a class="cur-cell"><span class="cur-ico"><img src="../assets/figma/curNavBonus.svg" width="20" height="20" alt=""></span><span class="cur-cell-t">Альфа-Выгодно</span></a>
+      <div class="cur-div"><i></i></div>
+      <a class="cur-cell"><span class="cur-ico dim"><img src="../assets/figma/curNavPay.svg" width="20" height="20" alt=""></span><span class="cur-cell-t">Новый платёж</span></a>
+      <a class="cur-cell"><span class="cur-ico dim"><img src="../assets/figma/curNavFeed.svg" width="20" height="20" alt=""></span><span class="cur-cell-t">Лента операций</span></a>
+      <a class="cur-cell"><span class="cur-ico dim"><img src="../assets/figma/curNavProgress.svg" width="20" height="20" alt=""></span><span class="cur-cell-t">Платежи в работе</span></a>
+      <a class="cur-cell"><span class="cur-ico dim"><img src="../assets/figma/curNavImport.svg" width="20" height="20" alt=""></span><span class="cur-cell-t">Импорт реестров</span></a>
+      <a class="cur-cell"><span class="cur-ico dim"><img src="../assets/figma/curNavStatement.svg" width="20" height="20" alt=""></span><span class="cur-cell-t">Выписка</span></a>
+      <a class="cur-cell"><span class="cur-ico dim"><img src="../assets/figma/curNavAccounts.svg" width="20" height="20" alt=""></span><span class="cur-cell-t">Счета</span></a>
+      <a class="cur-cell"><span class="cur-ico dim"><img src="../assets/figma/curNavContragents.svg" width="20" height="20" alt=""></span><span class="cur-cell-t">Контрагенты</span></a>
+      <a class="cur-cell"><span class="cur-ico dim"><img src="../assets/figma/curNavCards.svg" width="20" height="20" alt=""></span><span class="cur-cell-t">Карты</span></a>
+      <a class="cur-cell"><span class="cur-ico dim"><img src="../assets/figma/curNavPay.svg" width="20" height="20" alt=""></span><span class="cur-cell-t">Эквайринг и касса</span></a>
+      <div class="cur-div"><i></i></div>
+      <a class="cur-cell cur-cell-proc"><span class="cur-ico dim"><img src="../assets/figma/curNavProcurement.svg" width="20" height="20" alt=""><img class="cur-proc-border" src="../assets/figma/curNavProcBorder.png" width="32" height="32" alt=""></span><span class="cur-cell-t">Госзакупки</span></a>
+    </nav>
+
+    <div class="cur-footer">
+      <div class="cur-footer-fade"></div>
+      <a class="cur-cell cur-footer-cell"><span class="cur-ico dim"><img src="../assets/figma/curGear.svg" width="20" height="20" alt=""></span><span class="cur-cell-t">Настроить меню</span></a>
+    </div>
+  </aside>
+
+  <!-- ═══════════ Шапка (fixed сверху; Figma 195:25832) ═══════════ -->
+  <header class="cur-header">
+    <div class="cur-hbtns">
+      <button class="cur-hbtn" aria-label="Письма"><img src="../assets/figma/curHdrMail.svg" width="20" height="20" alt=""></button>
+      <button class="cur-hbtn" aria-label="Уведомления"><img src="../assets/figma/curHdrBell.svg" width="20" height="20" alt=""></button>
+    </div>
+    <span class="cur-hdiv"></span>
+    <div class="cur-company">
+      <span class="cur-co-logo"></span>
+      <span class="cur-co-info">
+        <b>ООО «Город Нагатино»</b>
+        <i>Набоков И.Д.</i>
+      </span>
+    </div>
+    <span class="cur-hdiv"></span>
+    <button class="cur-person">
+      <span class="cur-person-av"></span>
+      <span class="cur-person-t">Предприниматель</span>
+    </button>
+    <span class="cur-hdiv"></span>
+    <button class="cur-hbtn" aria-label="Выйти"><img src="../assets/figma/curHdrExit.svg" width="20" height="20" alt=""></button>
+  </header>
+
+  <!-- ═══════════ Контент (скроллится под шапкой) ═══════════ -->
+  <main class="cur-main">
+    <div class="cur-content">
+
+      <!-- ── Быстрые действия ── -->
+      <section class="cur-qa">
+        <a class="cur-qa-btn"><span class="cur-qa-ico"><img src="../assets/figma/curQaTopup.svg" width="20" height="20" alt=""></span><span>Пополнить счёт</span></a>
+        <a class="cur-qa-btn"><span class="cur-qa-ico"><img src="../assets/figma/curQaStatement.svg" width="20" height="20" alt=""></span><span>Скачать выписку</span></a>
+        <a class="cur-qa-btn"><span class="cur-qa-ico"><img src="../assets/figma/curQaCreatePay.svg" width="20" height="20" alt=""></span><span>Создать платёж</span></a>
+        <a class="cur-qa-btn"><span class="cur-qa-ico"><img src="../assets/figma/curQaImport.svg" width="20" height="20" alt=""></span><span>Импорт платежей</span></a>
+        <a class="cur-qa-btn"><span class="cur-qa-ico"><img src="../assets/figma/curQaInvoice.svg" width="20" height="20" alt=""></span><span>Выставить счёт</span></a>
+        <a class="cur-qa-btn cur-qa-more"><span>Ещё</span></a>
+      </section>
+
+      <!-- ── 1-й ряд: баланс + дела в работе + баннеры ── -->
+      <section class="cur-row1">
+
+        <!-- Баланс -->
+        <div class="cur-balance">
+          <div class="cur-bal-body">
+            <div class="cur-bal-amount">570 880,95 ₽</div>
+            <div class="cur-bal-bottom">
+              <div class="cur-bal-connect">
+                <div class="cur-bal-connect-main">
+                  <span class="cur-bal-ic cur-bal-ic-green"><img src="../assets/figma/curBalPlus.svg" width="24" height="24" alt=""></span>
+                  <div class="cur-bal-connect-txt">
+                    <div class="cur-bal-connect-top">
+                      <span class="cur-bal-sum">500 000 ₽</span>
+                      <span class="cur-badge-blue">Доступно к подключению</span>
+                    </div>
+                    <div class="cur-bal-connect-sub">Переводите себе бесплатно</div>
+                  </div>
+                </div>
+                <button class="cur-bal-x" aria-label="Скрыть">
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M5.5 5.5l9 9M14.5 5.5l-9 9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                </button>
+              </div>
+              <div class="cur-bal-div"></div>
+              <div class="cur-bal-accounts">
+                <div class="cur-bal-acc">
+                  <span class="cur-bal-ic cur-bal-ic-gray"><img src="../assets/figma/curBalRub.svg" width="24" height="24" alt=""></span>
+                  <div class="cur-bal-acc-txt">
+                    <span class="cur-bal-acc-name">Рублёвый счёт</span>
+                    <span class="cur-bal-acc-num">·· 5370</span>
+                  </div>
+                </div>
+                <div class="cur-bal-acc">
+                  <span class="cur-bal-cardbox"><span class="cur-bal-card"></span></span>
+                  <div class="cur-bal-acc-txt">
+                    <span class="cur-bal-acc-name">Business One</span>
+                    <span class="cur-bal-acc-num">·· 0363</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="cur-bal-foot">
+            <div class="cur-bal-foot-links">
+              <a>Реквизиты</a>
+              <a>Тарифы и подписки</a>
+            </div>
+            <div class="cur-bal-loyalty">2570 <img src="../assets/figma/curBalCircleA.svg" width="20" height="20" alt=""></div>
+          </div>
+        </div>
+
+        <!-- Дела в работе -->
+        <div class="cur-inwork">
+          <div class="cur-iw-head">Дела в работе</div>
+          <div class="cur-iw-list">
+            <div class="cur-iw-row"><span>Оплатить</span><span class="cur-ind gray">1</span></div>
+            <div class="cur-iw-row"><span>Подписать</span><span class="cur-ind red">1</span></div>
+            <div class="cur-iw-row"><span>Отправить</span><span class="cur-ind gray">1</span></div>
+            <div class="cur-iw-row cur-iw-zero"><span>Доработать</span><span class="cur-ind gray">0</span></div>
+            <div class="cur-iw-row cur-iw-zero"><span>Отклонённые</span><span class="cur-ind gray">0</span></div>
+            <div class="cur-iw-row"><span>Черновики</span><span class="cur-ind gray">1</span></div>
+            <div class="cur-iw-row cur-iw-zero"><span>В работе у банка</span><span class="cur-ind gray">0</span></div>
+          </div>
+        </div>
+
+        <!-- Баннеры -->
+        <div class="cur-banners">
+          <div class="cur-ban b1">
+            <div class="cur-ban-txt"><b>Зарплатный проект</b><span>Новые условия<br>онлайн-инкассации</span></div>
+            <div class="cur-ban-img"><img src="../assets/figma/curBan1.png" alt=""></div>
+          </div>
+          <div class="cur-ban b2">
+            <div class="cur-ban-txt"><b>Умная карта для всех</b><span>Кэшбэк, бонусы<br>и удобные платежи</span></div>
+            <div class="cur-ban-img"><img src="../assets/figma/curBan2.png" alt=""></div>
+          </div>
+          <div class="cur-ban b3">
+            <div class="cur-ban-txt"><b>Кэшбек до 100%</b><span>За бизнес-расходы,<br>1 балл = 1 ₽</span></div>
+            <div class="cur-ban-img"><img src="../assets/figma/curBan3.png" alt=""></div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ── Табло: табы + переключатель видимости + карточки онбординга ── -->
+      <section class="cur-tablo-section">
+        <div class="cur-tablo">
+          <div class="cur-tablo-tabs">
+            <span class="cur-tab active">С чего начать</span>
+            <span class="cur-tab">Сводка</span>
+            <span class="cur-tab">Счета на главной</span>
+            <span class="cur-tab">Обзор отрасли</span>
+          </div>
+          <div class="cur-tablo-ctrl">
+            <div class="cur-seg">
+              <span class="cur-seg-hl"></span>
+              <span class="cur-seg-btn"><img src="../assets/figma/curTabloEye.svg" width="28" height="28" alt=""></span>
+              <span class="cur-seg-btn"><img src="../assets/figma/curTabloEyeOff.svg" width="28" height="28" alt=""></span>
+            </div>
+            <span class="cur-tablo-gear"><img src="../assets/figma/curTabloGear.svg" width="20" height="20" alt=""></span>
+          </div>
+        </div>
+
+        <div class="cur-cards">
+          <!-- Точка входа -->
+          <div class="cur-card cur-card-entry">
+            <img class="cur-card-entry-bg" src="../assets/figma/curCardEntryBg.svg" alt="">
+            <div class="cur-card-entry-head">
+              <span>Все задания</span>
+              <img src="../assets/figma/curChevR.svg" width="20" height="20" alt="">
+            </div>
+            <div class="cur-card-entry-content">
+              <span class="cur-card-entry-sub">0/7 выполнено</span>
+              <div class="cur-progress"><i></i></div>
+            </div>
+            <img class="cur-card-entry-cap" src="../assets/figma/curCardEntryCap.png" alt="">
+          </div>
+          <!-- Задания -->
+          <div class="cur-card cur-task">
+            <div class="cur-task-title">Защитить бизнес<br>от блокировок</div>
+            <div class="cur-task-meta"><span class="cur-task-pts">500<img src="../assets/figma/curCardBonus.svg" width="20" height="20" alt=""></span><span class="cur-task-min">1 мин</span></div>
+            <img class="cur-task-img" src="../assets/figma/curCard2img.png" alt="">
+          </div>
+          <div class="cur-card cur-task">
+            <div class="cur-task-title">Пополнить счёт</div>
+            <div class="cur-task-meta"><span class="cur-task-pts">500<img src="../assets/figma/curCardBonus.svg" width="20" height="20" alt=""></span><span class="cur-task-min">1 мин</span></div>
+            <img class="cur-task-img" src="../assets/figma/curCard3img.png" alt="">
+          </div>
+          <div class="cur-card cur-task">
+            <div class="cur-task-title">Изучить условия тарифа</div>
+            <div class="cur-task-meta"><span class="cur-task-pts">500<img src="../assets/figma/curCardBonus.svg" width="20" height="20" alt=""></span><span class="cur-task-min">1 мин</span></div>
+            <img class="cur-task-img" src="../assets/figma/curCard4img.png" alt="">
+          </div>
+          <div class="cur-card cur-task">
+            <div class="cur-task-title">Переводить<br>без комиссии<br>с подпиской</div>
+            <div class="cur-task-meta"><span class="cur-task-pts">500<img src="../assets/figma/curCardBonus.svg" width="20" height="20" alt=""></span><span class="cur-task-min">1 мин</span></div>
+            <img class="cur-task-img" src="../assets/figma/curCard5img.png" alt="">
+          </div>
+          <div class="cur-card cur-task">
+            <div class="cur-task-title">Подключить налоговую копилку</div>
+            <div class="cur-task-meta"><span class="cur-task-pts">500<img src="../assets/figma/curCardBonus.svg" width="20" height="20" alt=""></span><span class="cur-task-min">1 мин</span></div>
+            <img class="cur-task-img" src="../assets/figma/curCard6img.png" alt="">
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Лента операций: заголовок + фильтры + таблица ── -->
+      <h2 class="cur-title">Лента операций</h2>
+
+      <div class="cur-filters">
+        <div class="cur-filters-row1">
+          <div class="cur-datefield">
+            <span class="cur-df-chev"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M14 7l-5 5 5 5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            <span class="cur-df-label">Апрель</span>
+            <span class="cur-df-chev"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M10 7l5 5-5 5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            <span class="cur-df-cal"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><rect x="3.5" y="5" width="17" height="16" rx="3" stroke="currentColor" stroke-width="1.6"/><path d="M3.5 9.5h17M8 3v4M16 3v4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span>
+          </div>
+          <div class="cur-search">
+            <span class="cur-search-mag"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.7"/><path d="M16.5 16.5L21 21" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span>
+            <span class="cur-search-ph">Контрагент, ИНН, назначение платежа или номер счёта</span>
+          </div>
+        </div>
+        <div class="cur-filters-row2">
+          <button class="cur-ftag cur-ftag-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 6h9M15 6h2M3 14h2M9 14h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="14" cy="6" r="2" stroke="currentColor" stroke-width="1.6"/><circle cx="7" cy="14" r="2" stroke="currentColor" stroke-width="1.6"/></svg></button>
+          <button class="cur-ftag">Входящие</button>
+          <button class="cur-ftag">Исходящие</button>
+          <button class="cur-ftag">Счёт<span class="cur-ftag-chev"></span></button>
+          <button class="cur-ftag">Контрагент<span class="cur-ftag-chev"></span></button>
+          <button class="cur-ftag">Статус</button>
+          <button class="cur-ftag">Сумма</button>
+        </div>
+      </div>
+
+      <div class="cur-topbar">
+        <div class="cur-topbar-count"><span class="cur-tb-lbl">Всего</span><span class="cur-tb-num">19</span></div>
+        <button class="cur-topbar-set"><img src="../assets/figma/curSetGear.svg" width="16" height="16" alt=""><span>Настройка</span></button>
+      </div>
+
+      <div class="cur-table">
+        <!-- шапка -->
+        <div class="cur-thead">
+          <div class="cur-th cur-th-ctrl"><span class="cur-cb"></span></div>
+          <div class="cur-th cur-th-name cur-th-div"><span>Название компании</span><span class="cur-th-chev"></span></div>
+          <div class="cur-th cur-th-num cur-th-div"><span>Номер</span><span class="cur-th-chev"></span></div>
+          <div class="cur-th cur-th-status cur-th-div"><span>Статус</span><span class="cur-th-chev"></span></div>
+          <div class="cur-th cur-th-sum cur-th-div"><span>Сумма</span><span class="cur-th-chev"></span></div>
+          <div class="cur-th cur-th-date cur-th-div"><span>Дата</span><span class="cur-th-chev"></span></div>
+          <div class="cur-th cur-th-act"></div>
+        </div>
+        <div class="cur-thead-border"></div>
+
+        <!-- строки -->
+        <div class="cur-tr">
+          <div class="cur-tr-main">
+            <div class="cur-td cur-td-ctrl"><span class="cur-cb"></span></div>
+            <div class="cur-td cur-td-name"><span class="cur-tlogo"><img src="../assets/figma/curTblRub.svg" width="24" height="24" alt=""></span><div class="cur-tname"><span class="cur-tname-1">ООО «Моулин Роз»</span><span class="cur-tname-2">АО «Альфа-Банк» ··5370 (RUR)</span></div></div>
+            <div class="cur-td cur-td-num">101</div>
+            <div class="cur-td cur-td-status"><span class="cur-status">Исполнен</span></div>
+            <div class="cur-td cur-td-sum"><span class="cur-sum">−24 500,00 ₽</span></div>
+            <div class="cur-td cur-td-date">27.04.2025</div>
+            <div class="cur-td cur-td-act"><svg class="cur-dots" width="20" height="20" viewBox="0 0 20 20"><circle cx="4" cy="10" r="1.6"/><circle cx="10" cy="10" r="1.6"/><circle cx="16" cy="10" r="1.6"/></svg></div>
+          </div>
+          <div class="cur-tr-purpose">Оплата услуг по подготовке флористических композиций. НДС 20%</div>
+          <div class="cur-tr-border"></div>
+        </div>
+
+        <div class="cur-tr">
+          <div class="cur-tr-main">
+            <div class="cur-td cur-td-ctrl"><span class="cur-cb"></span></div>
+            <div class="cur-td cur-td-name"><span class="cur-tlogo"><img src="../assets/figma/curTblRub.svg" width="24" height="24" alt=""></span><div class="cur-tname"><span class="cur-tname-1">ООО «Юнион Плей»</span><span class="cur-tname-2">АО «Альфа-Банк» ··5370 (RUR)</span></div></div>
+            <div class="cur-td cur-td-num">20796</div>
+            <div class="cur-td cur-td-status"><span class="cur-status">Исполнен</span></div>
+            <div class="cur-td cur-td-sum"><span class="cur-sum cur-sum-pos">+32 000,00 ₽</span></div>
+            <div class="cur-td cur-td-date">27.04.2025</div>
+            <div class="cur-td cur-td-act"><svg class="cur-dots" width="20" height="20" viewBox="0 0 20 20"><circle cx="4" cy="10" r="1.6"/><circle cx="10" cy="10" r="1.6"/><circle cx="16" cy="10" r="1.6"/></svg></div>
+          </div>
+          <div class="cur-tr-purpose">Оплата по счёту №875 от 25.02.25. НДС 20%</div>
+          <div class="cur-tr-border"></div>
+        </div>
+
+        <div class="cur-tr">
+          <div class="cur-tr-main">
+            <div class="cur-td cur-td-ctrl"><span class="cur-cb"></span></div>
+            <div class="cur-td cur-td-name"><span class="cur-tlogo"><img src="../assets/figma/curTblRub.svg" width="24" height="24" alt=""></span><div class="cur-tname"><span class="cur-tname-1">ООО «Курьер Сервис»</span><span class="cur-tname-2">АО «Альфа-Банк» ··5370 (RUR)</span></div></div>
+            <div class="cur-td cur-td-num">100</div>
+            <div class="cur-td cur-td-status"><span class="cur-status">Исполнен</span></div>
+            <div class="cur-td cur-td-sum"><span class="cur-sum">−4 000,00 ₽</span></div>
+            <div class="cur-td cur-td-date">27.04.2025</div>
+            <div class="cur-td cur-td-act"><svg class="cur-dots" width="20" height="20" viewBox="0 0 20 20"><circle cx="4" cy="10" r="1.6"/><circle cx="10" cy="10" r="1.6"/><circle cx="16" cy="10" r="1.6"/></svg></div>
+          </div>
+          <div class="cur-tr-purpose">Платёж по счёту №554 от 28.02.2025 за предоставленные услуги по доставке согласно договору №15 от 1 декабря 2022 года. НДС 20%</div>
+          <div class="cur-tr-border"></div>
+        </div>
+
+        <div class="cur-tr">
+          <div class="cur-tr-main">
+            <div class="cur-td cur-td-ctrl"><span class="cur-cb"></span></div>
+            <div class="cur-td cur-td-name"><span class="cur-tlogo"><img src="../assets/figma/curTblRub.svg" width="24" height="24" alt=""></span><div class="cur-tname"><span class="cur-tname-1">ПАО «Ростелеком»</span><span class="cur-tname-2">АО «Альфа-Банк» ··5370 (RUR)</span></div></div>
+            <div class="cur-td cur-td-num">99</div>
+            <div class="cur-td cur-td-status"><span class="cur-status">Исполнен</span></div>
+            <div class="cur-td cur-td-sum"><span class="cur-sum">−8 990,00 ₽</span></div>
+            <div class="cur-td cur-td-date">27.04.2025</div>
+            <div class="cur-td cur-td-act"><svg class="cur-dots" width="20" height="20" viewBox="0 0 20 20"><circle cx="4" cy="10" r="1.6"/><circle cx="10" cy="10" r="1.6"/><circle cx="16" cy="10" r="1.6"/></svg></div>
+          </div>
+          <div class="cur-tr-purpose">Оплата услуг по проведению скоростного интернета в филиале №2 по договору № 123 от 03.02.2025 года. НДС 20%</div>
+          <div class="cur-tr-border"></div>
+        </div>
+
+        <div class="cur-tr">
+          <div class="cur-tr-main">
+            <div class="cur-td cur-td-ctrl"><span class="cur-cb"></span></div>
+            <div class="cur-td cur-td-name"><span class="cur-tlogo"><img src="../assets/figma/curTblRub.svg" width="24" height="24" alt=""></span><div class="cur-tname"><span class="cur-tname-1">ООО «Абсолют»</span><span class="cur-tname-2">АО «Альфа-Банк» ··5370 (RUR)</span></div></div>
+            <div class="cur-td cur-td-num">98</div>
+            <div class="cur-td cur-td-status"><span class="cur-status">Исполнен</span></div>
+            <div class="cur-td cur-td-sum"><span class="cur-sum">−64 900,00 ₽</span></div>
+            <div class="cur-td cur-td-date">27.04.2025</div>
+            <div class="cur-td cur-td-act"><svg class="cur-dots" width="20" height="20" viewBox="0 0 20 20"><circle cx="4" cy="10" r="1.6"/><circle cx="10" cy="10" r="1.6"/><circle cx="16" cy="10" r="1.6"/></svg></div>
+          </div>
+          <div class="cur-tr-purpose">Платёж за поставку оборудования по договору №8451 от 17.01.2025 г.. НДС 20%</div>
+          <div class="cur-tr-border"></div>
+        </div>
+
+        <div class="cur-pagination"></div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- ═══════════ Умная строка нейропомощника + Spotlight — общий модуль ═══════════ -->
+  <script src="../js/neuro-bar.js"></script>
+  <script>
+    // умная строка оцентрована по контентной колонке /current (248 меню + 52 паддинг … 100vw−52)
+    mountNeuroBar({ left: '300px', right: '52px', bottom: '40px' });
+  </script>
+</body>
+</html>
