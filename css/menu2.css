@@ -513,3 +513,163 @@ body.twk-open .twk { transform: none; }
 .twk-fab .x { opacity: 0; transform: rotate(-90deg); }
 body.twk-open .twk-fab .sliders { opacity: 0; transform: rotate(90deg); }
 body.twk-open .twk-fab .x { opacity: 1; transform: rotate(0); }
+
+/* ═══════════ Строка нейропомощника: прибита снизу, оцентрована по контенту ═══════════ */
+@property --nb-angle { syntax: "<angle>"; initial-value: 0deg; inherits: false; }
+
+.nbar {
+  position: fixed;
+  left: 324px;   /* та же контентная колонка, что у main (324 … 100vw−88) */
+  right: 88px;
+  bottom: 40px;
+  z-index: 60;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;  /* клики ловит только пилюля */
+}
+/* при открытом твикере строку прячем — борд уходит в чёрную вырубку */
+body.twk-open .nbar { opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
+
+.nb-pill {
+  --mx: 0px;   /* сдвиг «магнита» к курсору (задаёт JS) */
+  --my: 0px;
+  --sc: 1;     /* масштаб по наведению */
+  position: relative;
+  box-sizing: border-box;
+  width: 308px;
+  height: 66px;
+  padding: 0 66px 0 22px;   /* справа — место под кнопку 52 (+7+7) */
+  display: flex;
+  align-items: center;
+  border: 1px solid #fff;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.5);   /* только белое стекло, без розового тинта */
+  backdrop-filter: blur(13px);
+  -webkit-backdrop-filter: blur(13px);
+  box-shadow: 0 19px 24px rgba(0, 0, 0, 0.08);
+  cursor: text;
+  pointer-events: auto;
+  overflow: hidden;
+  transform: translate(var(--mx), var(--my)) scale(var(--sc));
+  will-change: transform;
+  /* iOS-кривая (медленно → быстро → медленно) для ширины; мягкий out для трансформа */
+  transition:
+    width 0.6s cubic-bezier(0.65, 0, 0.35, 1),
+    padding-left 0.6s cubic-bezier(0.65, 0, 0.35, 1),
+    transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+/* вращающаяся розовая обводка — ненавязчивая idle-анимация вокруг инпута */
+.nb-pill::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  padding: 1.5px;
+  border-radius: inherit;
+  background: conic-gradient(from var(--nb-angle),
+    transparent 0turn,
+    transparent 0.44turn,
+    rgba(255, 92, 140, 0.85) 0.62turn,
+    rgba(255, 150, 182, 0.95) 0.68turn,
+    rgba(255, 92, 140, 0.85) 0.74turn,
+    transparent 0.9turn,
+    transparent 1turn);
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  pointer-events: none;
+  z-index: 3;
+  animation: nbSpin 4s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+/* один плавный круг (~1с), затем ~1с передышки — и по новой */
+@keyframes nbSpin {
+  0%   { --nb-angle: 0deg; }
+  70%  { --nb-angle: 360deg; }
+  100% { --nb-angle: 360deg; }
+}
+/* «хлопок» масштабом при развороте — пилюля будто выскакивает, а не просто едет по ширине */
+@keyframes nbPop {
+  0%   { transform: scale(0.95); }   /* лёгкое поджатие на старте */
+  20%  { transform: scale(1.15); }   /* перелёт */
+  100% { transform: scale(1); }      /* усадка в размер */
+}
+
+/* лёгкое плавное увеличение по наведению (до разворота) */
+.nbar:not(.active) .nb-pill:hover { --sc: 1.025; }
+
+/* развёрнуто: шире, скрепка слева, лупа справа */
+.nbar.active .nb-pill {
+  width: 514px;
+  padding-left: 12px;
+  cursor: default;
+  /* ширина едет плавно (без своего баунса) — «живость» даёт скейл-хлопок nbPop */
+  transition:
+    width 0.55s cubic-bezier(0.5, 0, 0.2, 1),
+    padding-left 0.5s cubic-bezier(0.5, 0, 0.2, 1),
+    transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: nbPop 1.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* скрепка — проявляется в развёрнутом виде */
+.nb-clip {
+  flex: none;
+  width: 0;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  overflow: hidden;
+  transition:
+    width 0.4s cubic-bezier(0.32, 0.72, 0, 1),
+    margin-right 0.4s cubic-bezier(0.32, 0.72, 0, 1),
+    opacity 0.3s ease;
+}
+.nb-clip img { display: block; }
+.nbar.active .nb-clip { width: 32px; margin-right: 8px; opacity: 1; }
+
+/* поле ввода */
+.nb-input {
+  flex: 1;
+  min-width: 1px;
+  height: 100%;
+  border: none;
+  outline: none;
+  background: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: 16px;
+  line-height: 24px;
+  letter-spacing: -0.24px;
+  color: rgba(3, 3, 6, 0.88);   /* набранный текст — чёрный */
+  pointer-events: none;          /* свёрнуто: клик уходит на пилюлю */
+}
+.nb-input::placeholder { color: rgba(5, 8, 29, 0.38); opacity: 1; }
+.nbar.active .nb-input { pointer-events: auto; }
+
+/* кнопка справа: кросс-фейд аи⁺ ↔ лупа */
+.nb-go {
+  position: absolute;
+  right: 7px;
+  top: 7px;
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  z-index: 4;   /* над вращающейся обводкой */
+}
+.nb-go img {
+  position: absolute;
+  inset: 0;
+  width: 52px;
+  height: 52px;
+  display: block;
+  transition: opacity 0.3s ease;
+}
+.nb-search { opacity: 0; }
+.nbar.active .nb-ai { opacity: 0; }
+.nbar.active .nb-search { opacity: 1; }
