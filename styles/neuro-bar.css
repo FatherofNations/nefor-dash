@@ -14,9 +14,12 @@
   display: flex;
   justify-content: center;
   pointer-events: none;  /* клики ловит только пилюля */
+  transition: right 0.55s cubic-bezier(0.32, 0.72, 0, 1);  /* синхронно с обрезкой борда */
 }
-/* при открытом твикере строку прячем — борд уходит в чёрную вырубку (актуально на /2) */
-body.twk-open .nbar { opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
+/* при открытых tools строку НЕ прячем: сдвигаем правый край внутрь обрезанного вьюпорта
+   борда (обрезка справа 332px + 12px зазор = 344px), чтобы строка не попадала под панель
+   и под clip-path. Двигается вместе с обрезкой борда. */
+body.twk-open .nbar { right: 344px; }
 
 .nb-pill {
   --mx: 0px;   /* сдвиг «магнита» к курсору (задаёт JS) */
