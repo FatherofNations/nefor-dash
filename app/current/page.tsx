@@ -3,56 +3,9 @@
 import "@/styles/current.css";
 import NeuroBar from "@/components/neuro/NeuroBar";
 import BodyClass from "@/components/BodyClass";
+import { TABLE_ROWS } from "@/data/current";
 
 const A = "/assets/figma/";
-
-const TABLE_ROWS: {
-  name: string;
-  num: string;
-  sum: string;
-  pos?: boolean;
-  date: string;
-  purpose: string;
-}[] = [
-  {
-    name: "ООО «Моулин Роз»",
-    num: "101",
-    sum: "−24 500,00 ₽",
-    date: "27.04.2025",
-    purpose: "Оплата услуг по подготовке флористических композиций. НДС 20%",
-  },
-  {
-    name: "ООО «Юнион Плей»",
-    num: "20796",
-    sum: "+32 000,00 ₽",
-    pos: true,
-    date: "27.04.2025",
-    purpose: "Оплата по счёту №875 от 25.02.25. НДС 20%",
-  },
-  {
-    name: "ООО «Курьер Сервис»",
-    num: "100",
-    sum: "−4 000,00 ₽",
-    date: "27.04.2025",
-    purpose:
-      "Платёж по счёту №554 от 28.02.2025 за предоставленные услуги по доставке согласно договору №15 от 1 декабря 2022 года. НДС 20%",
-  },
-  {
-    name: "ПАО «Ростелеком»",
-    num: "99",
-    sum: "−8 990,00 ₽",
-    date: "27.04.2025",
-    purpose:
-      "Оплата услуг по проведению скоростного интернета в филиале №2 по договору № 123 от 03.02.2025 года. НДС 20%",
-  },
-  {
-    name: "ООО «Абсолют»",
-    num: "98",
-    sum: "−64 900,00 ₽",
-    date: "27.04.2025",
-    purpose: "Платёж за поставку оборудования по договору №8451 от 17.01.2025 г.. НДС 20%",
-  },
-];
 
 const Dots = () => (
   <svg className="cur-dots" width="20" height="20" viewBox="0 0 20 20">
