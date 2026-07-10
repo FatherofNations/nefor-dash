@@ -73,7 +73,7 @@ export default function CurrentPage() {
           <img src={`${A}curLogo.svg`} width="248" height="64" alt="Альфа-Бизнес" />
           <img
             className="cur-logo-grad"
-            src={`${A}curLogoGrad.png`}
+            src={`${A}curLogoGrad.webp`}
             width="248"
             height="8"
             alt=""
@@ -158,7 +158,7 @@ export default function CurrentPage() {
               <img src={`${A}curNavProcurement.svg`} width="20" height="20" alt="" />
               <img
                 className="cur-proc-border"
-                src={`${A}curNavProcBorder.png`}
+                src={`${A}curNavProcBorder.webp`}
                 width="32"
                 height="32"
                 alt=""
@@ -360,7 +360,7 @@ export default function CurrentPage() {
                   </span>
                 </div>
                 <div className="cur-ban-img">
-                  <img src={`${A}curBan1.png`} alt="" />
+                  <img src={`${A}curBan1.webp`} alt="" />
                 </div>
               </div>
               <div className="cur-ban b2">
@@ -373,7 +373,7 @@ export default function CurrentPage() {
                   </span>
                 </div>
                 <div className="cur-ban-img">
-                  <img src={`${A}curBan2.png`} alt="" />
+                  <img src={`${A}curBan2.webp`} alt="" />
                 </div>
               </div>
               <div className="cur-ban b3">
@@ -385,7 +385,7 @@ export default function CurrentPage() {
                   </span>
                 </div>
                 <div className="cur-ban-img">
-                  <img src={`${A}curBan3.png`} alt="" />
+                  <img src={`${A}curBan3.webp`} alt="" />
                 </div>
               </div>
             </div>
@@ -430,7 +430,7 @@ export default function CurrentPage() {
                     <i />
                   </div>
                 </div>
-                <img className="cur-card-entry-cap" src={`${A}curCardEntryCap.png`} alt="" />
+                <img className="cur-card-entry-cap" src={`${A}curCardEntryCap.webp`} alt="" />
               </div>
               {/* Задания */}
               <div className="cur-card cur-task">
@@ -446,7 +446,7 @@ export default function CurrentPage() {
                   </span>
                   <span className="cur-task-min">1 мин</span>
                 </div>
-                <img className="cur-task-img" src={`${A}curCard2img.png`} alt="" />
+                <img className="cur-task-img" src={`${A}curCard2img.webp`} alt="" />
               </div>
               <div className="cur-card cur-task">
                 <div className="cur-task-title">Пополнить счёт</div>
@@ -457,7 +457,7 @@ export default function CurrentPage() {
                   </span>
                   <span className="cur-task-min">1 мин</span>
                 </div>
-                <img className="cur-task-img" src={`${A}curCard3img.png`} alt="" />
+                <img className="cur-task-img" src={`${A}curCard3img.webp`} alt="" />
               </div>
               <div className="cur-card cur-task">
                 <div className="cur-task-title">Изучить условия тарифа</div>
@@ -468,7 +468,7 @@ export default function CurrentPage() {
                   </span>
                   <span className="cur-task-min">1 мин</span>
                 </div>
-                <img className="cur-task-img" src={`${A}curCard4img.png`} alt="" />
+                <img className="cur-task-img" src={`${A}curCard4img.webp`} alt="" />
               </div>
               <div className="cur-card cur-task">
                 <div className="cur-task-title">
@@ -484,7 +484,7 @@ export default function CurrentPage() {
                   </span>
                   <span className="cur-task-min">1 мин</span>
                 </div>
-                <img className="cur-task-img" src={`${A}curCard5img.png`} alt="" />
+                <img className="cur-task-img" src={`${A}curCard5img.webp`} alt="" />
               </div>
               <div className="cur-card cur-task">
                 <div className="cur-task-title">Подключить налоговую копилку</div>
@@ -495,7 +495,7 @@ export default function CurrentPage() {
                   </span>
                   <span className="cur-task-min">1 мин</span>
                 </div>
-                <img className="cur-task-img" src={`${A}curCard6img.png`} alt="" />
+                <img className="cur-task-img" src={`${A}curCard6img.webp`} alt="" />
               </div>
             </div>
           </section>

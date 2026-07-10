@@ -36,10 +36,10 @@ export default function NeuroBar({
             aria-label="Спросите нейропомощника"
           />
           <button className="nb-go" aria-label="Открыть нейропомощника">
-            <img className="nb-ai" src={`${b}m2NbAi.png`} alt="" width="52" height="52" />
+            <img className="nb-ai" src={`${b}m2NbAi.webp`} alt="" width="52" height="52" />
             <img
               className="nb-search"
-              src={`${b}m2NbSearch.png`}
+              src={`${b}m2NbSearch.webp`}
               alt=""
               width="52"
               height="52"
@@ -159,7 +159,7 @@ export default function NeuroBar({
       <div className="chat" aria-hidden="true">
         <aside className="chat-menu">
           <div className="chat-logo">
-            <img src={`${b}chatLogo.png`} alt="" width="40" height="40" />
+            <img src={`${b}chatLogo.webp`} alt="" width="40" height="40" />
             <span>Нейропомощник</span>
           </div>
           <nav className="chat-nav">

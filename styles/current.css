@@ -96,7 +96,7 @@ body.cur { min-width: 1600px; }
   flex: none;
   width: 40px; height: 40px;
   background: #e9edf3 center/cover no-repeat;
-  background-image: url(/assets/figma/curHdrCompanyN.png);
+  background-image: url(/assets/figma/curHdrCompanyN.webp);
   -webkit-mask: url(/assets/figma/curSquircle40.svg) center/contain no-repeat;
           mask: url(/assets/figma/curSquircle40.svg) center/contain no-repeat;
 }
@@ -120,7 +120,7 @@ body.cur { min-width: 1600px; }
 .cur-person-av {
   flex: none;
   width: 24px; height: 24px;
-  background: url(/assets/figma/curHdrAvatar.png) center/cover no-repeat,
+  background: url(/assets/figma/curHdrAvatar.webp) center/cover no-repeat,
               linear-gradient(128.66deg, #f2b9ec 3%, #edc6c8 92%);
   -webkit-mask: url(/assets/figma/curSquircle24.svg) center/contain no-repeat;
           mask: url(/assets/figma/curSquircle24.svg) center/contain no-repeat;
