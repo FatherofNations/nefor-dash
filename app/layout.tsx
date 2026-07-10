@@ -12,6 +12,8 @@ import ToolsProvider from "@/components/tools/ToolsProvider";
 
 export const metadata: Metadata = {
   title: "Дашборд ИП",
+  // прототип: не индексировать (дублирует robots.txt на уровне страниц)
+  robots: { index: false, follow: false },
 };
 
 export default function RootLayout({
