@@ -9,6 +9,7 @@ import "@/styles/fonts.css";
 import "@/styles/styles.css";
 import "@/styles/menu2.css";
 import "@/styles/tools.css";
+import "@/styles/mobile-gate.css";
 import ToolsProvider from "@/components/tools/ToolsProvider";
 
 export const metadata: Metadata = {
@@ -41,6 +42,15 @@ export default function RootLayout({
     <html lang="ru">
       <body>
         <ToolsProvider>{children}</ToolsProvider>
+        {/* заглушка <1024px: прототип десктопный (styles/mobile-gate.css) */}
+        <div className="mgate" role="status">
+          <img src="/icon.svg" alt="" width="64" height="64" />
+          <p className="mgate-t">Прототип рассчитан на десктоп</p>
+          <p className="mgate-s">
+            Откройте эту ссылку на компьютере — мобильная версия дашборда ещё
+            не свёрстана.
+          </p>
+        </div>
       </body>
     </html>
   );
