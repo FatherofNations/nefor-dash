@@ -91,7 +91,6 @@ export default function ToolsProvider({ children }: { children: ReactNode }) {
       });
     }
     urlSynced.current = true;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // синхронизация: пишем текущее состояние в адресную строку без перезагрузки

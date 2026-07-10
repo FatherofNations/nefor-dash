@@ -3,7 +3,8 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   // Верстка использует обычные <img> с путями в /public (не next/image).
-  // Линт не блокирует билд во время миграции; типы TS проверяются как обычно.
+  // Линт живёт отдельно от билда (npm run lint, --max-warnings 0, гоняется в CI);
+  // встроенный в next build раннер deprecated и удаляется в Next 16.
   eslint: { ignoreDuringBuilds: true },
   // Figma-ассеты неизменяемы (новая версия = новое имя файла) → вечный кеш.
   // Дефолт Vercel для /public — max-age=0, must-revalidate: каждый визит

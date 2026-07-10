@@ -33,7 +33,6 @@ export function useNeuroBar(
     const nbInput = q<HTMLInputElement>(".nb-input");
     const nbGo = q<HTMLButtonElement>(".nb-go");
     const spot = q<HTMLElement>(".spot");
-    const spotInput = q<HTMLInputElement>(".spot-input input");
     const spotClose = q<HTMLElement>(".spot-close");
     const chat = q<HTMLElement>(".chat");
     const chatThread = q<HTMLElement>(".chat-thread");
