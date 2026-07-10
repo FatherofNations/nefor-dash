@@ -1,7 +1,8 @@
 import { memo } from "react";
-import { sidebarV1Inner, spotV1 } from "./htmlPartials";
+import { sidebarV1Inner } from "./htmlPartials";
 import Rail from "./Rail";
 import DashboardContent from "./DashboardContent";
+import SpotV1 from "./SpotV1";
 import V1Behavior from "./V1Behavior";
 
 // Главная, вариант v1: сайдбар v1 + общий контент + свой Spotlight (без нижней строки).
@@ -12,7 +13,7 @@ function MainV1() {
       <aside className="sidebar" dangerouslySetInnerHTML={{ __html: sidebarV1Inner }} />
       <Rail />
       <DashboardContent />
-      <div style={{ display: "contents" }} dangerouslySetInnerHTML={{ __html: spotV1 }} />
+      <SpotV1 />
       <V1Behavior />
     </>
   );
