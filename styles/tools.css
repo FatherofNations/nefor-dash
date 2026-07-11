@@ -89,34 +89,41 @@
    .board — обёртка дашборда, всегда fixed-скролл-контейнер (свой скролл вместо оконного).
    Открытая панель: чёрный фон html вокруг + clip-path отсекает всё вне окна.
    Содержимое НЕ масштабируется (1:1), лишнее по краям просто обрезается. */
-/* Появление борда после свопа — точный рецепт переключения пейнов
-   (AI-Сводка → Мои продукты, styles.css .pane): проявление из блюра с
-   подъёмом, 0.5s канон появления + задержка 120мс (как у первого пункта
-   пейна). clip-path — без задержки (рамка twk-open живёт своей жизнью). */
+/* .board — внешний ФРЕЙМ дашборда: светлая подложка (--page-bg) + обрезка
+   рамкой twk-open. При свопе дашбордов НЕ анимируется — стоит неподвижно,
+   меняется только наполнение (.board-body). */
 .board {
+  position: fixed;
+  inset: 0;
+  background: var(--page-bg);
+  clip-path: inset(0 round 0);
+  transition: clip-path 0.55s cubic-bezier(0.32, 0.72, 0, 1);
+}
+/* .board-body — НАПОЛНЕНИЕ: скролл-контейнер с контентом дашборда.
+   Появление после свопа — точный рецепт переключения пейнов (AI-Сводка →
+   Мои продукты, styles.css .pane): проявление из блюра с подъёмом,
+   0.5s канон появления + задержка 120мс. Fixed inset:0 → во время filter
+   (containing block для fixed-потомков) геометрия сайдбаров не меняется. */
+.board-body {
   position: fixed;
   inset: 0;
   overflow-x: hidden;
   overflow-y: auto;
-  background: var(--page-bg);
-  clip-path: inset(0 round 0);
-  transition: clip-path 0.55s cubic-bezier(0.32, 0.72, 0, 1),
-              opacity 0.5s cubic-bezier(0.25, 0.1, 0.25, 1),
+  transition: opacity 0.5s cubic-bezier(0.25, 0.1, 0.25, 1),
               filter 0.5s cubic-bezier(0.25, 0.1, 0.25, 1),
               transform 0.55s cubic-bezier(0.32, 0.72, 0, 1);
-  transition-delay: 0s, 0.12s, 0.12s, 0.12s;
+  transition-delay: 0.12s;
 }
-/* Скрытие старого дашборда при свопе — канон скрытия пейнов: быстрое
+/* Скрытие старого наполнения при свопе — канон скрытия пейнов: быстрое
    растворение в блюр со сдвигом вниз (0.22s ease-in, без задержки).
-   В момент подмены роута борд ПОЛНОСТЬЮ прозрачен → скачка контента нет,
-   виден только тёмный фон рамки (html.twk-open). Панель/fab вне .board. */
-.board.dash-out {
+   В момент подмены роута наполнение ПОЛНОСТЬЮ прозрачно → скачка нет,
+   видна только светлая подложка фрейма. Панель/fab вне .board. */
+.board-body.dash-out {
   opacity: 0;
   filter: blur(12px);
   transform: translateY(10px);
   pointer-events: none;
-  transition: clip-path 0.55s cubic-bezier(0.32, 0.72, 0, 1),
-              opacity 0.22s ease-in,
+  transition: opacity 0.22s ease-in,
               filter 0.22s ease-in,
               transform 0.22s ease-in;
   transition-delay: 0s;

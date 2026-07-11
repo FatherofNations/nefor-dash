@@ -186,7 +186,11 @@ export default function ToolsProvider({ children }: { children: ReactNode }) {
     <Ctx.Provider
       value={{ dashboard, variant, setVariant, v2State, setV2, panelOpen, setPanelOpen, swapTo }}
     >
-      <div className={swapping ? "board dash-out" : "board"}>{children}</div>
+      {/* .board — неподвижный фрейм (подложка+рамка); растворяется при свопе
+          только наполнение .board-body (скролл-контейнер) */}
+      <div className="board">
+        <div className={swapping ? "board-body dash-out" : "board-body"}>{children}</div>
+      </div>
       <ToolsPanel />
     </Ctx.Provider>
   );
