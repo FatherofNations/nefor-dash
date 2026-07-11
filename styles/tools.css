@@ -89,6 +89,10 @@
    .board — обёртка дашборда, всегда fixed-скролл-контейнер (свой скролл вместо оконного).
    Открытая панель: чёрный фон html вокруг + clip-path отсекает всё вне окна.
    Содержимое НЕ масштабируется (1:1), лишнее по краям просто обрезается. */
+/* Появление борда после свопа — точный рецепт переключения пейнов
+   (AI-Сводка → Мои продукты, styles.css .pane): проявление из блюра с
+   подъёмом, 0.5s канон появления + задержка 120мс (как у первого пункта
+   пейна). clip-path — без задержки (рамка twk-open живёт своей жизнью). */
 .board {
   position: fixed;
   inset: 0;
@@ -96,44 +100,26 @@
   overflow-y: auto;
   background: var(--page-bg);
   clip-path: inset(0 round 0);
-  transition: clip-path 0.55s cubic-bezier(0.32, 0.72, 0, 1);
+  transition: clip-path 0.55s cubic-bezier(0.32, 0.72, 0, 1),
+              opacity 0.5s cubic-bezier(0.25, 0.1, 0.25, 1),
+              filter 0.5s cubic-bezier(0.25, 0.1, 0.25, 1),
+              transform 0.55s cubic-bezier(0.32, 0.72, 0, 1);
+  transition-delay: 0s, 0.12s, 0.12s, 0.12s;
 }
-
-/* ── Вуаль свопа дашбордов (ИП ↔ Бухгалтер): волна блюра сверху вниз ──
-   Тот же характер, что у пунктов AI-меню v1 (появление из блюра сверху вниз),
-   только непрерывной волной: backdrop-вуаль с градиентной маской (прозрачно →
-   чёрное ядро → прозрачно, высота 400%) едет по вертикали.
-   cover:  маска 100%→50% — блюр накрывает борд сверху вниз (ease-in, канон
-           скрытия); на 50% ядро маски полностью закрывает вьюпорт.
-   [под полным блюром меняется роут — свап DOM не виден]
-   reveal: маска 50%→0% — резкость возвращается тоже сверху вниз (канон
-           появления). Вуаль — последний ребёнок .board: клипается рамкой
-           twk-open, панель tools и fab остаются резкими. */
-.bveil {
-  position: fixed;
-  inset: 0;
-  z-index: 200;
+/* Скрытие старого дашборда при свопе — канон скрытия пейнов: быстрое
+   растворение в блюр со сдвигом вниз (0.22s ease-in, без задержки).
+   В момент подмены роута борд ПОЛНОСТЬЮ прозрачен → скачка контента нет,
+   виден только тёмный фон рамки (html.twk-open). Панель/fab вне .board. */
+.board.dash-out {
+  opacity: 0;
+  filter: blur(12px);
+  transform: translateY(10px);
   pointer-events: none;
-  -webkit-backdrop-filter: blur(28px);
-  backdrop-filter: blur(28px);
-  -webkit-mask-image: linear-gradient(to bottom,
-    transparent 0%, transparent 27%, #000 33%, #000 67%, transparent 73%, transparent 100%);
-  mask-image: linear-gradient(to bottom,
-    transparent 0%, transparent 27%, #000 33%, #000 67%, transparent 73%, transparent 100%);
-  -webkit-mask-size: 100% 400%;
-  mask-size: 100% 400%;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-}
-.bveil.cover { animation: bveil-cover 0.45s ease-in forwards; }
-.bveil.reveal { animation: bveil-reveal 0.85s cubic-bezier(0.25, 0.1, 0.25, 1) forwards; }
-@keyframes bveil-cover {
-  from { -webkit-mask-position: 0 100%; mask-position: 0 100%; }
-  to   { -webkit-mask-position: 0 50%;  mask-position: 0 50%; }
-}
-@keyframes bveil-reveal {
-  from { -webkit-mask-position: 0 50%; mask-position: 0 50%; }
-  to   { -webkit-mask-position: 0 0%;  mask-position: 0 0%; }
+  transition: clip-path 0.55s cubic-bezier(0.32, 0.72, 0, 1),
+              opacity 0.22s ease-in,
+              filter 0.22s ease-in,
+              transform 0.22s ease-in;
+  transition-delay: 0s;
 }
 
 /* ── Плавная смена содержимого панели tools ──
