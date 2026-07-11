@@ -96,25 +96,72 @@
   overflow-y: auto;
   background: var(--page-bg);
   clip-path: inset(0 round 0);
-  /* filter/opacity — проявление нового дашборда из блюра при свопе (после
-     снятия board-swap): медленный выход по канону появления (см. m2-wing) */
-  transition: clip-path 0.55s cubic-bezier(0.32, 0.72, 0, 1),
-              opacity 0.55s cubic-bezier(0.25, 0.1, 0.25, 1),
-              filter 0.55s cubic-bezier(0.25, 0.1, 0.25, 1);
+  transition: clip-path 0.55s cubic-bezier(0.32, 0.72, 0, 1);
 }
-/* Своп дашбордов (ИП ↔ Бухгалтер): борд целиком уходит в блюр — быстрый
-   ease-in по канону скрытия; роут меняется под полностью размытым кадром,
-   затем класс снимается и новый дашборд проявляется из блюра (transition
-   базового правила). Opacity не роняем в 0 — без вспышки фона, только
-   «каша» из блюра. Панель tools и fab вне .board — остаются резкими. */
-.board.board-swap {
-  opacity: 0.82;
-  filter: blur(28px);
+
+/* ── Вуаль свопа дашбордов (ИП ↔ Бухгалтер): волна блюра сверху вниз ──
+   Тот же характер, что у пунктов AI-меню v1 (появление из блюра сверху вниз),
+   только непрерывной волной: backdrop-вуаль с градиентной маской (прозрачно →
+   чёрное ядро → прозрачно, высота 400%) едет по вертикали.
+   cover:  маска 100%→50% — блюр накрывает борд сверху вниз (ease-in, канон
+           скрытия); на 50% ядро маски полностью закрывает вьюпорт.
+   [под полным блюром меняется роут — свап DOM не виден]
+   reveal: маска 50%→0% — резкость возвращается тоже сверху вниз (канон
+           появления). Вуаль — последний ребёнок .board: клипается рамкой
+           twk-open, панель tools и fab остаются резкими. */
+.bveil {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
   pointer-events: none;
-  transition: clip-path 0.55s cubic-bezier(0.32, 0.72, 0, 1),
-              opacity 0.26s ease-in,
-              filter 0.26s ease-in;
+  -webkit-backdrop-filter: blur(28px);
+  backdrop-filter: blur(28px);
+  -webkit-mask-image: linear-gradient(to bottom,
+    transparent 0%, transparent 27%, #000 33%, #000 67%, transparent 73%, transparent 100%);
+  mask-image: linear-gradient(to bottom,
+    transparent 0%, transparent 27%, #000 33%, #000 67%, transparent 73%, transparent 100%);
+  -webkit-mask-size: 100% 400%;
+  mask-size: 100% 400%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
 }
+.bveil.cover { animation: bveil-cover 0.45s ease-in forwards; }
+.bveil.reveal { animation: bveil-reveal 0.85s cubic-bezier(0.25, 0.1, 0.25, 1) forwards; }
+@keyframes bveil-cover {
+  from { -webkit-mask-position: 0 100%; mask-position: 0 100%; }
+  to   { -webkit-mask-position: 0 50%;  mask-position: 0 50%; }
+}
+@keyframes bveil-reveal {
+  from { -webkit-mask-position: 0 50%; mask-position: 0 50%; }
+  to   { -webkit-mask-position: 0 0%;  mask-position: 0 0%; }
+}
+
+/* ── Плавная смена содержимого панели tools ──
+   Динамическая часть (.twk-dyn ремаунтится по key при смене дашборда/вида):
+   пункты проявляются из блюра сверху вниз — рецепт пунктов AI-меню v1
+   (blur 12 + translateY 10, появление 0.5s, стаггер 30мс на пункт). */
+.twk-dyn > * {
+  opacity: 0;
+  filter: blur(12px);
+  transform: translateY(10px);
+  animation: twk-dyn-in 0.5s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+  animation-delay: calc(60ms + var(--i, 0) * 30ms);
+}
+@keyframes twk-dyn-in {
+  to { opacity: 1; filter: blur(0); transform: translateY(0); }
+}
+.twk-dyn > *:nth-child(1)  { --i: 0; }
+.twk-dyn > *:nth-child(2)  { --i: 1; }
+.twk-dyn > *:nth-child(3)  { --i: 2; }
+.twk-dyn > *:nth-child(4)  { --i: 3; }
+.twk-dyn > *:nth-child(5)  { --i: 4; }
+.twk-dyn > *:nth-child(6)  { --i: 5; }
+.twk-dyn > *:nth-child(7)  { --i: 6; }
+.twk-dyn > *:nth-child(8)  { --i: 7; }
+.twk-dyn > *:nth-child(9)  { --i: 8; }
+.twk-dyn > *:nth-child(10) { --i: 9; }
+.twk-dyn > *:nth-child(11) { --i: 10; }
+.twk-dyn > *:nth-child(12) { --i: 11; }
 /* фон вьюпорта (вокруг обрезанного борда) — на html: всё содержимое body — fixed,
    поэтому фон body не заливает экран. Класс twk-open ставится и на documentElement. */
 html {

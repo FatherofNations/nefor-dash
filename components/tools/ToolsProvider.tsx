@@ -49,9 +49,10 @@ interface ToolsCtx {
   swapTo: (url: "/" | "/current") => void;
 }
 
-// своп дашбордов: сколько держим борд в блюре до смены роута
-// (= transition 0.26s ease-in в tools.css + кадр запаса)
-const SWAP_HIDE_MS = 300;
+// своп дашбордов: сколько ждём, пока вуаль накроет борд, до смены роута
+// (= анимация bveil-cover 0.45s в tools.css + кадр запаса)
+const SWAP_COVER_MS = 480;
+type SwapPhase = "idle" | "cover" | "reveal";
 
 const Ctx = createContext<ToolsCtx | null>(null);
 export const useTools = () => {
@@ -73,47 +74,47 @@ export default function ToolsProvider({ children }: { children: ReactNode }) {
     []
   );
 
-  /* ── плавный своп дашбордов (ИП ↔ Бухгалтер) через блюр всего борда ──
-     Карточка панели зовёт swapTo: борд уводится в блюр (класс board-swap,
-     быстрый ease-in), роут меняется под полностью размытым кадром, по приезде
-     нового дашборда класс снимается — он проявляется из блюра (медленный
-     выход, канон появления). Свап DOM не виден: маскируется блюром. */
-  const [swapping, setSwapping] = useState(false);
-  const swappingRef = useRef(false);
+  /* ── плавный своп дашбордов (ИП ↔ Бухгалтер): волна блюра сверху вниз ──
+     Карточка панели зовёт swapTo: вуаль .bveil (backdrop-blur с градиентной
+     маской) накрывает борд сверху вниз (cover), роут меняется под полностью
+     размытым кадром, по приезде нового дашборда волна продолжает ход и
+     проявляет его сверху вниз (reveal). Свап DOM не виден: маскируется
+     блюром. Фазы и тайминги — в tools.css (bveil-cover / bveil-reveal). */
+  const [swapPhase, setSwapPhase] = useState<SwapPhase>("idle");
+  const phaseRef = useRef<SwapPhase>("idle");
+  const setPhase = useCallback((p: SwapPhase) => {
+    phaseRef.current = p;
+    setSwapPhase(p);
+  }, []);
 
   const swapTo = useCallback(
     (url: "/" | "/current") => {
       const target: Dashboard = url === "/current" ? "current" : "main";
-      if (swappingRef.current || target === dashboard) return; // активная карточка / уже в пути
-      swappingRef.current = true;
-      setSwapping(true);
-      window.setTimeout(() => router.push(url), SWAP_HIDE_MS);
+      if (phaseRef.current !== "idle" || target === dashboard) return; // активная карточка / уже в пути
+      setPhase("cover");
+      window.setTimeout(() => router.push(url), SWAP_COVER_MS);
       // страховка: если навигация не случилась (оффлайн и т.п.) — вернуть резкость
       window.setTimeout(() => {
-        if (swappingRef.current) {
-          swappingRef.current = false;
-          setSwapping(false);
-        }
-      }, 2000);
+        if (phaseRef.current === "cover") setPhase("idle");
+      }, 2500);
     },
-    [dashboard, router]
+    [dashboard, router, setPhase]
   );
 
-  // приезд нового дашборда: кадр на отрисовку под блюром → проявление
+  // приезд нового дашборда: кадр на отрисовку под блюром → волна проявления
   useEffect(() => {
-    if (!swappingRef.current) return;
+    if (phaseRef.current !== "cover") return;
     let cancelled = false;
     requestAnimationFrame(() =>
       requestAnimationFrame(() => {
-        if (cancelled) return;
-        swappingRef.current = false;
-        setSwapping(false);
+        if (cancelled || phaseRef.current !== "cover") return;
+        setPhase("reveal");
       })
     );
     return () => {
       cancelled = true;
     };
-  }, [dashboard]);
+  }, [dashboard, setPhase]);
 
   // оба роута статичные — префетчим, чтобы под блюром не ждать сеть
   useEffect(() => {
@@ -186,7 +187,19 @@ export default function ToolsProvider({ children }: { children: ReactNode }) {
     <Ctx.Provider
       value={{ dashboard, variant, setVariant, v2State, setV2, panelOpen, setPanelOpen, swapTo }}
     >
-      <div className={swapping ? "board board-swap" : "board"}>{children}</div>
+      <div className="board">
+        {children}
+        {swapPhase !== "idle" && (
+          <div
+            className={`bveil ${swapPhase}`}
+            onAnimationEnd={() => {
+              // конец волны проявления — вуаль убираем (конец cover игнорим:
+              // фаза меняется по приезде роута, см. эффект выше)
+              if (phaseRef.current === "reveal") setPhase("idle");
+            }}
+          />
+        )}
+      </div>
       <ToolsPanel />
     </Ctx.Provider>
   );

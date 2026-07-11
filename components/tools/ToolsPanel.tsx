@@ -56,53 +56,60 @@ export default function ToolsPanel() {
           </button>
         </div>
 
-        {/* ── тоггл варианта Главной ── */}
-        {dashboard === "main" && (
-          <>
-            <p className="twk-sec">Вид меню</p>
-            <div className="twk-seg">
-              <button
-                className={variant === "v1" ? "active" : ""}
-                onClick={() => setVariant("v1")}
-              >
-                v1
-              </button>
-              <button
-                className={variant === "v2" ? "active" : ""}
-                onClick={() => setVariant("v2")}
-              >
-                v2
-              </button>
-            </div>
-          </>
-        )}
+        {/* ── динамическая часть: ремаунт по key (смена дашборда/вида) —
+              пункты проявляются из блюра сверху вниз (.twk-dyn, tools.css) ── */}
+        <div
+          className="twk-dyn"
+          key={dashboard === "main" ? `main-${variant}` : "current"}
+        >
+          {/* ── тоггл варианта Главной ── */}
+          {dashboard === "main" && (
+            <>
+              <p className="twk-sec">Вид меню</p>
+              <div className="twk-seg">
+                <button
+                  className={variant === "v1" ? "active" : ""}
+                  onClick={() => setVariant("v1")}
+                >
+                  v1
+                </button>
+                <button
+                  className={variant === "v2" ? "active" : ""}
+                  onClick={() => setVariant("v2")}
+                >
+                  v2
+                </button>
+              </div>
+            </>
+          )}
 
-        {/* ── параметры: v2-стек ── */}
-        {dashboard === "main" && variant === "v2" && (
-          <>
-            <p className="twk-sec">Счета</p>
-            <Row label="Овердрафт" k="over" v2State={v2State} setV2={setV2} />
-            <Row label="Валютный счёт" k="usd" v2State={v2State} setV2={setV2} />
-            <p className="twk-sec">Блокировки</p>
-            <Row label="Заблокировано ФНС" k="lock" v2State={v2State} setV2={setV2} />
-            <Row label="Ожидает списания" k="clock" v2State={v2State} setV2={setV2} />
-            <p className="twk-sec">Продукты</p>
-            <Row label="Кредит наличными" k="credit" v2State={v2State} setV2={setV2} />
-            <Row label="Баллы" k="points" v2State={v2State} setV2={setV2} />
-          </>
-        )}
+          {/* ── параметры: v2-стек ── */}
+          {dashboard === "main" && variant === "v2" && (
+            <>
+              <p className="twk-sec">Счета</p>
+              <Row label="Овердрафт" k="over" v2State={v2State} setV2={setV2} />
+              <Row label="Валютный счёт" k="usd" v2State={v2State} setV2={setV2} />
+              <p className="twk-sec">Блокировки</p>
+              <Row label="Заблокировано ФНС" k="lock" v2State={v2State} setV2={setV2} />
+              <Row label="Ожидает списания" k="clock" v2State={v2State} setV2={setV2} />
+              <p className="twk-sec">Продукты</p>
+              <Row label="Кредит наличными" k="credit" v2State={v2State} setV2={setV2} />
+              <Row label="Баллы" k="points" v2State={v2State} setV2={setV2} />
+            </>
+          )}
 
-        {dashboard === "main" && variant === "v1" && (
-          <p className="twk-hint">
-            Переключите вид меню на <b>v2</b>, чтобы настраивать состояния стека счётов.
-          </p>
-        )}
+          {dashboard === "main" && variant === "v1" && (
+            <p className="twk-hint">
+              Переключите вид меню на <b>v2</b>, чтобы настраивать состояния стека счётов.
+            </p>
+          )}
 
-        {dashboard === "current" && (
-          <p className="twk-hint">
-            Дашборд <b>Current</b> — новый макет. Параметры появятся в следующей итерации.
-          </p>
-        )}
+          {dashboard === "current" && (
+            <p className="twk-hint">
+              Дашборд <b>Current</b> — новый макет. Параметры появятся в следующей итерации.
+            </p>
+          )}
+        </div>
       </aside>
 
       {/* ── плавающая кнопка (иконка морфится в крестик) ── */}
