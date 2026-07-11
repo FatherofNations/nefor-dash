@@ -96,7 +96,24 @@
   overflow-y: auto;
   background: var(--page-bg);
   clip-path: inset(0 round 0);
-  transition: clip-path 0.55s cubic-bezier(0.32, 0.72, 0, 1);
+  /* filter/opacity — проявление нового дашборда из блюра при свопе (после
+     снятия board-swap): медленный выход по канону появления (см. m2-wing) */
+  transition: clip-path 0.55s cubic-bezier(0.32, 0.72, 0, 1),
+              opacity 0.55s cubic-bezier(0.25, 0.1, 0.25, 1),
+              filter 0.55s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+/* Своп дашбордов (ИП ↔ Бухгалтер): борд целиком уходит в блюр — быстрый
+   ease-in по канону скрытия; роут меняется под полностью размытым кадром,
+   затем класс снимается и новый дашборд проявляется из блюра (transition
+   базового правила). Opacity не роняем в 0 — без вспышки фона, только
+   «каша» из блюра. Панель tools и fab вне .board — остаются резкими. */
+.board.board-swap {
+  opacity: 0.82;
+  filter: blur(28px);
+  pointer-events: none;
+  transition: clip-path 0.55s cubic-bezier(0.32, 0.72, 0, 1),
+              opacity 0.26s ease-in,
+              filter 0.26s ease-in;
 }
 /* фон вьюпорта (вокруг обрезанного борда) — на html: всё содержимое body — fixed,
    поэтому фон body не заливает экран. Класс twk-open ставится и на documentElement. */

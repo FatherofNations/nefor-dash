@@ -8,7 +8,7 @@ import {
   useState,
   ReactNode,
 } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import ToolsPanel from "./ToolsPanel";
 
 /* Контекст инструмента tools — общий для всех дашбордов, живёт в root layout
@@ -46,7 +46,12 @@ interface ToolsCtx {
   setV2: (k: keyof V2State, val: boolean) => void;
   panelOpen: boolean;
   setPanelOpen: (o: boolean) => void;
+  swapTo: (url: "/" | "/current") => void;
 }
+
+// своп дашбордов: сколько держим борд в блюре до смены роута
+// (= transition 0.26s ease-in в tools.css + кадр запаса)
+const SWAP_HIDE_MS = 300;
 
 const Ctx = createContext<ToolsCtx | null>(null);
 export const useTools = () => {
@@ -57,6 +62,7 @@ export const useTools = () => {
 
 export default function ToolsProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const dashboard: Dashboard = pathname?.startsWith("/current") ? "current" : "main";
 
   const [variant, setVariant] = useState<Variant>("v1");
@@ -66,6 +72,54 @@ export default function ToolsProvider({ children }: { children: ReactNode }) {
     (k: keyof V2State, val: boolean) => setV2State((s) => ({ ...s, [k]: val })),
     []
   );
+
+  /* ── плавный своп дашбордов (ИП ↔ Бухгалтер) через блюр всего борда ──
+     Карточка панели зовёт swapTo: борд уводится в блюр (класс board-swap,
+     быстрый ease-in), роут меняется под полностью размытым кадром, по приезде
+     нового дашборда класс снимается — он проявляется из блюра (медленный
+     выход, канон появления). Свап DOM не виден: маскируется блюром. */
+  const [swapping, setSwapping] = useState(false);
+  const swappingRef = useRef(false);
+
+  const swapTo = useCallback(
+    (url: "/" | "/current") => {
+      const target: Dashboard = url === "/current" ? "current" : "main";
+      if (swappingRef.current || target === dashboard) return; // активная карточка / уже в пути
+      swappingRef.current = true;
+      setSwapping(true);
+      window.setTimeout(() => router.push(url), SWAP_HIDE_MS);
+      // страховка: если навигация не случилась (оффлайн и т.п.) — вернуть резкость
+      window.setTimeout(() => {
+        if (swappingRef.current) {
+          swappingRef.current = false;
+          setSwapping(false);
+        }
+      }, 2000);
+    },
+    [dashboard, router]
+  );
+
+  // приезд нового дашборда: кадр на отрисовку под блюром → проявление
+  useEffect(() => {
+    if (!swappingRef.current) return;
+    let cancelled = false;
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        if (cancelled) return;
+        swappingRef.current = false;
+        setSwapping(false);
+      })
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [dashboard]);
+
+  // оба роута статичные — префетчим, чтобы под блюром не ждать сеть
+  useEffect(() => {
+    router.prefetch("/");
+    router.prefetch("/current");
+  }, [router]);
 
   /* ── связь состояния панели с URL (deep-link, без перезагрузки) ──
      variant (v1/v2) и стек v2 живут в контексте → в ссылку их кладём сами:
@@ -130,9 +184,9 @@ export default function ToolsProvider({ children }: { children: ReactNode }) {
 
   return (
     <Ctx.Provider
-      value={{ dashboard, variant, setVariant, v2State, setV2, panelOpen, setPanelOpen }}
+      value={{ dashboard, variant, setVariant, v2State, setV2, panelOpen, setPanelOpen, swapTo }}
     >
-      <div className="board">{children}</div>
+      <div className={swapping ? "board board-swap" : "board"}>{children}</div>
       <ToolsPanel />
     </Ctx.Provider>
   );

@@ -1,5 +1,4 @@
 "use client";
-import { useRouter } from "next/navigation";
 import { useTools, V2State } from "./ToolsProvider";
 import "@/styles/tools.css";
 
@@ -33,24 +32,24 @@ function Row({
 }
 
 export default function ToolsPanel() {
-  const router = useRouter();
-  const { dashboard, variant, setVariant, v2State, setV2, panelOpen, setPanelOpen } = useTools();
+  const { dashboard, variant, setVariant, v2State, setV2, panelOpen, setPanelOpen, swapTo } =
+    useTools();
 
   return (
     <>
       <aside className="twk" aria-hidden={!panelOpen}>
-        {/* ── селектор дашборда (карточки) ── */}
+        {/* ── селектор дашборда (карточки): своп через блюр борда (swapTo) ── */}
         <div className="twk-cards">
           <button
             className={"twk-card" + (dashboard === "main" ? " active" : "")}
-            onClick={() => router.push("/")}
+            onClick={() => swapTo("/")}
           >
             <span className="twk-card-t">ИП</span>
             <span className="twk-card-s">Концепт</span>
           </button>
           <button
             className={"twk-card" + (dashboard === "current" ? " active" : "")}
-            onClick={() => router.push("/current")}
+            onClick={() => swapTo("/current")}
           >
             <span className="twk-card-t">Бухгалтер</span>
             <span className="twk-card-s">Актуальный</span>
