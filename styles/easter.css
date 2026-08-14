@@ -22,6 +22,7 @@
 .twk-slot img {
   width: 40px;
   height: 46px;
+  transform: scaleX(-1); /* зеркало по горизонтали (файл не трогаем) */
 }
 .twk-slot:hover { background: #999; }
 .twk-slot.armed {
@@ -63,13 +64,16 @@ body.mine-armed .board .chat * { cursor: auto; }
   will-change: transform;
 }
 body.mine-armed .pickaxe-cur { display: block; }
+/* Зеркало по горизонтали — на уровне отображения (сам файл не меняется).
+   ВАЖНО: keyframes перезаписывают transform целиком, поэтому scaleX(-1)
+   вшит в каждый кадр; та же связка «flip · rotate» даёт зеркальное движение. */
 .pickaxe-cur img {
   display: block;
   width: 42px;
   height: 48px;
   filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.35));
-  transform-origin: 20% 84%; /* качается вокруг рукояти (слева-внизу) */
-  transform: rotate(0deg);
+  transform-origin: 80% 84%; /* качается вокруг рукояти (после зеркала — справа-внизу) */
+  transform: scaleX(-1) rotate(0deg);
   transition: transform 0.12s ease-out;
 }
 /* мах при копании — цикл как удары в игре */
@@ -77,9 +81,9 @@ body.mine-armed .pickaxe-cur { display: block; }
 /* одиночный мах по клику в пустоту */
 .pickaxe-cur.swing-once img { animation: pick-swing 0.28s cubic-bezier(0.36, 0, 0.66, 1) 1; }
 @keyframes pick-swing {
-  0%   { transform: rotate(10deg); }
-  45%  { transform: rotate(-58deg); }
-  100% { transform: rotate(10deg); }
+  0%   { transform: scaleX(-1) rotate(10deg); }
+  45%  { transform: scaleX(-1) rotate(-58deg); }
+  100% { transform: scaleX(-1) rotate(10deg); }
 }
 
 /* ── трещины: 3 стадии, РАВНОМЕРНОЕ распределение (зонная сетка 7×4, свой

@@ -86,8 +86,8 @@ export function useMiner(session: boolean, armed: boolean, onMined: () => void) 
       const x = e.clientX;
       const y = e.clientY;
       raf = requestAnimationFrame(() => {
-        // хотспот — остриё (левый конец головы: ≈3px/9px от спрайта 42×48)
-        cur.style.transform = `translate(${x - 3}px, ${y - 9}px)`;
+        // хотспот — остриё (после зеркала — правый конец головы: ≈39px/9px от 42×48)
+        cur.style.transform = `translate(${x - 39}px, ${y - 9}px)`;
       });
     };
 
