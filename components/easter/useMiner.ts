@@ -34,6 +34,7 @@ export function useMiner(session: boolean, armed: boolean, onMined: () => void) 
   const minedRef = useRef(0); // прогресс сессии (баннеры) — переживает снятие кирки
   const collapseTimerRef = useRef(0);
   const luckTimerRef = useRef(0); // схлопывание тега — тоже сессионное
+  const slotTimersRef = useRef<number[]>([]); // схлопывание слотов баннеров
 
   /* ── сессия: рестор «мира» только при выходе из режима ── */
   useEffect(() => {
@@ -42,13 +43,18 @@ export function useMiner(session: boolean, armed: boolean, onMined: () => void) 
     return () => {
       clearTimeout(collapseTimerRef.current);
       clearTimeout(luckTimerRef.current);
+      slotTimersRef.current.forEach((t) => clearTimeout(t));
+      slotTimersRef.current = [];
       minedRef.current = 0;
       const s = document.querySelector<HTMLElement>(".banners");
       if (s) {
         s.classList.remove("collapsing", "red-mined");
         s.style.height = "";
         s.style.marginTop = "";
-        s.querySelectorAll(".banner").forEach((b) => b.classList.remove("mined", ...CRACKS));
+        s.querySelectorAll<HTMLElement>(".banner").forEach((b) => {
+          b.classList.remove("mined", "slot-collapse", ...CRACKS);
+          b.style.width = "";
+        });
       }
       const luck = document.querySelector<HTMLElement>(".chips .chip.luck");
       if (luck) {
@@ -167,7 +173,22 @@ export function useMiner(session: boolean, armed: boolean, onMined: () => void) 
         return;
       }
       // повёрнутый красный тянет за собой бледную подложку
-      if (b.closest(".banner-tilt")) b.closest(".banners")?.classList.add("red-mined");
+      const tilt = b.closest(".banner-tilt");
+      if (tilt) b.closest(".banners")?.classList.add("red-mined");
+      // после попа слот баннера освобождается — соседи подтягиваются влево;
+      // слот красного в потоке — его бледная подложка .faded
+      const slot = tilt
+        ? b.closest(".banners")?.querySelector<HTMLElement>(".banner.red.faded")
+        : b;
+      if (slot) {
+        slotTimersRef.current.push(
+          window.setTimeout(() => {
+            slot.style.width = `${slot.offsetWidth}px`;
+            void slot.offsetWidth;
+            slot.classList.add("slot-collapse");
+          }, 260)
+        );
+      }
       minedRef.current++; // только баннеры двигают схлопывание секции
       if (minedRef.current >= 3) {
         collapseTimerRef.current = window.setTimeout(collapseBanners, 380);

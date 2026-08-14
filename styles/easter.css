@@ -132,6 +132,20 @@ body.mine-armed .pickaxe-cur { display: block; }
   transition: opacity 0.25s ease-in;
   opacity: 0;
 }
+/* разбитая обёртка не должна ловить клики над соседями, подъехавшими на её место */
+.banners.red-mined .banner-tilt { pointer-events: none; }
+
+/* Разрушенный баннер после попа освобождает свой слот — соседи справа плавно
+   подтягиваются влево (канон-кривая). JS ставит стартовую ширину инлайном,
+   класс ведёт её к нулю; margin съедает flex-gap. У красного схлопывается
+   его слот в потоке — .banner.red.faded (сам красный — absolute-карточка). */
+.banners .banner.slot-collapse {
+  width: 0 !important;
+  margin-left: -12px;
+  overflow: hidden;
+  transition: width 0.55s cubic-bezier(0.32, 0.72, 0, 1),
+              margin 0.55s cubic-bezier(0.32, 0.72, 0, 1);
+}
 
 /* тег «НА УДАЧУ»: цель для кирки; после разрушения схлопываем ширину —
    остальные чипсы плавно отцентровываются (флекс с justify-center).
