@@ -20,9 +20,8 @@
   transition: background 0.15s ease;
 }
 .twk-slot img {
-  width: 44px;
-  height: 44px;
-  image-rendering: pixelated;
+  width: 40px;
+  height: 46px;
 }
 .twk-slot:hover { background: #999; }
 .twk-slot.armed {
@@ -66,11 +65,10 @@ body.mine-armed .board .chat * { cursor: auto; }
 body.mine-armed .pickaxe-cur { display: block; }
 .pickaxe-cur img {
   display: block;
-  width: 44px;
-  height: 44px;
-  image-rendering: pixelated;
+  width: 42px;
+  height: 48px;
   filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.35));
-  transform-origin: 76% 76%; /* качается вокруг рукояти */
+  transform-origin: 20% 84%; /* качается вокруг рукояти (слева-внизу) */
   transform: rotate(0deg);
   transition: transform 0.12s ease-out;
 }

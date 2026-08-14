@@ -59,7 +59,7 @@ export default function ToolsPanel() {
               onClick={() => setMineArmed(!mineArmed)}
               aria-label="Алмазная кирка"
             >
-              <img src="/assets/easter/pickaxe.svg" alt="" width="44" height="44" />
+              <img src="/assets/easter/pickaxe.png" alt="" width="40" height="46" />
             </button>
             <p className="twk-egg-hint">
               Возьми кирку и зажми кнопку мыши на рекламном баннере — он добывается,

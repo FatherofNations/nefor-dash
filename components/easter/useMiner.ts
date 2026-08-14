@@ -66,7 +66,7 @@ export function useMiner(session: boolean, armed: boolean, onMined: () => void) 
     const cur = document.createElement("div");
     cur.className = "pickaxe-cur";
     cur.style.visibility = "hidden"; // не светить в углу (0,0) до первого движения мыши
-    cur.innerHTML = `<img src="/assets/easter/pickaxe.svg" alt="" width="44" height="44">`;
+    cur.innerHTML = `<img src="/assets/easter/pickaxe.png" alt="" width="42" height="48">`;
     document.body.appendChild(cur);
     document.body.classList.add("mine-armed");
 
@@ -86,8 +86,8 @@ export function useMiner(session: boolean, armed: boolean, onMined: () => void) 
       const x = e.clientX;
       const y = e.clientY;
       raf = requestAnimationFrame(() => {
-        // хотспот — остриё (низ левого спуска головы: ≈4px/27px от 44px спрайта)
-        cur.style.transform = `translate(${x - 4}px, ${y - 27}px)`;
+        // хотспот — остриё (левый конец головы: ≈3px/9px от спрайта 42×48)
+        cur.style.transform = `translate(${x - 3}px, ${y - 9}px)`;
       });
     };
 
