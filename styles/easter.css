@@ -72,7 +72,7 @@ body.mine-armed .pickaxe-cur { display: block; }
   width: 42px;
   height: 48px;
   filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.35));
-  transform-origin: 80% 84%; /* качается вокруг рукояти (после зеркала — справа-внизу) */
+  transform-origin: 20% 84%; /* ось маха отражена по горизонтали (слева-внизу) */
   transform: scaleX(-1) rotate(0deg);
   transition: transform 0.12s ease-out;
 }
