@@ -63,9 +63,9 @@ export default function ToolsPanel() {
             </button>
             <p className="twk-egg-hint">
               Возьми кирку и зажми кнопку мыши на рекламном баннере — он добывается,
-              как блок. Отпустишь раньше — трещины затянутся.
+              как блок, со звуком. Отпустишь раньше — трещины затянутся.
             </p>
-            <p className="twk-egg-count">Добыто баннеров: {minedCount}/3</p>
+            <p className="twk-egg-count">Добыто: {minedCount}/4</p>
             <p className="twk-egg-hint">Выход — ещё пять раз «/» или перезагрузка.</p>
           </div>
         </aside>

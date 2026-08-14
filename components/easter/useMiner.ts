@@ -15,19 +15,24 @@ import { useEffect, useRef } from "react";
    (3 стадии), отпустил раньше — трещины сходят; додержал — баннер ломается
    с разлётом частиц. После третьего — секция схлопывается, контент подъезжает. */
 
-const STAGE_MS = 380; // одна стадия трещин (3 стадии + финал ≈ 1.5s на баннер)
+// тайминг = длине звука копания (public/assets/easter/dig.mp3, 3.5s):
+// старт 0.5s → стадии на 0.5/1.5/2.5s → разрушение ровно на 3.5s
+const STAGE_MS = 1000;
+const FIRST_MS = 500;
 const PARTS = 14; // частиц на разрушение
 const CRACKS = ["crack1", "crack2", "crack3"];
-// палитры частиц по баннерам (цвета фонов и арта)
+// палитры частиц по целям (цвета фонов и арта)
 const PART_COLORS: Record<string, string[]> = {
   red: ["#ef3124", "#c22417", "#3123d9", "#a8e610"],
   dark: ["#111", "#2b2b2b", "#8b8b90", "#c9c9ce"],
   blue: ["#3b65ed", "#2b4fc4", "#b39cf0", "#e8590c"],
+  luck: ["#9eff01", "#7fd400", "#111c00", "#c6ff4d"],
 };
 
 export function useMiner(session: boolean, armed: boolean, onMined: () => void) {
-  const minedRef = useRef(0); // прогресс сессии — переживает снятие кирки
+  const minedRef = useRef(0); // прогресс сессии (баннеры) — переживает снятие кирки
   const collapseTimerRef = useRef(0);
+  const luckTimerRef = useRef(0); // схлопывание тега — тоже сессионное
 
   /* ── сессия: рестор «мира» только при выходе из режима ── */
   useEffect(() => {
@@ -35,6 +40,7 @@ export function useMiner(session: boolean, armed: boolean, onMined: () => void) 
     minedRef.current = 0;
     return () => {
       clearTimeout(collapseTimerRef.current);
+      clearTimeout(luckTimerRef.current);
       minedRef.current = 0;
       const s = document.querySelector<HTMLElement>(".banners");
       if (s) {
@@ -42,6 +48,11 @@ export function useMiner(session: boolean, armed: boolean, onMined: () => void) 
         s.style.height = "";
         s.style.marginTop = "";
         s.querySelectorAll(".banner").forEach((b) => b.classList.remove("mined", ...CRACKS));
+      }
+      const luck = document.querySelector<HTMLElement>(".chips .chip.luck");
+      if (luck) {
+        luck.classList.remove("mined", "luck-collapse", ...CRACKS);
+        luck.style.width = "";
       }
       document.querySelectorAll(".mine-part").forEach((p) => p.remove());
     };
@@ -58,6 +69,11 @@ export function useMiner(session: boolean, armed: boolean, onMined: () => void) 
     document.body.appendChild(cur);
     document.body.classList.add("mine-armed");
 
+    // звук копания: играет только пока кнопка зажата на цели;
+    // при успешном разрушении дозвучивает финал (длина клипа = длине копания)
+    const dig = new Audio("/assets/easter/dig.mp3");
+    dig.preload = "auto";
+
     let raf = 0;
     const onMove = (e: MouseEvent) => {
       // кирка видна только над бордом; над панелью/фабом/нейро-оверлеями — обычный курсор
@@ -69,7 +85,8 @@ export function useMiner(session: boolean, armed: boolean, onMined: () => void) 
       const x = e.clientX;
       const y = e.clientY;
       raf = requestAnimationFrame(() => {
-        cur.style.transform = `translate(${x - 8}px, ${y - 8}px)`;
+        // хотспот — остриё (низ левого спуска головы: ≈4px/27px от 44px спрайта)
+        cur.style.transform = `translate(${x - 4}px, ${y - 27}px)`;
       });
     };
 
@@ -80,7 +97,7 @@ export function useMiner(session: boolean, armed: boolean, onMined: () => void) 
 
     const targetOf = (el: Element | null): HTMLElement | null =>
       (el?.closest?.(
-        ".banner-tilt .banner, .banners > .banner.dark, .banners > .banner.blue"
+        ".banner-tilt .banner, .banners > .banner.dark, .banners > .banner.blue, .chips .chip.luck"
       ) as HTMLElement) ?? null;
 
     const clearCracks = (b: HTMLElement) => b.classList.remove(...CRACKS);
@@ -88,13 +105,23 @@ export function useMiner(session: boolean, armed: boolean, onMined: () => void) 
     const stopMining = (resetCracks: boolean) => {
       clearTimeout(timer);
       cur.classList.remove("swing");
-      if (target && resetCracks && !target.classList.contains("mined")) clearCracks(target);
+      if (target && resetCracks && !target.classList.contains("mined")) {
+        clearCracks(target);
+        dig.pause(); // недокопал — звук обрывается; при успехе финал дозвучит
+        dig.currentTime = 0;
+      }
       target = null;
       stage = 0;
     };
 
     const spawnParticles = (b: HTMLElement) => {
-      const kind = b.classList.contains("dark") ? "dark" : b.classList.contains("blue") ? "blue" : "red";
+      const kind = b.classList.contains("luck")
+        ? "luck"
+        : b.classList.contains("dark")
+          ? "dark"
+          : b.classList.contains("blue")
+            ? "blue"
+            : "red";
       const colors = PART_COLORS[kind];
       const r = b.getBoundingClientRect();
       const frag = document.createDocumentFragment();
@@ -123,15 +150,24 @@ export function useMiner(session: boolean, armed: boolean, onMined: () => void) 
       s.style.marginTop = "0px";
     };
 
-    const breakBanner = (b: HTMLElement) => {
+    const breakTarget = (b: HTMLElement) => {
       clearCracks(b);
       spawnParticles(b);
       b.classList.add("mined");
+      stopMining(false);
+      onMined();
+      if (b.classList.contains("luck")) {
+        // тег «НА УДАЧУ»: после попа схлопываем ширину — соседи отцентруются
+        luckTimerRef.current = window.setTimeout(() => {
+          b.style.width = `${b.offsetWidth}px`;
+          void b.offsetWidth;
+          b.classList.add("luck-collapse");
+        }, 260);
+        return;
+      }
       // повёрнутый красный тянет за собой бледную подложку
       if (b.closest(".banner-tilt")) b.closest(".banners")?.classList.add("red-mined");
-      stopMining(false);
-      minedRef.current++;
-      onMined();
+      minedRef.current++; // только баннеры двигают схлопывание секции
       if (minedRef.current >= 3) {
         collapseTimerRef.current = window.setTimeout(collapseBanners, 380);
       }
@@ -144,7 +180,7 @@ export function useMiner(session: boolean, armed: boolean, onMined: () => void) 
         target.classList.add(CRACKS[stage - 1]);
         timer = window.setTimeout(step, STAGE_MS);
       } else {
-        breakBanner(target);
+        breakTarget(target);
       }
     };
 
@@ -161,7 +197,9 @@ export function useMiner(session: boolean, armed: boolean, onMined: () => void) 
         clearTimeout(swingOnceTimer);
         cur.classList.remove("swing-once"); // не даём одиночному маху перебить цикл
         cur.classList.add("swing");
-        timer = window.setTimeout(step, STAGE_MS * 0.55); // первая стадия чуть раньше
+        dig.currentTime = 0;
+        dig.play().catch(() => {}); // автоплей-политика: без жеста просто молчим
+        timer = window.setTimeout(step, FIRST_MS);
       } else {
         // мах в пустоту
         cur.classList.remove("swing-once");
@@ -193,6 +231,8 @@ export function useMiner(session: boolean, armed: boolean, onMined: () => void) 
       cancelAnimationFrame(raf);
       clearTimeout(swingOnceTimer);
       stopMining(true); // прервать текущее копание; добытое НЕ трогаем
+      dig.pause();
+      dig.removeAttribute("src"); // освободить аудио-ресурс
       cur.remove();
       document.body.classList.remove("mine-armed");
     };
