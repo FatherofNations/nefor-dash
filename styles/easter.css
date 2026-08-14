@@ -1,0 +1,144 @@
+/* ═══ Секретный режим (пасхалка «шахтёр»): активируется 5× клавишей «/» ═══
+   Панель tools подменяется «инвентарём»: слот с киркой; взяв её, курсор
+   становится киркой и можно добыть рекламные баннеры. Три стадии трещин,
+   разрушение с частицами; после третьего баннера секция схлопывается и
+   контент подъезжает (канон-кривая). Выход: ещё 5× «/» или перезагрузка. */
+
+/* ── панель: инвентарный слот ── */
+.twk-slot {
+  width: 64px;
+  height: 64px;
+  margin: 4px 0 0;
+  display: grid;
+  place-items: center;
+  background: #8b8b8b;
+  border: 3px solid;
+  border-color: #545454 #e0e0e0 #e0e0e0 #545454; /* вдавленный бевел */
+  border-radius: 2px;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s ease;
+}
+.twk-slot img {
+  width: 44px;
+  height: 44px;
+  image-rendering: pixelated;
+}
+.twk-slot:hover { background: #999; }
+.twk-slot.armed {
+  background: #a8a8a8;
+  outline: 2px solid #fff; /* выбранный слот хотбара */
+  outline-offset: 1px;
+}
+.twk-egg-hint {
+  margin: 10px 0 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: rgba(255, 255, 255, 0.64);
+}
+.twk-egg-count {
+  margin: 14px 0 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: #7ee787;
+  letter-spacing: 0.4px;
+}
+
+/* ── курсор-кирка ── */
+body.mine-armed .board,
+body.mine-armed .board * { cursor: none; }
+/* нейро-оверлеи (строка/спотлайт/чат) — не игровая зона: курсор обычный */
+body.mine-armed .board .nbar,
+body.mine-armed .board .nbar *,
+body.mine-armed .board .spot,
+body.mine-armed .board .spot *,
+body.mine-armed .board .chat,
+body.mine-armed .board .chat * { cursor: auto; }
+.pickaxe-cur {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 300;
+  pointer-events: none;
+  display: none;
+  will-change: transform;
+}
+body.mine-armed .pickaxe-cur { display: block; }
+.pickaxe-cur img {
+  display: block;
+  width: 44px;
+  height: 44px;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.35));
+  transform-origin: 76% 76%; /* качается вокруг рукояти */
+  transform: rotate(0deg);
+  transition: transform 0.12s ease-out;
+}
+/* мах при копании — цикл как удары в игре */
+.pickaxe-cur.swing img { animation: pick-swing 0.28s cubic-bezier(0.36, 0, 0.66, 1) infinite; }
+/* одиночный мах по клику в пустоту */
+.pickaxe-cur.swing-once img { animation: pick-swing 0.28s cubic-bezier(0.36, 0, 0.66, 1) 1; }
+@keyframes pick-swing {
+  0%   { transform: rotate(10deg); }
+  45%  { transform: rotate(-58deg); }
+  100% { transform: rotate(10deg); }
+}
+
+/* ── трещины на баннере: 3 стадии (свои пиксель-арт SVG, не игровые текстуры) ── */
+.banner.crack1::after,
+.banner.crack2::after,
+.banner.crack3::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+  background-size: 100% 100%;
+  image-rendering: pixelated;
+  opacity: 0.8;
+}
+.banner.crack1::after {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 16' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' fill-opacity='.55' d='M15 4h1v2h-1zM16 6h1v2h-1zM15 8h1v2h-1zM14 10h1v2h-1z'/%3E%3C/svg%3E");
+}
+.banner.crack2::after {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 16' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' fill-opacity='.6' d='M15 3h1v2h-1zM16 5h1v2h-1zM15 7h1v2h-1zM14 9h1v3h-1zM13 12h1v1h-1zM16 7h2v1h-2zM18 8h2v1h-2zM20 9h1v1h-1zM13 6h-2v1h2zM11 5h-1v1h1zM16 3h1v-2h-1z'/%3E%3C/svg%3E");
+}
+.banner.crack3::after {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 16' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' fill-opacity='.65' d='M15 1h1v3h-1zM16 4h1v3h-1zM15 7h1v2h-1zM14 9h1v3h-1zM13 12h1v2h-1zM16 7h2v1h-2zM18 8h2v1h-2zM20 9h2v1h-2zM22 10h1v1h-1zM24 8h1v1h-1zM22 6h2v1h-2zM13 6h-2v1h2zM11 5h-2v1h2zM9 6h-1v1h1zM7 7h-1v1h1zM12 9h-2v1h2zM10 10h-1v1h1zM17 2h1v1h-1zM18 1h1v1h-1zM19 12h1v1h-1zM17 11h2v1h-2zM5 8h1v1H5zM26 7h1v1h-1z'/%3E%3C/svg%3E");
+}
+
+/* ── разрушение ── */
+.banner.mined {
+  transition: transform 0.16s ease-in, opacity 0.16s ease-in;
+  transform: scale(0.65);
+  opacity: 0;
+  pointer-events: none;
+}
+/* повёрнутый красный: ломается вместе со своей бледной подложкой */
+.banners.red-mined .banner.red.faded {
+  transition: opacity 0.25s ease-in;
+  opacity: 0;
+}
+
+/* частицы разлёта (JS задаёт --мид/конечные смещения и цвет) */
+.mine-part {
+  position: fixed;
+  z-index: 120;
+  width: 7px;
+  height: 7px;
+  pointer-events: none;
+  image-rendering: pixelated;
+  animation: part-fly 0.65s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+}
+@keyframes part-fly {
+  0%   { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+  38%  { transform: translate(var(--mx), var(--my)) rotate(var(--mr)); opacity: 1; }
+  100% { transform: translate(var(--ex), var(--ey)) rotate(var(--er)); opacity: 0; }
+}
+
+/* ── схлопывание секции после третьего баннера ── */
+.banners.collapsing {
+  overflow: hidden;
+  transition: height 0.55s cubic-bezier(0.32, 0.72, 0, 1),
+              margin-top 0.55s cubic-bezier(0.32, 0.72, 0, 1);
+}

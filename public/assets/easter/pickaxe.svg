@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" shape-rendering="crispEdges">
+  <!-- пиксель-арт алмазной кирки (собственный, 16×16): арка-голова слева-сверху, рукоять по диагонали вниз-вправо -->
+  <!-- контур головы -->
+  <path fill="#1d1d21" d="M3 0h7v1H3zM1 1h2v1H1zM10 1h2v1h-2zM0 2h1v3H0zM12 2h1v1h-1zM13 3h1v2h-1zM0 5h1v2H0zM14 5h1v3h-1zM1 7h1v2H1z"/>
+  <!-- голова: светлая грань -->
+  <path fill="#9ff7ea" d="M3 1h4v1H3zM1 2h2v1H1zM1 3h1v2H1z"/>
+  <!-- голова: основной алмаз -->
+  <path fill="#4aedd9" d="M7 1h3v1H7zM3 2h3v1H3zM10 2h2v1h-2zM2 3h2v1H2zM11 3h2v1h-2zM2 4h1v1H2zM12 4h1v1h-1zM1 5h2v1H1zM13 5h1v1h-1z"/>
+  <!-- голова: тёмная грань -->
+  <path fill="#2bc8b6" d="M6 2h4v1H6zM4 3h3v1H4zM3 4h2v1H3zM13 6h1v2h-1zM2 6h1v2H2z"/>
+  <!-- рукоять: контур -->
+  <path fill="#1d1d21" d="M6 3h1v1H6zM7 4h1v1H7zM8 5h1v1H8zM9 6h1v1H9zM10 7h1v1h-1zM11 8h1v1h-1zM12 9h1v1h-1zM13 10h1v1h-1zM14 11h1v1h-1zM15 12h1v2h-1zM14 14h1v1h-1z"/>
+  <!-- рукоять: дерево -->
+  <path fill="#8a5d33" d="M7 3h1v1H7zM8 4h1v1H8zM9 5h1v1H9zM10 6h1v1h-1zM11 7h1v1h-1zM12 8h1v1h-1zM13 9h1v1h-1zM14 10h1v1h-1z"/>
+  <path fill="#6b4423" d="M8 3h1v1H8zM9 4h1v1H9zM10 5h1v1h-1zM11 6h1v1h-1zM12 7h1v1h-1zM13 8h1v1h-1zM14 9h1v1h-1zM15 10h1v2h-1zM14 12h1v2h-1z"/>
+</svg>

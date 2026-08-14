@@ -10,6 +10,8 @@ import {
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import ToolsPanel from "./ToolsPanel";
+import { useMiner } from "@/components/easter/useMiner";
+import "@/styles/easter.css";
 
 /* Контекст инструмента tools — общий для всех дашбордов, живёт в root layout
    (переживает смену роута → панель остаётся открытой при свопе, требование #4).
@@ -47,6 +49,11 @@ interface ToolsCtx {
   panelOpen: boolean;
   setPanelOpen: (o: boolean) => void;
   swapTo: (url: "/" | "/current") => void;
+  // пасхалка (5× «/»): секретный режим панели + кирка
+  easter: boolean;
+  mineArmed: boolean;
+  setMineArmed: (v: boolean) => void;
+  minedCount: number;
 }
 
 // своп дашбордов: сколько ждём растворения борда до смены роута
@@ -121,6 +128,72 @@ export default function ToolsProvider({ children }: { children: ReactNode }) {
     router.prefetch("/current");
   }, [router]);
 
+  /* ── пасхалка: 5 нажатий «/» подряд включают/выключают секретный режим ──
+     Только на Главной (баннеры живут там). Никаких следов в URL/доках.
+     Выход: ещё 5× «/» или перезагрузка — всё возвращается как было. */
+  const [easter, setEaster] = useState(false);
+  const [mineArmed, setMineArmed] = useState(false);
+  const [minedCount, setMinedCount] = useState(0);
+
+  useEffect(() => {
+    if (dashboard !== "main") return; // на других дашбордах триггер не активен
+    let count = 0;
+    let last = 0;
+    // на многих раскладках «/» набирается через Shift — модификаторы серию не сбивают
+    const MODS = new Set(["Shift", "Alt", "Control", "Meta", "CapsLock", "AltGraph"]);
+    const onKey = (e: KeyboardEvent) => {
+      if (MODS.has(e.key)) return;
+      const t = e.target as HTMLElement | null;
+      // guard только для ТЕКСТОВОГО ввода: фокус на чекбоксе-свитче серию не глушит
+      const typing =
+        !!t &&
+        (t.tagName === "TEXTAREA" ||
+          t.isContentEditable ||
+          (t instanceof HTMLInputElement &&
+            !/^(checkbox|radio|button|range|submit|reset|file|color)$/.test(t.type)));
+      if (e.key !== "/" || e.repeat || typing) {
+        count = 0;
+        return;
+      }
+      const now = performance.now();
+      count = now - last < 1500 ? count + 1 : 1;
+      last = now;
+      if (count >= 5) {
+        count = 0;
+        setEaster((on) => !on);
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [dashboard]);
+
+  // вход в режим — раскрыть панель (секретный экран должен быть видно);
+  // выход — вернуть панель в состояние до входа
+  const panelOpenRef = useRef(panelOpen);
+  panelOpenRef.current = panelOpen;
+  const panelBeforeEaster = useRef<boolean | null>(null);
+  useEffect(() => {
+    if (easter) {
+      panelBeforeEaster.current = panelOpenRef.current;
+      setPanelOpen(true);
+    } else if (panelBeforeEaster.current !== null) {
+      setPanelOpen(panelBeforeEaster.current);
+      panelBeforeEaster.current = null;
+    }
+  }, [easter]);
+
+  // выход из режима (или уход с Главной): сложить кирку, обнулить счёт
+  useEffect(() => {
+    if (dashboard !== "main" && easter) setEaster(false);
+    if (!easter) {
+      setMineArmed(false);
+      setMinedCount(0);
+    }
+  }, [dashboard, easter]);
+
+  const onMined = useCallback(() => setMinedCount((c) => c + 1), []);
+  useMiner(easter && dashboard === "main", mineArmed, onMined);
+
   /* ── связь состояния панели с URL (deep-link, без перезагрузки) ──
      variant (v1/v2) и стек v2 живут в контексте → в ссылку их кладём сами:
      при заходе по прямой ссылке один раз читаем ?menu/?stack, дальше — плавно
@@ -184,7 +257,20 @@ export default function ToolsProvider({ children }: { children: ReactNode }) {
 
   return (
     <Ctx.Provider
-      value={{ dashboard, variant, setVariant, v2State, setV2, panelOpen, setPanelOpen, swapTo }}
+      value={{
+        dashboard,
+        variant,
+        setVariant,
+        v2State,
+        setV2,
+        panelOpen,
+        setPanelOpen,
+        swapTo,
+        easter,
+        mineArmed,
+        setMineArmed,
+        minedCount,
+      }}
     >
       {/* .board — неподвижный фрейм (подложка+рамка); растворяется при свопе
           только наполнение .board-body (скролл-контейнер) */}

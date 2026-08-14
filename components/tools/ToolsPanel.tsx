@@ -32,8 +32,47 @@ function Row({
 }
 
 export default function ToolsPanel() {
-  const { dashboard, variant, setVariant, v2State, setV2, panelOpen, setPanelOpen, swapTo } =
-    useTools();
+  const {
+    dashboard,
+    variant,
+    setVariant,
+    v2State,
+    setV2,
+    panelOpen,
+    setPanelOpen,
+    swapTo,
+    easter,
+    mineArmed,
+    setMineArmed,
+    minedCount,
+  } = useTools();
+
+  // секретный режим (5× «/»): вместо настроек — «инвентарь» с киркой
+  if (easter) {
+    return (
+      <>
+        <aside className="twk" aria-hidden={!panelOpen}>
+          <div className="twk-dyn" key="easter">
+            <p className="twk-sec">Секретный уровень</p>
+            <button
+              className={"twk-slot" + (mineArmed ? " armed" : "")}
+              onClick={() => setMineArmed(!mineArmed)}
+              aria-label="Алмазная кирка"
+            >
+              <img src="/assets/easter/pickaxe.svg" alt="" width="44" height="44" />
+            </button>
+            <p className="twk-egg-hint">
+              Возьми кирку и зажми кнопку мыши на рекламном баннере — он добывается,
+              как блок. Отпустишь раньше — трещины затянутся.
+            </p>
+            <p className="twk-egg-count">Добыто баннеров: {minedCount}/3</p>
+            <p className="twk-egg-hint">Выход — ещё пять раз «/» или перезагрузка.</p>
+          </div>
+        </aside>
+        <FabButton panelOpen={panelOpen} setPanelOpen={setPanelOpen} />
+      </>
+    );
+  }
 
   return (
     <>
@@ -112,32 +151,44 @@ export default function ToolsPanel() {
         </div>
       </aside>
 
-      {/* ── плавающая кнопка (иконка морфится в крестик) ── */}
-      <button
-        className="twk-fab"
-        aria-label="Инструменты"
-        aria-expanded={panelOpen}
-        onClick={() => setPanelOpen(!panelOpen)}
-      >
-        <svg className="sliders" width="20" height="20" viewBox="0 0 20 20" fill="none">
-          <path
-            d="M2 5.5h7.5M16.5 5.5h1.5M2 14.5h1.5M10.5 14.5h7.5"
-            stroke="#fff"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-          />
-          <circle cx="13" cy="5.5" r="2.2" stroke="#fff" strokeWidth="1.8" />
-          <circle cx="7" cy="14.5" r="2.2" stroke="#fff" strokeWidth="1.8" />
-        </svg>
-        <svg className="x" width="20" height="20" viewBox="0 0 20 20" fill="none">
-          <path
-            d="M4.5 4.5l11 11M15.5 4.5l-11 11"
-            stroke="#fff"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-          />
-        </svg>
-      </button>
+      <FabButton panelOpen={panelOpen} setPanelOpen={setPanelOpen} />
     </>
+  );
+}
+
+/* ── плавающая кнопка (иконка морфится в крестик) ── */
+function FabButton({
+  panelOpen,
+  setPanelOpen,
+}: {
+  panelOpen: boolean;
+  setPanelOpen: (o: boolean) => void;
+}) {
+  return (
+    <button
+      className="twk-fab"
+      aria-label="Инструменты"
+      aria-expanded={panelOpen}
+      onClick={() => setPanelOpen(!panelOpen)}
+    >
+      <svg className="sliders" width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path
+          d="M2 5.5h7.5M16.5 5.5h1.5M2 14.5h1.5M10.5 14.5h7.5"
+          stroke="#fff"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+        />
+        <circle cx="13" cy="5.5" r="2.2" stroke="#fff" strokeWidth="1.8" />
+        <circle cx="7" cy="14.5" r="2.2" stroke="#fff" strokeWidth="1.8" />
+      </svg>
+      <svg className="x" width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path
+          d="M4.5 4.5l11 11M15.5 4.5l-11 11"
+          stroke="#fff"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+        />
+      </svg>
+    </button>
   );
 }
