@@ -36,10 +36,93 @@ const CRIT_CHANCE = 0.15;
 const CRIT_SCALE = 1.6;
 // скиллы: жанровая структура (хоткей/урон/откат), тексты и названия свои
 const SKILLS = [
-  { key: "Q", code: "KeyQ", name: "Пламя комиссий", desc: "Наносит 28–36 урона огнём. Откат 1.5 с.", min: 28, max: 36, cd: 1500, color: "#ff6a3d", hits: 1 },
-  { key: "W", code: "KeyW", name: "Заморозка активов", desc: "Ледяной удар: 44–52 урона. Откат 3 с.", min: 44, max: 52, cd: 3000, color: "#4db8ff", hits: 1 },
-  { key: "E", code: "KeyE", name: "Шквал списаний", desc: "2–3 списания по 12–18 урона. Откат 5 с.", min: 12, max: 18, cd: 5000, color: "#ffd34d", hits: 3 },
+  { key: "Q", code: "KeyQ", name: "Пламя комиссий", desc: "Наносит 28–36 урона огнём. Откат 1.5 с.", min: 28, max: 36, cd: 1500, color: "#ff6a3d", hits: 1, buff: false },
+  { key: "W", code: "KeyW", name: "Заморозка активов", desc: "Ледяной удар: 44–52 урона. Откат 3 с.", min: 44, max: 52, cd: 3000, color: "#4db8ff", hits: 1, buff: false },
+  { key: "E", code: "KeyE", name: "Шквал списаний", desc: "2–3 списания по 12–18 урона. Откат 5 с.", min: 12, max: 18, cd: 5000, color: "#ffd34d", hits: 3, buff: false },
+  { key: "R", code: "KeyR", name: "Риск блокировки", desc: "", min: 0, max: 0, cd: 3200, color: "#ff9c26", hits: 0, buff: true },
 ];
+
+/* ── бафф «Риск блокировки»: 2 уровня, растит урон всех скиллов ──
+   Состояния виджета «Индикатор риска» — из дизайн-файла индикатора
+   (60291:18624 средний / 60291:18458 высокий), ассеты в assets/easter. */
+const RISK_BONUS = [0, 20, 40];
+const RISK_DESC = [
+  "Повышает риск блокировки: +20 к урону всех скиллов. Можно дважды.",
+  "Риск средний (+20 к урону). Ещё раз — высокий: +40.",
+  "Риск максимальный: +40 к урону всех скиллов.",
+];
+const RISK_STATES = [
+  null,
+  {
+    cls: "risk-mid",
+    gauge: "/assets/easter/risk-gauge-mid.svg",
+    icon: "/assets/easter/risk-ico-mid.svg",
+    title: "Средний риск",
+    desc: "Некоторые действия компании<br>нарушают требования 115-ФЗ",
+    rows: ["/assets/easter/risk-warn.svg", "/assets/easter/risk-warn.svg", "/assets/figma/wgCheck.svg"],
+  },
+  {
+    cls: "risk-high",
+    gauge: "/assets/easter/risk-gauge-high.svg",
+    icon: "/assets/easter/risk-ico-high.svg",
+    title: "Высокий риск",
+    desc: "Действия компании нарушают<br>требования 115-ФЗ",
+    rows: ["/assets/easter/risk-flash.svg", "/assets/easter/risk-flash.svg", "/assets/easter/risk-warn.svg"],
+  },
+] as const;
+
+// применить состояние риска к виджету (DOM партиала; рестор — restoreRiskState)
+function applyRiskState(level: 1 | 2) {
+  const w = document.querySelector<HTMLElement>(".widget.wg-risk");
+  const s = RISK_STATES[level]!;
+  if (!w) return;
+  w.classList.add("risk-state");
+  w.classList.remove("risk-mid", "risk-high");
+  w.classList.add(s.cls);
+  const gin = w.querySelector<HTMLElement>(".gauge-in");
+  if (gin) {
+    let g = gin.querySelector<HTMLElement>(".risk-gauge");
+    if (!g) {
+      g = document.createElement("span");
+      g.className = "risk-gauge";
+      g.innerHTML = `<img alt="">`;
+      gin.appendChild(g);
+    }
+    g.querySelector("img")!.src = s.gauge;
+  }
+  const c = w.querySelector<HTMLElement>(".gauge-c");
+  if (c) {
+    const img = c.querySelector("img");
+    if (img) img.src = s.icon;
+    const t = c.querySelector(".g-t");
+    if (t) t.textContent = s.title;
+    const d = c.querySelector(".g-d");
+    if (d) d.innerHTML = s.desc;
+  }
+  w.querySelectorAll<HTMLImageElement>(".wg-list .wg-li:not(.dim) img").forEach((img, i) => {
+    if (s.rows[i]) img.src = s.rows[i];
+  });
+}
+
+// вернуть виджет к исходному «Низкому риску» (значения из партиала)
+function restoreRiskState() {
+  const w = document.querySelector<HTMLElement>(".widget.wg-risk");
+  if (!w) return;
+  w.classList.remove("risk-state", "risk-mid", "risk-high", "risk-fading");
+  w.querySelector(".risk-gauge")?.remove();
+  const c = w.querySelector<HTMLElement>(".gauge-c");
+  if (c) {
+    const img = c.querySelector("img");
+    if (img) img.src = "/assets/figma/wgCashlessTips.svg";
+    const t = c.querySelector(".g-t");
+    if (t) t.textContent = "Низкий риск";
+    const d = c.querySelector(".g-d");
+    if (d) d.innerHTML = "Действия компании<br>не нарушают требования 115-ФЗ";
+  }
+  w.querySelectorAll<HTMLImageElement>(".wg-list .wg-li:not(.dim) img").forEach((img) => {
+    img.src = "/assets/figma/wgCheck.svg";
+  });
+}
 
 export function useMiner(session: boolean, tool: EasterTool | null, onMined: () => void) {
   const minedRef = useRef(0); // прогресс сессии (баннеры) — переживает смену инструмента
@@ -47,19 +130,26 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
   const luckTimerRef = useRef(0); // схлопывание тега — тоже сессионное
   const slotTimersRef = useRef<number[]>([]); // схлопывание слотов баннеров
   const hpRef = useRef(new Map<HTMLElement, number>()); // HP целей (режим РПГ)
+  const riskRef = useRef(0); // уровень риска блокировки (0/1/2) — бафф урона
+  const riskTimersRef = useRef<number[]>([]); // хореография смены вкладок/состояния
 
   /* ── сессия: рестор «мира» только при выходе из режима ── */
   useEffect(() => {
     if (!session) return;
     minedRef.current = 0;
     hpRef.current = new Map();
+    riskRef.current = 0;
     return () => {
       clearTimeout(collapseTimerRef.current);
       clearTimeout(luckTimerRef.current);
       slotTimersRef.current.forEach((t) => clearTimeout(t));
       slotTimersRef.current = [];
+      riskTimersRef.current.forEach((t) => clearTimeout(t));
+      riskTimersRef.current = [];
       minedRef.current = 0;
       hpRef.current = new Map();
+      riskRef.current = 0;
+      restoreRiskState(); // виджет «Индикатор риска» — обратно в «Низкий риск»
       const s = document.querySelector<HTMLElement>(".banners");
       if (s) {
         s.classList.remove("collapsing", "red-mined");
@@ -300,18 +390,27 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
     /* ═══════════════ РПГ ═══════════════ */
     document.body.classList.add("rpg-armed"); // перспектива дашборда (CSS)
 
-    // карточки скиллов слева
+    // карточки скиллов слева (бафф R — с описанием по текущему уровню риска)
     const panel = document.createElement("div");
     panel.className = "rpg-skills";
     panel.innerHTML = SKILLS.map(
       (s, i) => `
-      <button class="rpg-skill${i === 0 ? " sel" : ""}" data-i="${i}" style="--i:${i};--clr:${s.color}">
+      <button class="rpg-skill${i === 0 ? " sel" : ""}${s.buff && riskRef.current >= 2 ? " max" : ""}" data-i="${i}" style="--i:${i};--clr:${s.color}">
         <span class="rpg-key">${s.key}</span><span class="rpg-name">${s.name}</span>
-        <span class="rpg-desc">${s.desc}</span>
+        <span class="rpg-desc">${s.buff ? RISK_DESC[riskRef.current] : s.desc}</span>
       </button>`
     ).join("");
     document.body.appendChild(panel);
     requestAnimationFrame(() => panel.classList.add("on"));
+
+    // обновить карточку баффа после каста
+    const refreshRiskCard = () => {
+      const card = panel.querySelector<HTMLElement>(`[data-i="${SKILLS.findIndex((s) => s.buff)}"]`);
+      if (!card) return;
+      const d = card.querySelector(".rpg-desc");
+      if (d) d.textContent = RISK_DESC[riskRef.current];
+      card.classList.toggle("max", riskRef.current >= 2);
+    };
 
     // музыка: файл кладёт пользователь; нет файла — режим работает молча
     const theme = new Audio(RPG_THEME_SRC);
@@ -372,9 +471,33 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
       if (hp <= 0) destroyTarget(b);
     };
 
+    /* каст баффа: уровень риска ↑, вкладка сама уезжает на «Мои продукты»,
+       виджет риска растворяется в новое состояние, вкладка возвращается */
+    const castRisk = () => {
+      if (riskRef.current >= 2) return;
+      riskRef.current++;
+      const level = riskRef.current as 1 | 2;
+      refreshRiskCard();
+      const tab = (pane: string) =>
+        document.querySelector<HTMLElement>(`.tabs .tab[data-pane="${pane}"]`)?.click();
+      document.querySelector<HTMLElement>(".board-body")?.scrollTo({ top: 0, behavior: "smooth" });
+      tab("prod");
+      riskTimersRef.current.push(
+        window.setTimeout(() => {
+          document.querySelector(".widget.wg-risk")?.classList.add("risk-fading");
+        }, 650),
+        window.setTimeout(() => {
+          applyRiskState(level);
+          document.querySelector(".widget.wg-risk")?.classList.remove("risk-fading");
+        }, 950),
+        window.setTimeout(() => tab("ai"), 2600)
+      );
+    };
+
     const cast = (i: number, b: HTMLElement | null) => {
-      if (onCd[i] || !b || b.classList.contains("mined")) return;
       const s = SKILLS[i];
+      if (onCd[i]) return;
+      if (!s.buff && (!b || b.classList.contains("mined"))) return;
       onCd[i] = true;
       const card = panel.querySelector<HTMLElement>(`[data-i="${i}"]`);
       card?.classList.add("cd");
@@ -384,13 +507,18 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
           card?.classList.remove("cd");
         }, s.cd)
       );
+      if (s.buff) {
+        castRisk();
+        return;
+      }
       const hits = s.hits > 1 ? 2 + (Math.random() < 0.5 ? 1 : 0) : 1;
       for (let h = 0; h < hits; h++) {
         hitTimers.push(
           window.setTimeout(() => {
             const crit = Math.random() < CRIT_CHANCE;
-            const base = s.min + Math.round(Math.random() * (s.max - s.min));
-            applyDamage(b, crit ? Math.round(base * CRIT_SCALE) : base, s.color, crit);
+            const base =
+              s.min + Math.round(Math.random() * (s.max - s.min)) + RISK_BONUS[riskRef.current];
+            applyDamage(b!, crit ? Math.round(base * CRIT_SCALE) : base, s.color, crit);
           }, h * 160)
         );
       }
@@ -408,8 +536,13 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
     const onClick = (e: MouseEvent) => {
       const card = (e.target as Element | null)?.closest?.(".rpg-skill") as HTMLElement | null;
       if (card) {
-        selected = +card.dataset.i!;
-        panel.querySelectorAll(".rpg-skill").forEach((c) => c.classList.toggle("sel", c === card));
+        const i = +card.dataset.i!;
+        if (SKILLS[i].buff) {
+          cast(i, null); // бафф кастуется сразу, цель не нужна
+        } else {
+          selected = i;
+          panel.querySelectorAll(".rpg-skill").forEach((c) => c.classList.toggle("sel", c === card));
+        }
         return;
       }
       const b = targetOf(e.target as Element);

@@ -343,3 +343,43 @@ body.rpg-armed .chips .chip.luck { cursor: crosshair; }
   60% { translate: -2px -2px; }
   80% { translate: 2px 1px; }
 }
+
+/* ── Заклинание «Риск блокировки»: состояния виджета «Индикатор риска» ──
+   Ассеты состояний — из дизайн-файла индикатора (Figma 60291:18624 средний /
+   60291:18458 высокий). Оверлей-дуга кладётся в .gauge-in (его футпринт 1:1
+   с боксом гейджа в дизайне, масштаб 245/294), родные дуги гаснут. */
+.wg-risk .risk-gauge {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+.wg-risk .risk-gauge img {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  top: -13.18%;
+  height: 137.99%; /* свечение дуги выходит за бокс (как в макете) */
+}
+.wg-risk.risk-state .gauge-in > .arc,
+.wg-risk.risk-state .gauge-in > .gfade { opacity: 0; }
+.wg-risk.risk-state .gauge-c { z-index: 2; }
+.wg-risk.risk-state .gauge-c > img { width: 24px; height: 24px; }
+
+/* плавная смена состояния: канон-растворение тела виджета */
+.wg-risk .wg-risk-body {
+  transition: opacity 0.45s cubic-bezier(0.25, 0.1, 0.25, 1),
+              filter 0.45s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+.wg-risk.risk-fading .wg-risk-body {
+  opacity: 0;
+  filter: blur(10px);
+  transition: opacity 0.25s ease-in, filter 0.25s ease-in;
+}
+
+/* карточка баффа на максимуме — задизейблена */
+.rpg-skill.max {
+  opacity: 0.45;
+  pointer-events: none;
+  filter: saturate(0.6);
+}
