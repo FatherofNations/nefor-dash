@@ -10,7 +10,7 @@ import {
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import ToolsPanel from "./ToolsPanel";
-import { useMiner } from "@/components/easter/useMiner";
+import { useMiner, EasterTool } from "@/components/easter/useMiner";
 import "@/styles/easter.css";
 
 /* Контекст инструмента tools — общий для всех дашбордов, живёт в root layout
@@ -49,10 +49,10 @@ interface ToolsCtx {
   panelOpen: boolean;
   setPanelOpen: (o: boolean) => void;
   swapTo: (url: "/" | "/current") => void;
-  // пасхалка (5× «/»): секретный режим панели + кирка
+  // пасхалка (5× «/»): секретный режим панели + инструменты (кирка/РПГ)
   easter: boolean;
-  mineArmed: boolean;
-  setMineArmed: (v: boolean) => void;
+  easterTool: EasterTool | null;
+  setEasterTool: (t: EasterTool | null) => void;
   minedCount: number;
 }
 
@@ -132,7 +132,7 @@ export default function ToolsProvider({ children }: { children: ReactNode }) {
      Только на Главной (баннеры живут там). Никаких следов в URL/доках.
      Выход: ещё 5× «/» или перезагрузка — всё возвращается как было. */
   const [easter, setEaster] = useState(false);
-  const [mineArmed, setMineArmed] = useState(false);
+  const [easterTool, setEasterTool] = useState<EasterTool | null>(null);
   const [minedCount, setMinedCount] = useState(0);
 
   useEffect(() => {
@@ -186,13 +186,13 @@ export default function ToolsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (dashboard !== "main" && easter) setEaster(false);
     if (!easter) {
-      setMineArmed(false);
+      setEasterTool(null);
       setMinedCount(0);
     }
   }, [dashboard, easter]);
 
   const onMined = useCallback(() => setMinedCount((c) => c + 1), []);
-  useMiner(easter && dashboard === "main", mineArmed, onMined);
+  useMiner(easter && dashboard === "main", easterTool, onMined);
 
   /* ── связь состояния панели с URL (deep-link, без перезагрузки) ──
      variant (v1/v2) и стек v2 живут в контексте → в ссылку их кладём сами:
@@ -267,8 +267,8 @@ export default function ToolsProvider({ children }: { children: ReactNode }) {
         setPanelOpen,
         swapTo,
         easter,
-        mineArmed,
-        setMineArmed,
+        easterTool,
+        setEasterTool,
         minedCount,
       }}
     >

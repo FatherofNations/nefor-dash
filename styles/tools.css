@@ -97,7 +97,9 @@
   inset: 0;
   background: var(--page-bg);
   clip-path: inset(0 round 0);
-  transition: clip-path 0.55s cubic-bezier(0.32, 0.72, 0, 1);
+  /* transform — вход/выход перспективы режима РПГ (easter.css) */
+  transition: clip-path 0.55s cubic-bezier(0.32, 0.72, 0, 1),
+              transform 0.55s cubic-bezier(0.32, 0.72, 0, 1);
 }
 /* .board-body — НАПОЛНЕНИЕ: скролл-контейнер с контентом дашборда.
    Появление после свопа — точный рецепт переключения пейнов (AI-Сводка →

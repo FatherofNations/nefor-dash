@@ -42,12 +42,12 @@ export default function ToolsPanel() {
     setPanelOpen,
     swapTo,
     easter,
-    mineArmed,
-    setMineArmed,
+    easterTool,
+    setEasterTool,
     minedCount,
   } = useTools();
 
-  // секретный режим (5× «/»): вместо настроек — «инвентарь» с киркой
+  // секретный режим (5× «/»): вместо настроек — «инвентарь» с инструментами
   if (easter) {
     return (
       <>
@@ -55,15 +55,28 @@ export default function ToolsPanel() {
           <div className="twk-dyn" key="easter">
             <p className="twk-sec">Секретный уровень</p>
             <button
-              className={"twk-slot" + (mineArmed ? " armed" : "")}
-              onClick={() => setMineArmed(!mineArmed)}
-              aria-label="Алмазная кирка"
+              className={"twk-slot" + (easterTool === "pickaxe" ? " armed" : "")}
+              onClick={() => setEasterTool(easterTool === "pickaxe" ? null : "pickaxe")}
+              aria-label="Кирка"
+              title="Кирка"
             >
               <img src="/assets/easter/pickaxe.png" alt="" width="40" height="46" />
             </button>
             <p className="twk-egg-hint">
               Возьми кирку и зажми кнопку мыши на рекламном баннере — он добывается,
               как блок, со звуком. Отпустишь раньше — трещины затянутся.
+            </p>
+            <button
+              className={"twk-slot" + (easterTool === "rpg" ? " armed" : "")}
+              onClick={() => setEasterTool(easterTool === "rpg" ? null : "rpg")}
+              aria-label="Режим РПГ"
+              title="Режим РПГ"
+            >
+              <img src="/assets/easter/sword.svg" alt="" width="40" height="40" />
+            </button>
+            <p className="twk-egg-hint">
+              Режим РПГ: наведи курсор на баннер и бей скиллами — Q, W, E
+              (или кликом, выбрав скилл слева).
             </p>
             <p className="twk-egg-count">Добыто: {minedCount}/4</p>
             <p className="twk-egg-hint">Выход — ещё пять раз «/» или перезагрузка.</p>
