@@ -80,10 +80,11 @@ body.mine-armed .pickaxe-cur { display: block; }
 .pickaxe-cur.swing img { animation: pick-swing 0.28s cubic-bezier(0.36, 0, 0.66, 1) infinite; }
 /* одиночный мах по клику в пустоту */
 .pickaxe-cur.swing-once img { animation: pick-swing 0.28s cubic-bezier(0.36, 0, 0.66, 1) 1; }
+/* углы инвертированы: в зеркальной системе rotate(+) читается влево — мах в ЛЕВУЮ сторону */
 @keyframes pick-swing {
-  0%   { transform: scaleX(-1) rotate(10deg); }
-  45%  { transform: scaleX(-1) rotate(-58deg); }
-  100% { transform: scaleX(-1) rotate(10deg); }
+  0%   { transform: scaleX(-1) rotate(-10deg); }
+  45%  { transform: scaleX(-1) rotate(58deg); }
+  100% { transform: scaleX(-1) rotate(-10deg); }
 }
 
 /* ── трещины: 3 стадии, РАВНОМЕРНОЕ распределение (зонная сетка 7×4, свой
