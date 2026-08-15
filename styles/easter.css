@@ -1693,3 +1693,92 @@ body:has(.chat.open) .rpg-defeat {
     transform: translateY(-50%) perspective(1700px) rotateX(6deg) rotateY(14deg) scale(0.78);
   }
 }
+
+/* ═══ Правки по фидбеку: тень по силуэту, кроп/наклон босса, плашка игрока ═══ */
+
+/* ── тень и свечение карточки — ТОЛЬКО drop-shadow на самой карточке.
+   box-shadow рисует прямоугольник вокруг border-box (грубый ореол), а
+   drop-shadow на элементе с clip-path обрезается вместе с ним. Поэтому
+   фильтр вешаем на .rpg-skill (у неё нет clip-path) — он считается по
+   силуэту детей: рваная плашка + квадрат буквы + ромб. */
+.rpg-skill,
+.rpg-skill.sel-aim,
+.rpg-skills.aiming .rpg-skill.sel-aim,
+.rpg-skills.aiming .rpg-skill.sel-aim:hover { box-shadow: none; }
+.rpg-skill { filter: drop-shadow(0 10px 16px rgba(0, 0, 0, 0.4)); }
+.rpg-slab { filter: none; }
+.rpg-skill:not(.cd):not(.no-ap):not(.max):hover .rpg-slab,
+.rpg-skills.live .rpg-skill:not(.cd):not(.no-ap):not(.max):hover .rpg-slab,
+.rpg-skill.sel-aim .rpg-slab { filter: none; }
+.rpg-skill:not(.cd):not(.no-ap):not(.max):hover,
+.rpg-skills.live .rpg-skill:not(.cd):not(.no-ap):not(.max):hover {
+  filter: drop-shadow(0 10px 16px rgba(0, 0, 0, 0.4))
+    drop-shadow(0 0 10px color-mix(in srgb, var(--clr) 45%, transparent));
+}
+.rpg-skill.sel-aim,
+.rpg-skills.aiming .rpg-skill.sel-aim {
+  filter: drop-shadow(0 10px 16px rgba(0, 0, 0, 0.4))
+    drop-shadow(0 0 6px color-mix(in srgb, var(--clr) 70%, transparent))
+    drop-shadow(0 0 18px color-mix(in srgb, var(--clr) 40%, transparent));
+}
+.rpg-skill.cd { filter: grayscale(1) brightness(0.7) drop-shadow(0 8px 12px rgba(0, 0, 0, 0.35)); }
+
+/* ── босс: кроп рамкой и наклон как в макете (картинка 122.72%/111.59%
+   со сдвигом −10.76%/−11.44%, рамка 140×136) ── */
+.rpg-villain {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 140px;
+  height: 136px;
+  overflow: hidden;
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.5));
+}
+.rpg-villain img {
+  position: absolute;
+  left: -10.76%;
+  top: -11.44%;
+  width: 122.72%;
+  height: 111.59%;
+  max-width: none;
+  image-rendering: pixelated;
+  transform: rotate(-11deg); /* как у героя игрока в макете */
+}
+
+/* ── плашка «Продукт»: левее на 48px (не наезжает на контролы) и в той же
+   перспективе, что дашборд (борд сужается слева — плашка тоже) ── */
+.rpg-player {
+  right: 82px; /* 34 + 48 */
+  transform: perspective(1700px) rotateX(6deg) rotateY(-14deg);
+  transform-origin: 100% 50%;
+}
+
+/* ── ФИКС специфичности: анимация входа держит filter:blur() на
+   `.rpg-skills.on .rpg-skill` (0,2,0) и перебивала одиночный drop-shadow.
+   Собираем ОДНУ цепочку: blur + тень + два слоя свечения (в покое прозрачные)
+   — одинаковый список функций во всех состояниях даёт плавный переход. ── */
+.rpg-skills.on .rpg-skill {
+  filter: blur(0px)
+    drop-shadow(0 10px 16px rgba(0, 0, 0, 0.4))
+    drop-shadow(0 0 6px transparent)
+    drop-shadow(0 0 18px transparent);
+}
+.rpg-skills.on .rpg-skill:not(.cd):not(.no-ap):not(.max):hover,
+.rpg-skills.live .rpg-skill:not(.cd):not(.no-ap):not(.max):hover {
+  filter: blur(0px)
+    drop-shadow(0 10px 16px rgba(0, 0, 0, 0.4))
+    drop-shadow(0 0 8px color-mix(in srgb, var(--clr) 45%, transparent))
+    drop-shadow(0 0 18px transparent);
+}
+.rpg-skills.on .rpg-skill.sel-aim,
+.rpg-skills.aiming .rpg-skill.sel-aim,
+.rpg-skills.aiming .rpg-skill.sel-aim:hover {
+  filter: blur(0px)
+    drop-shadow(0 10px 16px rgba(0, 0, 0, 0.4))
+    drop-shadow(0 0 6px color-mix(in srgb, var(--clr) 70%, transparent))
+    drop-shadow(0 0 18px color-mix(in srgb, var(--clr) 40%, transparent));
+}
+.rpg-skills.on .rpg-skill.cd {
+  filter: blur(0px) grayscale(1) brightness(0.7)
+    drop-shadow(0 8px 12px rgba(0, 0, 0, 0.35));
+}
