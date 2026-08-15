@@ -800,3 +800,73 @@ body:has(.chat.open) .rpg-defeat {
   border-color: color-mix(in srgb, var(--clr) 75%, transparent);
   transform: translateX(8px) scale(1.03);
 }
+
+/* ═══ Combat v3.1: громкость, магнит-карточки, вёрстка риск-виджета ═══ */
+
+/* ── ползунок громкости по наведению на кнопку звука ── */
+.rpg-mute { position: relative; overflow: visible; }
+.rpg-vol {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 10px);
+  padding: 10px 12px;
+  background: #16161a;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+/* мостик, чтобы hover не рвался между кнопкой и попапом */
+.rpg-vol::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  height: 12px;
+}
+.rpg-mute:hover .rpg-vol {
+  opacity: 1;
+  pointer-events: auto;
+}
+.rpg-vol input {
+  display: block;
+  width: 110px;
+  accent-color: #d8b95f;
+  cursor: pointer;
+}
+
+/* ── магнит-карточки: transform собирается из per-card переменных ──
+   Активен после входа (.live): у входной анимации стаггер-delay, который
+   иначе тормозил бы отклик магнита. */
+.rpg-skills.live .rpg-skill {
+  transition: opacity 0.3s ease, filter 0.3s ease,
+              transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+              border-color 0.15s ease;
+  transition-delay: 0s;
+  transform: translate3d(var(--cx, 0px), var(--cy, 0px), 0) scale(var(--cs, 1));
+}
+.rpg-skills.live .rpg-skill:not(.cd):not(.no-ap):not(.max):hover {
+  transform: translate3d(var(--cx, 0px), var(--cy, 0px), 0)
+    scale(calc(var(--cs, 1) + 0.015));
+  border-color: color-mix(in srgb, var(--clr) 55%, transparent);
+}
+/* прицельная карточка всегда сильнее магнита и hover */
+.rpg-skills.aiming .rpg-skill.sel-aim,
+.rpg-skills.aiming .rpg-skill.sel-aim:hover {
+  transform: translateX(8px) scale(1.03);
+  border-color: color-mix(in srgb, var(--clr) 75%, transparent);
+}
+
+/* ── вёрстка состояний риск-виджета по макету (сверка на ровном виде):
+   центр-блок как в макете — 238px с паддингом 12 (тексты 214), колонка от
+   top 38; средний деск на всю ширину (2 строки), высокий — 186px. Родные
+   231/32 из «низкого» давали контент 167px и ломали переносы длинных строк. */
+.wg-risk.risk-state .gauge-c {
+  top: 38px;
+  width: 238px;
+  padding: 0 12px;
+}
+.wg-risk.risk-mid .gauge-c .g-d { width: 100%; }
+.wg-risk.risk-high .gauge-c .g-d { width: 186px; }
