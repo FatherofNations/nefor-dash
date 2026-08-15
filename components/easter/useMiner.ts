@@ -57,10 +57,10 @@ const SKILLS: {
   min: number; max: number; ap: number; gain: number;
   color: string; hits: number; kind: SkillKind; hidden?: boolean;
 }[] = [
-  { key: "A", code: "KeyA", name: "Быстрый платёж", desc: "Базовая атака: 18–26 урона. Генерирует +1 ОД.", min: 18, max: 26, ap: 0, gain: 1, color: "#e9e7de", hits: 1, kind: "attack" },
-  { key: "Q", code: "KeyQ", name: "Пламя комиссий", desc: "55–70 урона огнём и поджиг: −15 HP цели два хода (мимо защиты). Горящий босс теряет 1 защиту в начале хода.", min: 55, max: 70, ap: 2, gain: 0, color: "#ff6a3d", hits: 1, kind: "attack" },
-  { key: "W", code: "KeyW", name: "Заморозка активов", desc: "85–110 урона льдом. Замороженная цель не лечится в этот ход.", min: 85, max: 110, ap: 3, gain: 0, color: "#4db8ff", hits: 1, kind: "attack" },
-  { key: "E", code: "KeyE", name: "Шквал списаний", desc: "4–6 ударов по 14–20. Каждый удар снимает 1 защиту босса, крит добавляет удар.", min: 14, max: 20, ap: 3, gain: 0, color: "#ffd34d", hits: 5, kind: "attack" },
+  { key: "A", code: "KeyA", name: "Платёж", desc: "Базовая атака: 18–26 урона. Генерирует +1 ОД.", min: 18, max: 26, ap: 0, gain: 1, color: "#e9e7de", hits: 1, kind: "attack" },
+  { key: "Q", code: "KeyQ", name: "Холды", desc: "55–70 урона огнём и поджиг: −15 HP цели два хода (мимо защиты). Горящий босс теряет 1 защиту в начале хода.", min: 55, max: 70, ap: 2, gain: 0, color: "#ff6a3d", hits: 1, kind: "attack" },
+  { key: "W", code: "KeyW", name: "Овердрафт", desc: "85–110 урона льдом. Замороженная цель не лечится в этот ход.", min: 85, max: 110, ap: 3, gain: 0, color: "#4db8ff", hits: 1, kind: "attack" },
+  { key: "E", code: "KeyE", name: "Кассовый разрыв", desc: "4–6 ударов по 14–20. Каждый удар снимает 1 защиту босса, крит добавляет удар.", min: 14, max: 20, ap: 3, gain: 0, color: "#ffd34d", hits: 5, kind: "attack" },
   { key: "R", code: "KeyR", name: "Риск блокировки", desc: "", min: 0, max: 0, ap: 4, gain: 0, color: "#ff9c26", hits: 0, kind: "risk" },
   { key: "F", code: "KeyF", name: "Встреча в 9 утра", desc: "Продажи заняты планёркой: босс больше не получает защиту. Мгновенно, один раз.", min: 0, max: 0, ap: 4, gain: 0, color: "#7a63f1", hits: 0, kind: "meeting", hidden: true },
 ];
@@ -452,9 +452,13 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
     panel.innerHTML = SKILLS.map(
       (s, i) => `
       <button class="rpg-skill${s.hidden ? " hidden" : ""}" data-i="${i}" style="--i:${i};--clr:${s.color}">
-        <span class="rpg-card-top"><span class="rpg-key">${s.key}</span><span class="rpg-name">${s.name}</span>
-        <span class="rpg-ap">${"<i></i>".repeat(s.ap)}</span></span>
-        <span class="rpg-desc">${s.kind === "risk" ? RISK_DESC[0] : s.desc}</span>
+        <span class="rpg-slab"></span>
+        <span class="rpg-key">${s.key}</span>
+        <span class="rpg-body">
+          <span class="rpg-name">${s.name}</span>
+          <span class="rpg-desc">${s.kind === "risk" ? RISK_DESC[0] : s.desc}</span>
+        </span>
+        <span class="rpg-cost"><i></i><b>${s.ap}</b></span>
       </button>`
     ).join("");
     document.body.appendChild(panel);
@@ -503,10 +507,12 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
     const playerEl = document.createElement("div");
     playerEl.className = "rpg-player";
     playerEl.innerHTML =
-      `<div class="rpg-player-top"><span class="rpg-player-name">Продукт</span>` +
-      `<span class="rpg-ap-row">${"<i></i>".repeat(AP_MAX)}</span></div>` +
-      `<div class="rpg-player-bar"><i style="width:100%"></i></div>` +
-      `<span class="rpg-player-hp"></span>`;
+      `<span class="rpg-slab"></span>` +
+      `<img class="rpg-hero" src="/assets/easter/rpg-player.png" alt="">` +
+      `<span class="rpg-apgem"><i></i><b class="rpg-ap-num">${AP_START}</b></span>` +
+      `<span class="rpg-player-name">Продукт</span>` +
+      `<span class="rpg-hpwrap"><span class="rpg-player-bar"><i style="width:100%"></i></span>` +
+      `<span class="rpg-player-hp"></span></span>`;
     document.body.appendChild(playerEl);
     requestAnimationFrame(() => playerEl.classList.add("on"));
 
@@ -514,9 +520,11 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
     const bossEl = document.createElement("div");
     bossEl.className = "rpg-boss";
     bossEl.innerHTML =
-      `<div class="rpg-boss-top"><span class="rpg-boss-name">Продажи</span>` +
-      `<span class="rpg-boss-armor"></span></div>` +
-      `<div class="rpg-boss-bar"><i style="width:100%"></i></div>` +
+      `<span class="rpg-slab"></span>` +
+      `<img class="rpg-villain" src="/assets/easter/rpg-boss.png" alt="">` +
+      `<span class="rpg-boss-name">Продажи</span>` +
+      `<span class="rpg-boss-armor"></span>` +
+      `<span class="rpg-boss-bar"><i style="width:100%"></i></span>` +
       `<span class="rpg-boss-hp"></span>`;
     document.body.appendChild(bossEl);
     requestAnimationFrame(() => bossEl.classList.add("on"));
@@ -592,7 +600,8 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
       const hp = bossHp();
       (bossEl.querySelector(".rpg-boss-bar i") as HTMLElement).style.width =
         `${Math.max(0, (hp / BOSS_MAX) * 100)}%`;
-      bossEl.querySelector(".rpg-boss-hp")!.textContent = `${Math.max(0, hp)} / ${BOSS_MAX}`;
+      bossEl.querySelector(".rpg-boss-hp")!.innerHTML =
+        `<b>${Math.max(0, hp)}</b>/${BOSS_MAX.toLocaleString("ru-RU")}`;
       bossEl.querySelector(".rpg-boss-armor")!.innerHTML = "<i></i>".repeat(Math.min(armor, 10));
     };
     updateBoss();
@@ -683,11 +692,9 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
     const updatePlayer = () => {
       (playerEl.querySelector(".rpg-player-bar i") as HTMLElement).style.width =
         `${Math.max(0, (playerHp / PLAYER_MAX) * 100)}%`;
-      playerEl.querySelector(".rpg-player-hp")!.textContent =
-        `${Math.max(0, playerHp)} / ${PLAYER_MAX}`;
-      playerEl.querySelectorAll(".rpg-ap-row i").forEach((pip, idx) => {
-        pip.classList.toggle("on", idx < ap);
-      });
+      playerEl.querySelector(".rpg-player-hp")!.innerHTML =
+        `<b>${Math.max(0, playerHp)}</b>/${PLAYER_MAX}`;
+      playerEl.querySelector(".rpg-ap-num")!.textContent = String(Math.max(0, ap));
     };
     updatePlayer();
 
