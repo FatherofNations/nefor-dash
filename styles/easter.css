@@ -1417,3 +1417,180 @@ body:has(.chat.open) .rpg-defeat {
 .rpg-skill { min-height: 84px; }
 .rpg-body { padding: 14px 40px 12px 34px; }
 .rpg-key { top: 26px; }
+
+/* ═══ Точная геометрия по макету (Figma 29:11227, фрейм 1898.67×1068) ═══
+   Координаты и размеры из дерева макета 1:1 (px фрейма). Карточки —
+   absolute под наклоном (макетные bbox 372×175 и т.п. — это bbox ПОВЁРНУТОЙ
+   плашки 342×113); панель игрока 390×193 @1475,780; босс: череп 140×136
+   @635,41, плашка 749×47 @660,72, полоса 361×63 @908,97. */
+
+/* ── карточки: контейнер = координаты макета, каждая — absolute ── */
+.rpg-skills {
+  top: 126px;
+  left: 126px;
+  transform: none;
+  gap: 0;
+  width: 380px;
+  height: 820px;
+}
+.rpg-skill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 342px;
+  min-height: 113px;
+  transform-origin: 50% 50%;
+  /* позиция обёртки из макета (относительно 126,126) + наклон;
+     сдвиг ~15px внутрь: bbox повёрнутой плашки шире её самой */
+  transform: translate(calc(var(--mx0, 0px) + 4px), calc(var(--my0, 0px) + 12px)) rotate(var(--tilt, -4deg));
+}
+/* наклон подобран так, чтобы bbox повёрнутой плашки 342×113 совпал с
+   макетным bbox (372×175 у первой → ~−7°) */
+.rpg-skill[data-i="0"] { --mx0: 0px;    --my0: 0px;    --tilt: -7.2deg; }
+.rpg-skill[data-i="1"] { --mx0: -19px;  --my0: 170px;  --tilt: -6.6deg; }
+.rpg-skill[data-i="2"] { --mx0: -25px;  --my0: 333px;  --tilt: -5.4deg; }
+.rpg-skill[data-i="3"] { --mx0: -24px;  --my0: 498px;  --tilt: -6.4deg; }
+.rpg-skill[data-i="4"] { --mx0: -25px;  --my0: 650px;  --tilt: -6.8deg; }
+.rpg-skill[data-i="5"] { --mx0: -25px;  --my0: 802px;  --tilt: -6.4deg; }
+.rpg-skills.live .rpg-skill {
+  transform: translate(calc(var(--mx0, 0px) + 4px + var(--cx, 0px)), calc(var(--my0, 0px) + 12px + var(--cy, 0px)))
+    rotate(var(--tilt, -4deg)) scale(var(--cs, 1));
+}
+.rpg-skills.live .rpg-skill:not(.cd):not(.no-ap):not(.max):hover {
+  transform: translate(calc(var(--mx0, 0px) + 4px + var(--cx, 0px)), calc(var(--my0, 0px) + 12px + var(--cy, 0px)))
+    rotate(var(--tilt, -4deg)) scale(calc(var(--cs, 1) + 0.015));
+}
+.rpg-skills.aiming .rpg-skill.sel-aim,
+.rpg-skills.aiming .rpg-skill.sel-aim:hover {
+  transform: translate(calc(var(--mx0, 0px) + 12px), calc(var(--my0, 0px) + 12px)) rotate(var(--tilt, -4deg)) scale(1.04);
+}
+.rpg-skills.aiming .rpg-skill:not(.sel-aim) {
+  transform: translate(calc(var(--mx0, 0px) - 36px), calc(var(--my0, 0px) + 12px)) rotate(var(--tilt, -4deg));
+}
+.rpg-skills.aiming::after { position: absolute; left: 0; top: 100%; width: 342px; }
+/* внутренности — точные px макета (карточка 342×113) */
+.rpg-key {
+  left: 0;
+  top: 58px;
+  width: 48px;
+  height: 48px;
+  border-width: 2.7px;
+  font-family: "Arial Black", "Helvetica Neue", Arial, sans-serif;
+  font-size: 24px;
+  color: rgba(255, 255, 255, 0.41);
+}
+.rpg-body { padding: 36px 40px 18px 74px; }
+.rpg-name {
+  font-size: 18.8px;
+  letter-spacing: 1.5px;
+}
+.rpg-desc {
+  margin-top: 8px;
+  max-width: 223px;
+  font-size: 14.8px;
+  line-height: 21.5px;
+  -webkit-line-clamp: 2;
+}
+.rpg-cost {
+  right: 6px;
+  top: 0;
+  width: 33px;
+  height: 33px;
+}
+.rpg-cost i { inset: 5px; border-width: 1.35px; }
+.rpg-cost b { font-size: 14.8px; }
+
+/* ── панель игрока: 390×193 @1475,780; наклон только у вложенных слоёв ── */
+.rpg-player {
+  left: 1475px;
+  right: auto;
+  top: 780px;
+  bottom: auto;
+  width: 390px;
+  height: 193px;
+  transform: none;
+}
+.rpg-player .rpg-slab {
+  inset: 56px 0 10px 79px; /* плашка 311×128 @79,56 */
+  transform: rotate(0.38deg);
+  clip-path: polygon(0% 6%, 100% 0%, 96.4% 24%, 98% 52%, 93% 66%, 100% 100%, 8% 96%, 3% 60%, 0% 30%);
+}
+.rpg-hero {
+  left: 0;
+  top: 0;
+  width: 203px; /* 203×193 @0,0 */
+  transform: rotate(-11.17deg);
+}
+.rpg-apgem {
+  left: 159px;
+  top: 34px;
+  width: 50px;
+  height: 50px;
+}
+.rpg-apgem i { inset: 7px; border-width: 3.5px; transform: rotate(46.46deg); }
+.rpg-apgem b { font-size: 22.4px; }
+.rpg-player-name {
+  left: 213px;
+  top: 97px;
+  font-size: 18px;
+  letter-spacing: 1.4px;
+  transform: rotate(0.38deg);
+}
+.rpg-hpwrap {
+  left: 205px;
+  top: 125px;
+  width: 139px;
+  height: 46px;
+}
+.rpg-player-bar {
+  left: 8.5px;
+  top: 0;
+  width: 131px;
+  height: 43px;
+  transform: rotate(-4.31deg);
+}
+.rpg-player-hp { top: 12px; font-size: 11.9px; }
+.rpg-player-hp b { font-size: 18px; }
+
+/* ── босс: контейнер от 635,41 (череп) до 1409 (край плашки) ── */
+.rpg-boss {
+  left: 635px;
+  top: 41px;
+  transform: none;
+  width: 774px;
+  height: 136px;
+}
+.rpg-boss .rpg-slab {
+  inset: 31px 0 42px 25px; /* плашка 749×47 @660,72 */
+  clip-path: polygon(0% 8%, 100% 0%, 99.2% 100%, 0.5% 94%);
+}
+.rpg-boss .rpg-slab::before { clip-path: polygon(0% 8%, 100% 0%, 99.2% 100%, 0.5% 94%); }
+.rpg-villain {
+  left: 0;
+  top: 0;
+  width: 140px; /* 140×136 */
+}
+.rpg-boss-name {
+  left: 147px;
+  top: 43px;
+  font-size: 18px;
+  letter-spacing: 1.4px;
+}
+.rpg-boss-armor {
+  left: 147px;
+  top: 82px;
+}
+.rpg-boss-bar {
+  left: 273px;
+  top: 56px;
+  width: 361px;
+  height: 27px; /* макетные 63 — bbox повёрнутой полосы */
+  clip-path: polygon(0% 22%, 100% 0%, 100% 100%, 0% 88%);
+  transform: rotate(-1.4deg);
+}
+.rpg-boss-hp {
+  left: 661px;
+  top: 47px;
+  font-size: 11.9px;
+}
+.rpg-boss-hp b { font-size: 18px; }
