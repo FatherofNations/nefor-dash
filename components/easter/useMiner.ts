@@ -567,6 +567,43 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
     mute.appendChild(vol);
     document.body.appendChild(mute);
 
+    /* ── маркер цели под курсором (ховер в фазе прицеливания) ──
+       Живёт в .board-body: наследует перспективу борда и скролл. Внутрь
+       баннера положить нельзя — у него overflow:hidden, метки обрезало бы. */
+    const boardBody = document.querySelector<HTMLElement>(".board-body");
+    const aimMark = document.createElement("div");
+    aimMark.className = "rpg-aim";
+    aimMark.innerHTML = `<i class="t"></i><i class="b"></i>`;
+    boardBody?.appendChild(aimMark);
+
+    const placeAim = (b: HTMLElement | null) => {
+      if (!b || aiming < 0 || b.classList.contains("mined") || !boardBody) {
+        aimMark.classList.remove("on");
+        return;
+      }
+      // позиция в layout-координатах борда (offset-цепочка не искажена 3D)
+      let x = 0;
+      let y = 0;
+      let el: HTMLElement | null = b;
+      while (el && el !== boardBody) {
+        x += el.offsetLeft;
+        y += el.offsetTop;
+        el = el.offsetParent as HTMLElement | null;
+      }
+      const cs = getComputedStyle(b);
+      aimMark.style.left = `${x}px`;
+      aimMark.style.top = `${y}px`;
+      aimMark.style.width = `${b.offsetWidth}px`;
+      aimMark.style.height = `${b.offsetHeight}px`;
+      aimMark.style.borderRadius = cs.borderRadius;
+      // повёрнутый красный баннер: копируем поворот обёртки
+      const tilt = b.closest(".banner-tilt") as HTMLElement | null;
+      const t = tilt ? getComputedStyle(tilt) : null;
+      aimMark.style.transform = t ? t.transform : "none";
+      aimMark.style.transformOrigin = t ? t.transformOrigin : "";
+      aimMark.classList.add("on");
+    };
+
     /* ── состояние боя (новая партия при каждом взятии меча) ── */
     let aiming = -1; // индекс скилла в фазе прицеливания (−1 — нет)
     let turnBusy = false;
@@ -788,6 +825,7 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
     const exitAiming = () => {
       if (aiming < 0) return;
       aiming = -1;
+      aimMark.classList.remove("on");
       document.body.classList.remove("rpg-aiming");
       panel.classList.remove("aiming");
       refreshCards();
@@ -993,6 +1031,9 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
       enterAiming(i);
     };
 
+    const onOverTarget = (e: MouseEvent) => placeAim(targetOf(e.target as Element));
+    document.addEventListener("mouseover", onOverTarget);
+
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
       if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
@@ -1023,6 +1064,8 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
     return () => {
       document.removeEventListener("keydown", onKey);
       document.removeEventListener("click", onClick);
+      document.removeEventListener("mouseover", onOverTarget);
+      aimMark.remove();
       document.removeEventListener("mousemove", onMagnet);
       cancelAnimationFrame(magnetRaf);
       turnTimers.forEach((t) => clearTimeout(t));

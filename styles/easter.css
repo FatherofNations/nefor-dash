@@ -1782,3 +1782,96 @@ body:has(.chat.open) .rpg-defeat {
   filter: blur(0px) grayscale(1) brightness(0.7)
     drop-shadow(0 8px 12px rgba(0, 0, 0, 0.35));
 }
+
+/* ═══ Ховер-состояние цели (макет 30:12596 рамка + 30:12592 метки) ═══
+   Маркер — отдельный слой в .board-body (у баннера overflow:hidden,
+   метки-стрелки снаружи обрезало бы). Рамка 3px чёрная с отступом 3px,
+   метки сверху/снизу по центру. */
+.rpg-aim {
+  position: absolute;
+  z-index: 8;
+  display: none;
+  pointer-events: none;
+  outline: 3px solid #000;
+  outline-offset: 3px;
+}
+.rpg-aim.on { display: block; }
+.rpg-aim i {
+  position: absolute;
+  left: 50%;
+  width: 26px;
+  height: 23px;
+  margin-left: -13px;
+  background: url("/assets/easter/rpg-target-arrow.svg") center / contain no-repeat;
+  animation: rpg-aim-bob 1.1s ease-in-out infinite;
+}
+.rpg-aim i.t { top: -32px; }
+.rpg-aim i.b { bottom: -32px; rotate: 180deg; }
+@keyframes rpg-aim-bob {
+  50% { translate: 0 4px; }
+}
+.rpg-aim i.b { animation-name: rpg-aim-bob-b; }
+@keyframes rpg-aim-bob-b {
+  50% { translate: 0 -4px; }
+}
+/* пульсирующая белая обводка всех целей больше не нужна — ориентир даёт ховер */
+body.rpg-aiming .banners .banner:not(.mined):not(.faded),
+body.rpg-aiming .banner-tilt .banner:not(.mined),
+body.rpg-aiming .chips .chip.luck:not(.mined) {
+  outline: none;
+  animation: none;
+}
+
+/* ── секция босса вдвое меньше (масштаб от верхнего центра) ── */
+.rpg-boss {
+  transform: translateX(-50%) scale(0.5);
+  transform-origin: 50% 0;
+  margin-left: 36px; /* половина макетного смещения — секция ужалась вдвое */
+}
+
+/* ── шаг между карточками по макету (в макете шаг ~165px при плашке 113) ── */
+.rpg-skills { gap: 34px; }
+/* ── квадрат с буквой: по центру чёрной плашки (макет: висит на левом крае) ── */
+.rpg-key {
+  top: 50%;
+  left: -17px;
+  transform: translateY(-50%);
+}
+
+/* ═══ Шрифт макета: Onweer Variable (файл из системы пользователя) ═══
+   Оси: wght 100–900, wdth 60–200, CNTR 0–100, slnt ±20. Стили макета:
+   «C1 Wide Black» = wght 900 / wdth 150 / CNTR 50 — буква клавиши;
+   «Extended Bold» = wght 700 / wdth 200 — имена; «Light» = wght 300 — тексты.
+   Грузится лениво: элементы .rpg-* существуют только в игровом режиме. */
+@font-face {
+  font-family: "Onweer Var";
+  src: url("/fonts/onweer-var.woff2") format("woff2-variations");
+  font-weight: 100 900;
+  font-stretch: 60% 200%;
+  font-display: swap;
+}
+.rpg-key {
+  font-family: "Onweer Var", "Arial Black", Arial, sans-serif;
+  font-variation-settings: "wght" 900, "wdth" 150, "CNTR" 50;
+  letter-spacing: 0;
+}
+.rpg-name,
+.rpg-player-name,
+.rpg-boss-name,
+.rpg-player-hp b,
+.rpg-boss-hp b {
+  font-family: "Onweer Var", "Arial Black", Arial, sans-serif;
+  font-variation-settings: "wght" 700, "wdth" 200;
+  font-weight: 700;
+}
+.rpg-desc,
+.rpg-cost b,
+.rpg-apgem b,
+.rpg-player-hp,
+.rpg-boss-hp {
+  font-family: "Onweer Var", "Helvetica Neue", Arial, sans-serif;
+  font-variation-settings: "wght" 300, "wdth" 100;
+  font-weight: 300;
+}
+/* перспектива сжимает вертикальные зазоры — компенсируем в layout */
+.rpg-skills { gap: 58px; }
