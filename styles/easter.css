@@ -2040,3 +2040,59 @@ body.rpg-aiming .chips .chip.luck:not(.mined) {
   display: flex;
   align-items: center;
 }
+
+/* ═══ ФИКСЫ ПО ФАКТУ РЕНДЕРА (а не только по числам) ═══ */
+
+/* 1. Карточку НЕЛЬЗЯ клипать: квадрат клавиши торчит влево на 16.93,
+   ромб стоимости — вверх на 16.83 (так в макете). overflow скрывал их. */
+.rpg-skill { overflow: visible; }
+
+/* 2. Полоса босса — истинная геометрия из вектора макета (29:12584):
+   клин 361×15.5 на y 90..105 (в .rpg-boss: top 49), внутри плашки 72..119.
+   Раньше стояла 27px на 97..124 и вылезала за плашку. */
+.rpg-boss-bar {
+  left: 273px;
+  top: 49px;
+  width: 361px;
+  height: 15.5px;
+  transform: none;
+  clip-path: polygon(1.8% 42%, 99.2% 0%, 100% 100%, 0.2% 100%);
+  background: rgba(255, 69, 54, 0.35);
+}
+.rpg-boss-bar i {
+  background: #ff4536;
+  clip-path: none;
+}
+
+/* ═══ Веер карточек — как в макете (углы измерены по наклону верхней кромки
+   плашек в рендере): +7.7° сверху → −3.6° снизу. Раздутый bbox во фрейме был
+   не тенью, а bbox ПОВЁРНУТОЙ карточки — отсюда прежние ошибки размеров. ═══ */
+.rpg-skill[data-i="0"] { --rot: 7.7deg; }
+.rpg-skill[data-i="1"] { --rot: 2.7deg; }
+.rpg-skill[data-i="2"] { --rot: 0deg; }
+.rpg-skill[data-i="3"] { --rot: -0.2deg; }
+.rpg-skill[data-i="4"] { --rot: -3.6deg; }
+.rpg-skill[data-i="5"] { --rot: -6deg; }
+.rpg-skill { transform: rotate(var(--rot, 0deg)); }
+.rpg-skills.live .rpg-skill {
+  transform: translate3d(var(--cx, 0px), var(--cy, 0px), 0) rotate(var(--rot, 0deg)) scale(var(--cs, 1));
+}
+.rpg-skills.live .rpg-skill:not(.cd):not(.no-ap):not(.max):hover {
+  transform: translate3d(var(--cx, 0px), var(--cy, 0px), 0) rotate(var(--rot, 0deg)) scale(calc(var(--cs, 1) + 0.02));
+}
+.rpg-skills.aiming .rpg-skill.sel-aim,
+.rpg-skills.aiming .rpg-skill.sel-aim:hover {
+  transform: translateX(10px) rotate(var(--rot, 0deg)) scale(1.04);
+}
+.rpg-skills.aiming .rpg-skill:not(.sel-aim) {
+  transform: translateX(-46px) rotate(var(--rot, 0deg));
+}
+/* позиции веера выровнены по якорям — ромбам стоимости (замер в рендере
+   макета против нашего кадра): веер был смещён вправо ~10px и растянут
+   по вертикали (шаг макета ~148, у нас был ~160) */
+.rpg-skill[data-i="0"] { --mx: 2.67px;   --my: 51.78px; }
+.rpg-skill[data-i="1"] { --mx: -14px;    --my: 199.2px; }
+.rpg-skill[data-i="2"] { --mx: -19.21px; --my: 347.42px; }
+.rpg-skill[data-i="3"] { --mx: -16.29px; --my: 495.86px; }
+.rpg-skill[data-i="4"] { --mx: -18.35px; --my: 644.14px; }
+.rpg-skill[data-i="5"] { --mx: -18px;    --my: 792px; }
