@@ -1637,3 +1637,59 @@ body:has(.chat.open) .rpg-defeat {
 @media (max-height: 860px) {
   .rpg-skills { transform: scale(0.74); top: 84px; }
 }
+
+/* ═══ ФИНАЛ: наклон колоды = перспектива дашборда, зеркально ═══
+   Борд: perspective(1700px) rotateX(6deg) rotateY(-14deg) — плоскость уходит
+   вглубь ВЛЕВО (сужается слева). Колода скиллов — та же перспектива с
+   ОБРАТНЫМ rotateY: уходит вглубь ВПРАВО (сужается справа), навстречу борду.
+   Никаких индивидуальных поворотов: карточки — плоский стек в одной плоскости,
+   перспектива сама даёт «огибание экрана». */
+.rpg-skills {
+  position: fixed;
+  left: 40px;
+  top: 50%;
+  width: 342px;
+  height: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  transform: translateY(-50%) perspective(1700px) rotateX(6deg) rotateY(14deg);
+  transform-origin: 0% 50%; /* петля по левому краю — правый край уходит вглубь */
+}
+.rpg-skill {
+  position: relative;
+  left: auto;
+  top: auto;
+  width: 342px;
+  min-height: 113px;
+  /* индивидуальные повороты сняты — плоскость задаёт контейнер */
+  transform: none;
+}
+.rpg-skills.live .rpg-skill,
+.rpg-skills.live .rpg-skill:not(.cd):not(.no-ap):not(.max):hover {
+  transform: translate3d(var(--cx, 0px), var(--cy, 0px), 0) scale(var(--cs, 1));
+}
+.rpg-skills.live .rpg-skill:not(.cd):not(.no-ap):not(.max):hover {
+  transform: translate3d(var(--cx, 0px), var(--cy, 0px), 0) scale(calc(var(--cs, 1) + 0.02));
+}
+.rpg-skills.aiming .rpg-skill.sel-aim,
+.rpg-skills.aiming .rpg-skill.sel-aim:hover {
+  transform: translateX(10px) scale(1.04);
+}
+.rpg-skills.aiming .rpg-skill:not(.sel-aim) {
+  transform: translateX(-46px);
+}
+.rpg-skills.aiming::after { position: static; width: 342px; }
+
+/* невысокие экраны: сжимаем колоду В ТОЙ ЖЕ плоскости (scale после rotateY) */
+@media (max-height: 1000px) {
+  .rpg-skills {
+    top: 50%;
+    transform: translateY(-50%) perspective(1700px) rotateX(6deg) rotateY(14deg) scale(0.9);
+  }
+}
+@media (max-height: 860px) {
+  .rpg-skills {
+    transform: translateY(-50%) perspective(1700px) rotateX(6deg) rotateY(14deg) scale(0.78);
+  }
+}
