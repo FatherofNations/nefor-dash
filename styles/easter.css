@@ -505,3 +505,298 @@ body.rpg-armed.rpg-resolve .board { transform: none; }
 .rpg-mute .mx { display: none; }
 .rpg-mute.muted .mw { display: none; }
 .rpg-mute.muted .mx { display: block; }
+
+/* ═══ Combat v3: стилизация в духе жанрового референса (всё своё — шрифты
+   системные serif, градиенты CSS; никаких игровых ассетов), фаза прицеливания,
+   ОД, панель игрока, «шейдерные» переливы карточек ═══ */
+
+/* ── карточки: тёмный слэб, serif-имена, анимированный перелив рамки ── */
+@property --shn {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+.rpg-skill {
+  position: relative;
+  background: linear-gradient(164deg, #16151b 0%, #0b0a0f 55%, #060609 100%);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  overflow: hidden;
+  isolation: isolate;
+}
+/* перелив: медленно вращающийся conic-градиент только по канту (mask-exclude) */
+.rpg-skill::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: conic-gradient(
+    from var(--shn),
+    transparent 0turn,
+    color-mix(in srgb, var(--clr) 65%, transparent) 0.18turn,
+    rgba(255, 255, 255, 0.5) 0.24turn,
+    color-mix(in srgb, var(--clr) 45%, transparent) 0.3turn,
+    transparent 0.48turn
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  animation: rpg-sheen-spin 5.5s linear infinite;
+  pointer-events: none;
+}
+/* диагональный блик, изредка пробегающий по телу карточки */
+.rpg-skill::after {
+  content: "";
+  position: absolute;
+  inset: -40% -60%;
+  background: linear-gradient(115deg, transparent 42%, rgba(255, 255, 255, 0.07) 50%, transparent 58%);
+  transform: translateX(-70%);
+  animation: rpg-sheen-sweep 5.2s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes rpg-sheen-spin { to { --shn: 1turn; } }
+@keyframes rpg-sheen-sweep {
+  0%, 62%  { transform: translateX(-70%); }
+  78%, 100% { transform: translateX(70%); }
+}
+.rpg-card-top {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.rpg-name {
+  flex: 1;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 15.5px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+}
+.rpg-key { flex: none; margin-right: 0; }
+/* стоимость в ромбах ОД */
+.rpg-ap { display: flex; gap: 3px; }
+.rpg-ap i {
+  width: 8px;
+  height: 10px;
+  background: #d8b95f;
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+
+/* ── состояния карточек: читаются с первого взгляда ── */
+.rpg-skill.cd {
+  opacity: 0.32;
+  filter: grayscale(1) brightness(0.7);
+  pointer-events: none;
+  transition-delay: 0s;
+}
+.rpg-skill.cd::before,
+.rpg-skill.cd::after { animation-play-state: paused; }
+.rpg-skill.no-ap { opacity: 0.55; }
+.rpg-skill.no-ap .rpg-ap i { background: #ff4d5e; animation: rpg-ap-blink 1.1s ease-in-out infinite; }
+@keyframes rpg-ap-blink { 50% { opacity: 0.35; } }
+.rpg-skill.max {
+  opacity: 0.3;
+  filter: saturate(0.4) brightness(0.75);
+  pointer-events: none;
+}
+.rpg-skill.hidden { display: none; }
+.rpg-skill.deny { animation: rpg-deny 0.3s linear; }
+@keyframes rpg-deny {
+  25% { translate: -5px 0; }
+  50% { translate: 5px 0; }
+  75% { translate: -3px 0; }
+}
+/* готовый к касту — живой кант ярче */
+.rpg-skill:not(.cd):not(.no-ap):not(.max):hover {
+  border-color: color-mix(in srgb, var(--clr) 55%, transparent);
+  transform: translateX(4px);
+}
+
+/* ── фаза прицеливания ── */
+.rpg-skills.aiming .rpg-skill:not(.sel-aim) {
+  opacity: 0;
+  filter: blur(8px);
+  transform: translateX(-40px);
+  pointer-events: none;
+  transition-delay: 0s;
+}
+.rpg-skill.sel-aim {
+  outline: none;
+  border-color: color-mix(in srgb, var(--clr) 75%, transparent);
+  box-shadow: 0 0 26px color-mix(in srgb, var(--clr) 45%, transparent),
+              0 10px 28px rgba(0, 0, 0, 0.45);
+  transform: translateX(8px) scale(1.03);
+}
+.rpg-skill.sel-aim::marker { content: none; }
+.rpg-skills.aiming::after {
+  content: "выбери цель на дашборде · Esc — отмена";
+  display: block;
+  margin-top: 12px;
+  font-size: 12px;
+  letter-spacing: 0.4px;
+  color: rgba(255, 255, 255, 0.55);
+  animation: rpg-hint-pulse 1.6s ease-in-out infinite;
+}
+@keyframes rpg-hint-pulse { 50% { opacity: 0.45; } }
+/* борд подъезжает левее — цели визуально по центру (панель скиллов одна) */
+body.rpg-armed.rpg-aiming .board {
+  transform: perspective(1700px) rotateX(6deg) rotateY(-14deg) scale(1.04)
+    translate3d(-150px, 0, 0);
+}
+/* живые цели пульсируют под прицелом */
+body.rpg-aiming .banners .banner:not(.mined):not(.faded),
+body.rpg-aiming .banner-tilt .banner:not(.mined),
+body.rpg-aiming .chips .chip.luck:not(.mined) {
+  outline: 2px solid rgba(255, 255, 255, 0.9);
+  outline-offset: 3px;
+  animation: rpg-target-pulse 1.1s ease-in-out infinite;
+}
+@keyframes rpg-target-pulse { 50% { outline-color: rgba(255, 255, 255, 0.25); } }
+
+/* ── панель игрока «Продукт» (низ, по центру) ── */
+.rpg-player {
+  position: fixed;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 250;
+  width: 340px;
+  padding: 12px 16px;
+  background: linear-gradient(164deg, #16151b, #08080b);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 14px;
+  color: #fff;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  opacity: 0;
+  filter: blur(10px);
+  transition: opacity 0.5s cubic-bezier(0.25, 0.1, 0.25, 1),
+              filter 0.5s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+.rpg-player.on { opacity: 1; filter: blur(0); }
+.rpg-player-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.rpg-player-name {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+}
+.rpg-ap-row { display: flex; gap: 4px; }
+.rpg-ap-row i {
+  width: 9px;
+  height: 11px;
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+  background: rgba(255, 255, 255, 0.16);
+  transition: background 0.25s ease;
+}
+.rpg-ap-row i.on { background: #d8b95f; box-shadow: 0 0 8px rgba(216, 185, 95, 0.5); }
+.rpg-player-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.14);
+  overflow: hidden;
+}
+.rpg-player-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #37d67a, #1faf5c);
+  transition: width 0.45s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+.rpg-player-hp {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: right;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+/* ── цифры урона/хила: крупнее и с обводкой ── */
+.rpg-dmg {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 30px;
+  font-weight: 900;
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.9), 0 2px 2px rgba(0, 0, 0, 0.85),
+               0 0 14px rgba(0, 0, 0, 0.5);
+  animation: rpg-dmg-pop 1s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+}
+.rpg-dmg.crit { font-size: 46px; }
+.rpg-dmg.heal { font-size: 26px; }
+.rpg-dmg.absorb { font-size: 17px; }
+.rpg-dmg.player-hit { font-size: 34px; color: #ff4d5e; }
+.rpg-dmg.ap-gain { font-size: 18px; color: #d8b95f; }
+@keyframes rpg-dmg-pop {
+  0%   { transform: translateY(6px) scale(0.55); opacity: 0; }
+  16%  { transform: translateY(-8px) scale(1.28); opacity: 1; }
+  30%  { transform: translateY(-14px) scale(1); }
+  100% { transform: translateY(-64px) scale(0.96); opacity: 0; }
+}
+
+/* ── партиклы от карточки к цели ── */
+.rpg-fly {
+  position: fixed;
+  z-index: 260;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0.95;
+  transition: transform 0.5s cubic-bezier(0.5, 0, 0.9, 0.4), opacity 0.2s ease 0.38s;
+}
+
+/* ── поражение ── */
+.rpg-defeat {
+  position: fixed;
+  inset: 0;
+  z-index: 299;
+  display: grid;
+  place-content: center;
+  gap: 10px;
+  text-align: center;
+  background: radial-gradient(ellipse at center, rgba(60, 6, 12, 0.55), rgba(10, 2, 4, 0.82));
+  color: #fff;
+  animation: rpg-defeat-in 0.8s ease forwards;
+  pointer-events: none;
+}
+.rpg-defeat b {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 46px;
+  letter-spacing: 1px;
+}
+.rpg-defeat span { font-size: 15px; color: rgba(255, 255, 255, 0.75); }
+@keyframes rpg-defeat-in { from { opacity: 0; } to { opacity: 1; } }
+
+/* игровой хром при оверлеях нейро-модуля: прячем и панель игрока */
+body.rpg-armed:has(.spot.open) .rpg-player,
+body.rpg-armed:has(.chat.open) .rpg-player {
+  opacity: 0;
+  pointer-events: none !important;
+}
+
+/* ── фиксы ревью combat v3 ── */
+/* вуаль поражения не должна темнить открытые спотлайт/чат */
+body:has(.spot.open) .rpg-defeat,
+body:has(.chat.open) .rpg-defeat {
+  opacity: 0;
+}
+/* панель игрока — в левый нижний угол: по центру она перекрывала
+   нейро-пилюлю на v2 (та живёт bottom:40 по центру контента) */
+.rpg-player {
+  left: 26px;
+  transform: none;
+}
+/* цифры урона/хила — поверх панелей игрока и босса (у тех z 250) */
+.rpg-dmg { z-index: 310; }
+/* прицельная карточка сильнее hover-правила (специфичность 0,5,0 → позже в каскаде) */
+.rpg-skills.aiming .rpg-skill.sel-aim,
+.rpg-skills.aiming .rpg-skill.sel-aim:hover {
+  border-color: color-mix(in srgb, var(--clr) 75%, transparent);
+  transform: translateX(8px) scale(1.03);
+}
