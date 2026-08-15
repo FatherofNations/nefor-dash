@@ -191,6 +191,13 @@ export default function ToolsProvider({ children }: { children: ReactNode }) {
     }
   }, [dashboard, easter]);
 
+  // взятие инструмента: панель tools прячется (игровое поле чистое),
+  // счёт сбрасывается вместе с миром (новая партия — без перезагрузки)
+  useEffect(() => {
+    if (easterTool) setPanelOpen(false);
+    setMinedCount(0);
+  }, [easterTool]);
+
   const onMined = useCallback(() => setMinedCount((c) => c + 1), []);
   useMiner(easter && dashboard === "main", easterTool, onMined);
 

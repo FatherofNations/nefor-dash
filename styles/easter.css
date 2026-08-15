@@ -208,12 +208,21 @@ body.mine-armed .pickaxe-cur { display: block; }
 body.rpg-armed .board {
   transform: perspective(1700px) rotateX(6deg) rotateY(-14deg) scale(1.04);
 }
-/* фуллскрин-оверлеи нейро-модуля поверх скиллов: карточки прячутся */
+/* фуллскрин-оверлеи нейро-модуля: весь игровой хром прячется (боссу и звуку
+   нечего делать поверх спотлайта/чата — их z-index заперт в контексте борда) */
 body.rpg-armed:has(.spot.open) .rpg-skills,
-body.rpg-armed:has(.chat.open) .rpg-skills {
+body.rpg-armed:has(.chat.open) .rpg-skills,
+body.rpg-armed:has(.spot.open) .rpg-boss,
+body.rpg-armed:has(.chat.open) .rpg-boss,
+body.rpg-armed:has(.spot.open) .rpg-mute,
+body.rpg-armed:has(.chat.open) .rpg-mute,
+body:has(.spot.open) .rpg-victory,
+body:has(.chat.open) .rpg-victory {
   opacity: 0;
   pointer-events: none !important;
 }
+.rpg-boss,
+.rpg-mute { transition-property: opacity, filter, right; }
 /* цели под прицелом */
 body.rpg-armed .banners .banner,
 body.rpg-armed .banner-tilt .banner,
@@ -383,3 +392,116 @@ body.rpg-armed .chips .chip.luck { cursor: crosshair; }
   pointer-events: none;
   filter: saturate(0.6);
 }
+
+/* ═══ Пошаговый бой: босс-бар, резолюция хода, звук, победа ═══ */
+
+/* босс-бар «Продажи» сверху по центру */
+.rpg-boss {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 250;
+  width: 340px;
+  padding: 12px 16px 12px;
+  background: #0b0b0e;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 14px;
+  color: #fff;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  opacity: 0;
+  filter: blur(10px);
+  transition: opacity 0.5s cubic-bezier(0.25, 0.1, 0.25, 1),
+              filter 0.5s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+.rpg-boss.on { opacity: 1; filter: blur(0); }
+.rpg-boss-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.rpg-boss-name { font-size: 15px; font-weight: 800; letter-spacing: 0.3px; }
+.rpg-boss-armor { display: flex; gap: 4px; }
+.rpg-boss-armor i {
+  width: 9px;
+  height: 11px;
+  background: #9fb4d8;
+  clip-path: polygon(50% 0, 100% 25%, 100% 70%, 50% 100%, 0 70%, 0 25%);
+}
+.rpg-boss-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.14);
+  overflow: hidden;
+}
+.rpg-boss-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #ff5470, #ff2d55);
+  transition: width 0.45s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+.rpg-boss-hp {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: right;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+/* резолюция хода: экран выравнивается, скиллы прячутся (босс-бар остаётся —
+   на нём видно хил и защиты) */
+body.rpg-armed.rpg-resolve .board { transform: none; }
+.rpg-resolve .rpg-skills {
+  opacity: 0;
+  transform: translateY(-50%) translateX(-30px);
+  pointer-events: none !important;
+}
+
+/* флоты боя */
+.rpg-dmg.heal { color: #37d67a; font-size: 18px; }
+.rpg-dmg.absorb { color: #aab3c5; font-size: 15px; font-weight: 700; }
+
+/* победа */
+.rpg-victory {
+  position: fixed;
+  left: 50%;
+  top: 42%;
+  z-index: 300;
+  font-size: 46px;
+  font-weight: 800;
+  color: #fff;
+  text-shadow: 0 6px 30px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+  animation: rpg-victory 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+@keyframes rpg-victory {
+  0%   { opacity: 0; transform: translate(-50%, -30%) scale(0.8); }
+  100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+/* кнопка звука — над фабом tools */
+.rpg-mute {
+  position: fixed;
+  right: calc(24px + var(--twk, 0px));
+  bottom: 84px;
+  z-index: 85;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #16161a;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  display: grid;
+  place-items: center;
+  color: #fff;
+  cursor: pointer;
+  transition: right 0.55s cubic-bezier(0.32, 0.72, 0, 1), background 0.15s ease;
+}
+.rpg-mute:hover { background: #222228; }
+.rpg-mute svg { width: 20px; height: 20px; }
+.rpg-mute .mx { display: none; }
+.rpg-mute.muted .mw { display: none; }
+.rpg-mute.muted .mx { display: block; }

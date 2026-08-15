@@ -30,17 +30,32 @@ const PART_COLORS: Record<string, string[]> = {
 // ── РПГ: трек кладёт пользователь (в репо НЕ вшит); старт с 49-й секунды
 const RPG_THEME_SRC = "/assets/easter/rpg-theme.mp3";
 const RPG_THEME_START = 49;
-const HP_BANNER = 100;
-const HP_LUCK = 60;
+// бой с боссом «Продажи»: сумма блоков = 1000 (3 баннера × 300 + тег 100)
+const HP_BANNER = 300;
+const HP_LUCK = 100;
+const BOSS_MAX = 1000;
+const BOSS_HEAL_PCT = 0.1; // хил босса за ход: 10% от ТЕКУЩЕГО HP
+const BURN_DMG = 15;
+const BURN_TURNS = 2;
 const CRIT_CHANCE = 0.15;
 const CRIT_SCALE = 1.6;
-// скиллы: жанровая структура (хоткей/урон/откат), тексты и названия свои
+/* Скиллы: структура по референсу жанра (щиты-иконки впитывают удар целиком,
+   горящий враг теряет щит в начале хода, мульти-удар с доп.ударом от крита),
+   тексты и названия свои. Откаты — В ХОДАХ (бой пошаговый). */
 const SKILLS = [
-  { key: "Q", code: "KeyQ", name: "Пламя комиссий", desc: "Наносит 28–36 урона огнём. Откат 1.5 с.", min: 28, max: 36, cd: 1500, color: "#ff6a3d", hits: 1, buff: false },
-  { key: "W", code: "KeyW", name: "Заморозка активов", desc: "Ледяной удар: 44–52 урона. Откат 3 с.", min: 44, max: 52, cd: 3000, color: "#4db8ff", hits: 1, buff: false },
-  { key: "E", code: "KeyE", name: "Шквал списаний", desc: "2–3 списания по 12–18 урона. Откат 5 с.", min: 12, max: 18, cd: 5000, color: "#ffd34d", hits: 3, buff: false },
-  { key: "R", code: "KeyR", name: "Риск блокировки", desc: "", min: 0, max: 0, cd: 3200, color: "#ff9c26", hits: 0, buff: true },
+  { key: "Q", code: "KeyQ", name: "Пламя комиссий", desc: "55–70 урона огнём и поджиг: −15 HP цели в конце двух ходов (мимо защиты). Горящий босс теряет 1 защиту в начале хода.", min: 55, max: 70, cdTurns: 0, color: "#ff6a3d", hits: 1, buff: false },
+  { key: "W", code: "KeyW", name: "Заморозка активов", desc: "85–110 урона льдом. Замороженная цель не получает лечение в этот ход. Откат: 2 хода.", min: 85, max: 110, cdTurns: 2, color: "#4db8ff", hits: 1, buff: false },
+  { key: "E", code: "KeyE", name: "Шквал списаний", desc: "4–6 ударов по 14–20. Каждый удар снимает 1 защиту босса, крит добавляет удар. Откат: 2 хода.", min: 14, max: 20, cdTurns: 2, color: "#ffd34d", hits: 5, buff: false },
+  { key: "R", code: "KeyR", name: "Риск блокировки", desc: "", min: 0, max: 0, cdTurns: 0, color: "#ff9c26", hits: 0, buff: true },
 ];
+// скилл-финишер: появляется, когда у босса меньше половины HP
+const MEETING = {
+  key: "F",
+  code: "KeyF",
+  name: "Встреча в 9 утра",
+  desc: "Продажи заняты планёркой: босс больше не получает защиту. Мгновенно, один раз.",
+  color: "#7a63f1",
+};
 
 /* ── бафф «Риск блокировки»: 2 уровня, растит урон всех скиллов ──
    Состояния виджета «Индикатор риска» — из дизайн-файла индикатора
@@ -104,6 +119,33 @@ function applyRiskState(level: 1 | 2) {
   });
 }
 
+// полный рестор «мира» (баннеры/тег/частицы/HP-бары/виджет риска):
+// зовётся при выходе из режима И при каждом взятии инструмента (новая партия)
+function restoreWorldDom() {
+  const s = document.querySelector<HTMLElement>(".banners");
+  if (s) {
+    s.classList.remove("collapsing", "red-mined");
+    s.style.height = "";
+    s.style.marginTop = "";
+    s.querySelectorAll<HTMLElement>(".banner").forEach((b) => {
+      b.classList.remove("mined", "slot-collapse", "rpg-shake", "crack1", "crack2", "crack3");
+      b.style.width = "";
+    });
+    s.querySelectorAll(".banner-tilt").forEach((t) => t.classList.remove("rpg-shake"));
+  }
+  const luck = document.querySelector<HTMLElement>(".chips .chip.luck");
+  if (luck) {
+    luck.classList.remove("mined", "luck-collapse", "rpg-shake", "crack1", "crack2", "crack3");
+    luck.style.width = "";
+  }
+  document.querySelectorAll(".mine-part, .rpg-hp, .rpg-dmg, .rpg-victory").forEach((p) => p.remove());
+  restoreRiskState();
+  // если хореография риска оборвалась на «Моих продуктах» — вернуть AI-Сводку
+  if (document.body.classList.contains("products")) {
+    document.querySelector<HTMLElement>('.tabs .tab[data-pane="ai"]')?.click();
+  }
+}
+
 // вернуть виджет к исходному «Низкому риску» (значения из партиала)
 function restoreRiskState() {
   const w = document.querySelector<HTMLElement>(".widget.wg-risk");
@@ -132,6 +174,7 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
   const hpRef = useRef(new Map<HTMLElement, number>()); // HP целей (режим РПГ)
   const riskRef = useRef(0); // уровень риска блокировки (0/1/2) — бафф урона
   const riskTimersRef = useRef<number[]>([]); // хореография смены вкладок/состояния
+  const mutedRef = useRef(false); // выключение музыки — помнится между взятиями меча
 
   /* ── сессия: рестор «мира» только при выходе из режима ── */
   useEffect(() => {
@@ -149,30 +192,25 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
       minedRef.current = 0;
       hpRef.current = new Map();
       riskRef.current = 0;
-      restoreRiskState(); // виджет «Индикатор риска» — обратно в «Низкий риск»
-      const s = document.querySelector<HTMLElement>(".banners");
-      if (s) {
-        s.classList.remove("collapsing", "red-mined");
-        s.style.height = "";
-        s.style.marginTop = "";
-        s.querySelectorAll<HTMLElement>(".banner").forEach((b) => {
-          b.classList.remove("mined", "slot-collapse", "rpg-shake", ...CRACKS);
-          b.style.width = "";
-        });
-        s.querySelectorAll(".banner-tilt").forEach((t) => t.classList.remove("rpg-shake"));
-      }
-      const luck = document.querySelector<HTMLElement>(".chips .chip.luck");
-      if (luck) {
-        luck.classList.remove("mined", "luck-collapse", "rpg-shake", ...CRACKS);
-        luck.style.width = "";
-      }
-      document.querySelectorAll(".mine-part, .rpg-hp, .rpg-dmg").forEach((p) => p.remove());
+      restoreWorldDom();
     };
   }, [session]);
 
-  /* ── инструмент: обработчики; смена/снятие НЕ трогает добытое ── */
+  /* ── инструмент: обработчики. Каждое взятие инструмента = НОВАЯ ПАРТИЯ:
+     мир, HP, риск и счёт сбрасываются (перезагрузка страницы не нужна) ── */
   useEffect(() => {
     if (!session || !tool) return;
+
+    clearTimeout(collapseTimerRef.current);
+    clearTimeout(luckTimerRef.current);
+    slotTimersRef.current.forEach((t) => clearTimeout(t));
+    slotTimersRef.current = [];
+    riskTimersRef.current.forEach((t) => clearTimeout(t));
+    riskTimersRef.current = [];
+    minedRef.current = 0;
+    hpRef.current = new Map();
+    riskRef.current = 0;
+    restoreWorldDom();
 
     /* ─── общий слой «мира» (нужен обоим инструментам) ─── */
     const targetOf = (el: Element | null): HTMLElement | null =>
@@ -378,16 +416,21 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
         document.removeEventListener("mouseover", onOver);
         cancelAnimationFrame(raf);
         clearTimeout(swingOnceTimer);
-        stopMining(true); // прервать текущее копание; добытое НЕ трогаем
+        stopMining(true); // прервать текущее копание
         dig.pause();
         dig.removeAttribute("src");
         dig.load(); // только load() реально обрывает загрузку и освобождает ресурс
         cur.remove();
         document.body.classList.remove("mine-armed");
+        // сложили инструмент — партия закончилась: мир восстанавливается сразу
+        restoreWorldDom();
       };
     }
 
-    /* ═══════════════ РПГ ═══════════════ */
+    /* ═══════ РПГ: пошаговый бой с боссом «Продажи» ═══════
+       Ход: игрок выбирает скилл и цель → экран выравнивается, скиллы прячутся
+       (резолюция) → урон → через 1с босс хилится и получает защиту → через 1с
+       возврат в боевой вид. Бафф R и «Встреча» — мгновенные, вне хода. */
     document.body.classList.add("rpg-armed"); // перспектива дашборда (CSS)
 
     // карточки скиллов слева (бафф R — с описанием по текущему уровню риска)
@@ -395,27 +438,30 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
     panel.className = "rpg-skills";
     panel.innerHTML = SKILLS.map(
       (s, i) => `
-      <button class="rpg-skill${i === 0 ? " sel" : ""}${s.buff && riskRef.current >= 2 ? " max" : ""}" data-i="${i}" style="--i:${i};--clr:${s.color}">
+      <button class="rpg-skill${i === 0 ? " sel" : ""}" data-i="${i}" style="--i:${i};--clr:${s.color}">
         <span class="rpg-key">${s.key}</span><span class="rpg-name">${s.name}</span>
-        <span class="rpg-desc">${s.buff ? RISK_DESC[riskRef.current] : s.desc}</span>
+        <span class="rpg-desc">${s.buff ? RISK_DESC[0] : s.desc}</span>
       </button>`
     ).join("");
     document.body.appendChild(panel);
     requestAnimationFrame(() => panel.classList.add("on"));
 
-    // обновить карточку баффа после каста
-    const refreshRiskCard = () => {
-      const card = panel.querySelector<HTMLElement>(`[data-i="${SKILLS.findIndex((s) => s.buff)}"]`);
-      if (!card) return;
-      const d = card.querySelector(".rpg-desc");
-      if (d) d.textContent = RISK_DESC[riskRef.current];
-      card.classList.toggle("max", riskRef.current >= 2);
-    };
+    // босс-бар сверху по центру
+    const bossEl = document.createElement("div");
+    bossEl.className = "rpg-boss";
+    bossEl.innerHTML =
+      `<div class="rpg-boss-top"><span class="rpg-boss-name">Продажи</span>` +
+      `<span class="rpg-boss-armor"></span></div>` +
+      `<div class="rpg-boss-bar"><i style="width:100%"></i></div>` +
+      `<span class="rpg-boss-hp"></span>`;
+    document.body.appendChild(bossEl);
+    requestAnimationFrame(() => bossEl.classList.add("on"));
 
     // музыка: файл кладёт пользователь; нет файла — режим работает молча
     const theme = new Audio(RPG_THEME_SRC);
     theme.preload = "auto";
     theme.volume = 0.45;
+    theme.muted = mutedRef.current;
     const startTheme = () => {
       theme.currentTime = RPG_THEME_START;
       theme.play().catch(() => {});
@@ -423,32 +469,71 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
     startTheme();
     theme.addEventListener("ended", startTheme); // луп с той же 49-й секунды
 
+    // кнопка звука над фабом tools
+    const mute = document.createElement("button");
+    mute.className = "rpg-mute" + (mutedRef.current ? " muted" : "");
+    mute.title = "Звук";
+    mute.innerHTML =
+      `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">` +
+      `<path d="M4 9.5h3.5L13 5v14l-5.5-4.5H4z" fill="currentColor" stroke="none"/>` +
+      `<path class="mw" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/>` +
+      `<path class="mx" d="M16.5 9.5l5 5M21.5 9.5l-5 5"/></svg>`;
+    mute.addEventListener("click", () => {
+      mutedRef.current = !mutedRef.current;
+      theme.muted = mutedRef.current;
+      mute.classList.toggle("muted", mutedRef.current);
+    });
+    document.body.appendChild(mute);
+
+    /* ── состояние боя (новая партия при каждом взятии меча) ── */
     let selected = 0;
-    const onCd = SKILLS.map(() => false);
-    const cdTimers: number[] = [];
-    const hitTimers: number[] = [];
     let hovered: HTMLElement | null = null;
+    let turnBusy = false;
+    let victory = false;
+    let armor = 0; // защиты босса: 1 шт впитывает удар целиком
+    let armorBlocked = false; // «Встреча в 9 утра»
+    let meetingUnlocked = false;
+    let meetingUsed = false;
+    let rLock = false;
+    const cdTurns = SKILLS.map(() => 0); // откаты в ходах
+    const burns = new Map<HTMLElement, number>(); // поджиги: ходов осталось
+    let frozen: HTMLElement | null = null; // цель без хила в эту резолюцию
+    const turnTimers: number[] = [];
 
     const maxHp = (b: HTMLElement) => (b.classList.contains("luck") ? HP_LUCK : HP_BANNER);
+    const hpOf = (b: HTMLElement) => hpRef.current.get(b) ?? maxHp(b);
+    const allTargets = (): HTMLElement[] =>
+      [
+        document.querySelector<HTMLElement>(".banner-tilt .banner"),
+        document.querySelector<HTMLElement>(".banners > .banner.dark"),
+        document.querySelector<HTMLElement>(".banners > .banner.blue"),
+        document.querySelector<HTMLElement>(".chips .chip.luck"),
+      ].filter(Boolean) as HTMLElement[];
+    const aliveTargets = () => allTargets().filter((b) => !b.classList.contains("mined"));
+    const bossHp = () => aliveTargets().reduce((s, b) => s + hpOf(b), 0);
 
-    const floatDamage = (b: HTMLElement, dmg: number, color: string, crit: boolean) => {
-      const r = b.getBoundingClientRect();
+    const updateBoss = () => {
+      const hp = bossHp();
+      (bossEl.querySelector(".rpg-boss-bar i") as HTMLElement).style.width =
+        `${Math.max(0, (hp / BOSS_MAX) * 100)}%`;
+      bossEl.querySelector(".rpg-boss-hp")!.textContent = `${Math.max(0, hp)} / ${BOSS_MAX}`;
+      bossEl.querySelector(".rpg-boss-armor")!.innerHTML = "<i></i>".repeat(Math.min(armor, 10));
+    };
+    updateBoss();
+
+    const floatText = (at: HTMLElement, text: string, cls: string, color: string) => {
+      const r = at.getBoundingClientRect();
       const el = document.createElement("span");
-      el.className = "rpg-dmg" + (crit ? " crit" : "");
-      el.textContent = `−${dmg}${crit ? "!" : ""}`;
+      el.className = "rpg-dmg " + cls;
+      el.textContent = text;
       el.style.cssText = `left:${r.left + r.width * (0.3 + Math.random() * 0.4)}px;` +
-        `top:${r.top + r.height * (0.15 + Math.random() * 0.3)}px;--clr:${color};`;
+        `top:${r.top + r.height * (0.15 + Math.random() * 0.4)}px;--clr:${color};`;
       // в body: rect-координаты экранные, вложение в наклонённый .board проецировало бы дважды
       document.body.appendChild(el);
       setTimeout(() => el.remove(), 950);
     };
 
-    const applyDamage = (b: HTMLElement, dmg: number, color: string, crit: boolean) => {
-      if (b.classList.contains("mined")) return;
-      const max = maxHp(b);
-      const hp = Math.max(0, (hpRef.current.get(b) ?? max) - dmg);
-      hpRef.current.set(b, hp);
-      // HP-бар (инжект при первом уроне)
+    const setHpBar = (b: HTMLElement, hp: number) => {
       let bar = b.querySelector<HTMLElement>(".rpg-hp");
       if (!bar) {
         bar = document.createElement("span");
@@ -456,25 +541,203 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
         bar.innerHTML = "<i></i>";
         b.appendChild(bar);
       }
-      (bar.firstElementChild as HTMLElement).style.width = `${(hp / max) * 100}%`;
-      floatDamage(b, dmg, color, crit);
+      (bar.firstElementChild as HTMLElement).style.width = `${(hp / maxHp(b)) * 100}%`;
+    };
+
+    const updateCracks = (b: HTMLElement, hp: number) => {
+      const frac = hp / maxHp(b);
+      b.classList.toggle("crack1", frac <= 0.75 && hp > 0);
+      b.classList.toggle("crack2", frac <= 0.45 && hp > 0);
+      b.classList.toggle("crack3", frac <= 0.2 && hp > 0);
+    };
+
+    const applyDamage = (b: HTMLElement, dmg: number, color: string, crit: boolean) => {
+      if (b.classList.contains("mined")) return;
+      const hp = Math.max(0, hpOf(b) - dmg);
+      hpRef.current.set(b, hp);
+      setHpBar(b, hp);
+      floatText(b, `−${dmg}${crit ? "!" : ""}`, crit ? "crit" : "", color);
       // тряска: у красного шейкаем обёртку — на самом баннере keyframe перетёр бы rotate
       const shakeEl = (b.closest(".banner-tilt") as HTMLElement) ?? b;
       shakeEl.classList.remove("rpg-shake");
       void shakeEl.offsetWidth;
       shakeEl.classList.add("rpg-shake");
-      // трещины по порогам HP
-      const frac = hp / max;
-      b.classList.toggle("crack1", frac <= 0.75 && hp > 0);
-      b.classList.toggle("crack2", frac <= 0.45 && hp > 0);
-      b.classList.toggle("crack3", frac <= 0.2 && hp > 0);
-      if (hp <= 0) destroyTarget(b);
+      updateCracks(b, hp);
+      if (hp <= 0) {
+        burns.delete(b);
+        destroyTarget(b);
+        // победа проверяется на КАЖДОМ добивании — включая поздние крит-удары
+        // Шквала, прилетающие после таймера тиков поджига
+        if (bossHp() <= 0) victoryNow();
+      }
+      updateBoss();
+    };
+
+    // удар с учётом защит: 1 защита впитывает удар любого размера
+    const hitTarget = (b: HTMLElement, dmg: number, color: string, crit: boolean) => {
+      if (b.classList.contains("mined")) return;
+      if (armor > 0) {
+        armor--;
+        floatText(b, "поглощено", "absorb", "#aab3c5");
+        updateBoss();
+        return;
+      }
+      applyDamage(b, dmg, color, crit);
+    };
+
+    const victoryNow = () => {
+      if (victory) return;
+      victory = true;
+      const v = document.createElement("div");
+      v.className = "rpg-victory";
+      v.textContent = "Продажи повержены!";
+      document.body.appendChild(v);
+      refreshCards();
+    };
+
+    // хил босса: 10% текущего HP пропорционально живым блокам (кроме замороженного)
+    const healBoss = () => {
+      const total = bossHp();
+      if (total <= 0) return;
+      const pool = Math.round(total * BOSS_HEAL_PCT);
+      const list = aliveTargets().filter((b) => b !== frozen);
+      const sum = list.reduce((s, b) => s + hpOf(b), 0) || 1;
+      list.forEach((b) => {
+        const share = Math.round((hpOf(b) / sum) * pool);
+        const nhp = Math.min(maxHp(b), hpOf(b) + share);
+        const gained = nhp - hpOf(b);
+        if (gained <= 0) return;
+        hpRef.current.set(b, nhp);
+        setHpBar(b, nhp);
+        updateCracks(b, nhp);
+        floatText(b, `+${gained}`, "heal", "#37d67a");
+      });
+      if (!armorBlocked) {
+        armor++;
+        floatText(bossEl, "+защита", "absorb", "#9fb4d8");
+      }
+      updateBoss();
+    };
+
+    const refreshCards = () => {
+      SKILLS.forEach((s, i) => {
+        const card = panel.querySelector<HTMLElement>(`[data-i="${i}"]`);
+        if (!card) return;
+        if (s.buff) {
+          card.classList.toggle("cd", rLock || victory);
+          card.classList.toggle("max", riskRef.current >= 2);
+          return;
+        }
+        card.classList.toggle("cd", cdTurns[i] > 0 || turnBusy || victory);
+      });
+      const m = panel.querySelector<HTMLElement>('[data-i="4"]');
+      if (m && !m.classList.contains("max")) m.classList.toggle("cd", victory);
+    };
+
+    // «Встреча в 9 утра» открывается на половине HP босса
+    const unlockMeeting = () => {
+      if (meetingUnlocked || victory || bossHp() > BOSS_MAX / 2) return;
+      meetingUnlocked = true;
+      const card = document.createElement("button");
+      card.className = "rpg-skill";
+      card.dataset.i = "4";
+      card.style.cssText = `--i:4;--clr:${MEETING.color};opacity:0;filter:blur(10px);transform:translateX(-26px)`;
+      card.innerHTML =
+        `<span class="rpg-key">${MEETING.key}</span><span class="rpg-name">${MEETING.name}</span>` +
+        `<span class="rpg-desc">${MEETING.desc}</span>`;
+      panel.appendChild(card);
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => {
+          card.style.opacity = "";
+          card.style.filter = "";
+          card.style.transform = "";
+        })
+      );
+    };
+
+    const castMeeting = () => {
+      if (!meetingUnlocked || meetingUsed || victory) return;
+      meetingUsed = true;
+      armorBlocked = true;
+      const card = panel.querySelector<HTMLElement>('[data-i="4"]');
+      card?.classList.add("max");
+      const d = card?.querySelector(".rpg-desc");
+      if (d) d.textContent = "Планёрка назначена: новых защит не будет.";
+      floatText(bossEl, "защиты заблокированы", "absorb", MEETING.color);
+    };
+
+    /* ── ход: резолюция с урона до возврата в боевой вид ── */
+    const castTurn = (i: number, b: HTMLElement) => {
+      const s = SKILLS[i];
+      turnBusy = true;
+      cdTurns[i] = s.cdTurns + 1; // −1 в конце этой же резолюции
+      refreshCards();
+      document.body.classList.add("rpg-resolve"); // экран ровный, скиллы спрятаны
+
+      turnTimers.push(
+        // фаза урона
+        window.setTimeout(() => {
+          // горящий босс теряет 1 защиту (приём из референса)
+          if (armor > 0 && [...burns.keys()].some((t) => !t.classList.contains("mined"))) {
+            armor--;
+            floatText(bossEl, "−защита (горение)", "absorb", "#ff6a3d");
+            updateBoss();
+          }
+          const bonus = RISK_BONUS[riskRef.current];
+          const hits = s.hits > 1 ? 4 + Math.round(Math.random() * 2) : 1;
+          const perHit = s.hits > 1 ? Math.round(bonus / hits) : bonus;
+          let extra = 0;
+          const doHit = () => {
+            if (victory || b.classList.contains("mined")) return;
+            const crit = Math.random() < CRIT_CHANCE;
+            const base = s.min + Math.round(Math.random() * (s.max - s.min)) + perHit;
+            hitTarget(b, crit ? Math.round(base * CRIT_SCALE) : base, s.color, crit);
+            // крит Шквала добавляет удар (как у мульти-хита в референсе)
+            if (crit && s.hits > 1 && extra < 2) {
+              extra++;
+              turnTimers.push(window.setTimeout(doHit, 150));
+            }
+          };
+          for (let h = 0; h < hits; h++) turnTimers.push(window.setTimeout(doHit, h * 150));
+          if (i === 0 && !b.classList.contains("mined")) burns.set(b, BURN_TURNS);
+          if (i === 1) frozen = b;
+        }, 550),
+        // тики поджига после ударов
+        window.setTimeout(() => {
+          burns.forEach((left, t) => {
+            if (t.classList.contains("mined")) {
+              burns.delete(t);
+              return;
+            }
+            applyDamage(t, BURN_DMG, "#ff6a3d", false); // мимо защиты
+            if (left - 1 <= 0) burns.delete(t);
+            else burns.set(t, left - 1);
+          });
+          if (bossHp() <= 0) victoryNow();
+        }, 1450),
+        // фаза хила босса (через 1с после урона)
+        window.setTimeout(() => {
+          if (!victory) healBoss();
+        }, 2450),
+        // возврат в боевой вид (ещё через 1с)
+        window.setTimeout(() => {
+          document.body.classList.remove("rpg-resolve");
+          frozen = null;
+          cdTurns.forEach((v, idx) => (cdTurns[idx] = Math.max(0, v - 1)));
+          turnBusy = false;
+          unlockMeeting();
+          refreshCards();
+        }, 3450)
+      );
     };
 
     /* каст баффа: уровень риска ↑, вкладка сама уезжает на «Мои продукты»,
        виджет риска растворяется в новое состояние, вкладка возвращается */
     const castRisk = () => {
       if (riskRef.current >= 2) return;
+      // прежняя хореография отменяется — второй каст не должен рвать показ первого
+      riskTimersRef.current.forEach((t) => clearTimeout(t));
+      riskTimersRef.current = [];
       riskRef.current++;
       const level = riskRef.current as 1 | 2;
       refreshRiskCard();
@@ -494,34 +757,41 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
       );
     };
 
+    // обновить карточку баффа после каста
+    const refreshRiskCard = () => {
+      const card = panel.querySelector<HTMLElement>(`[data-i="3"]`);
+      if (!card) return;
+      const d = card.querySelector(".rpg-desc");
+      if (d) d.textContent = RISK_DESC[riskRef.current];
+      card.classList.toggle("max", riskRef.current >= 2);
+    };
+
     const cast = (i: number, b: HTMLElement | null) => {
-      const s = SKILLS[i];
-      if (onCd[i]) return;
-      if (!s.buff && (!b || b.classList.contains("mined"))) return;
-      onCd[i] = true;
-      const card = panel.querySelector<HTMLElement>(`[data-i="${i}"]`);
-      card?.classList.add("cd");
-      cdTimers.push(
-        window.setTimeout(() => {
-          onCd[i] = false;
-          card?.classList.remove("cd");
-        }, s.cd)
-      );
-      if (s.buff) {
-        castRisk();
+      if (victory) return;
+      if (i === 4) {
+        castMeeting(); // мгновенно, вне хода
         return;
       }
-      const hits = s.hits > 1 ? 2 + (Math.random() < 0.5 ? 1 : 0) : 1;
-      for (let h = 0; h < hits; h++) {
-        hitTimers.push(
+      const s = SKILLS[i];
+      if (s.buff) {
+        // мгновенно, вне хода и без резолюции — но не ПОСРЕДИ резолюции:
+        // хореография вкладок конфликтовала бы с показом результатов
+        if (rLock || turnBusy || riskRef.current >= 2) return;
+        rLock = true;
+        turnTimers.push(
           window.setTimeout(() => {
-            const crit = Math.random() < CRIT_CHANCE;
-            const base =
-              s.min + Math.round(Math.random() * (s.max - s.min)) + RISK_BONUS[riskRef.current];
-            applyDamage(b!, crit ? Math.round(base * CRIT_SCALE) : base, s.color, crit);
-          }, h * 160)
+            rLock = false;
+            refreshCards();
+          }, 1500)
         );
+        castRisk();
+        refreshRiskCard();
+        refreshCards();
+        return;
       }
+      if (turnBusy || cdTurns[i] > 0) return;
+      if (!b || b.classList.contains("mined")) return;
+      castTurn(i, b);
     };
 
     const onOverRpg = (e: MouseEvent) => {
@@ -530,6 +800,10 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
       if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+      if (e.code === MEETING.code) {
+        cast(4, null);
+        return;
+      }
       const i = SKILLS.findIndex((s) => s.code === e.code);
       if (i >= 0) cast(i, hovered);
     };
@@ -537,8 +811,8 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
       const card = (e.target as Element | null)?.closest?.(".rpg-skill") as HTMLElement | null;
       if (card) {
         const i = +card.dataset.i!;
-        if (SKILLS[i].buff) {
-          cast(i, null); // бафф кастуется сразу, цель не нужна
+        if (i === 4 || SKILLS[i]?.buff) {
+          cast(i, null); // «Встреча» и бафф кастуются сразу, цель не нужна
         } else {
           selected = i;
           panel.querySelectorAll(".rpg-skill").forEach((c) => c.classList.toggle("sel", c === card));
@@ -557,15 +831,18 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
       document.removeEventListener("mouseover", onOverRpg);
       document.removeEventListener("keydown", onKey);
       document.removeEventListener("click", onClick);
-      cdTimers.forEach((t) => clearTimeout(t));
-      hitTimers.forEach((t) => clearTimeout(t));
+      turnTimers.forEach((t) => clearTimeout(t));
       theme.removeEventListener("ended", startTheme);
       theme.pause();
       theme.removeAttribute("src");
       theme.load(); // только load() реально обрывает стриминг трека
       panel.remove();
-      document.body.classList.remove("rpg-armed");
-      // HP и разрушенное остаются (мир — сессионный)
+      bossEl.remove();
+      mute.remove();
+      document.body.classList.remove("rpg-armed", "rpg-resolve");
+      // сложили инструмент — партия закончилась: мир восстанавливается сразу
+      // (иначе баннер победы и HP-бары висели бы над обычным дашбордом)
+      restoreWorldDom();
     };
   }, [session, tool, onMined]);
 }
