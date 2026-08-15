@@ -1893,3 +1893,150 @@ body.rpg-aiming .chips .chip.luck:not(.mined) {
   top: -4.21%;
   transform: none;
 }
+
+/* ═══════════ PIXEL-PERFECT: геометрия строго по макету ═══════════
+   Координаты — из дерева Figma 29:11227 (фрейм 1898.67×1068), проверяются
+   замером LAYOUT-геометрии (offset*, не искажается трансформами).
+   Перспектива остаётся стилистическим слоем поверх этой геометрии. */
+
+/* ── колода скиллов: контейнер в точке макета, карточки абсолютно ── */
+.rpg-skills {
+  left: 126px;
+  top: 126px;
+  width: 380px;
+  height: 800px;
+  display: block;
+  gap: 0;
+  transform: perspective(1700px) rotateX(6deg) rotateY(14deg);
+  transform-origin: 0% 50%;
+}
+.rpg-skill {
+  position: absolute;
+  width: 342px;
+  height: 113px;   /* макетная плашка 342.276×113.278 */
+  min-height: 0;
+  overflow: hidden;
+  left: var(--mx);
+  top: var(--my);
+}
+/* макетные позиции фреймов относительно 126,126 */
+.rpg-skill[data-i="0"] { --mx: 0px;   --my: 0px; }
+.rpg-skill[data-i="1"] { --mx: -19px; --my: 170px; }
+.rpg-skill[data-i="2"] { --mx: -25px; --my: 333px; }
+.rpg-skill[data-i="3"] { --mx: -24px; --my: 498px; }
+.rpg-skill[data-i="4"] { --mx: -25px; --my: 650px; }
+.rpg-skill[data-i="5"] { --mx: -25px; --my: 802px; }
+/* магнит/ховер/прицел — поверх макетной позиции */
+.rpg-skills.live .rpg-skill {
+  transform: translate3d(var(--cx, 0px), var(--cy, 0px), 0) scale(var(--cs, 1));
+}
+.rpg-skills.live .rpg-skill:not(.cd):not(.no-ap):not(.max):hover {
+  transform: translate3d(var(--cx, 0px), var(--cy, 0px), 0) scale(calc(var(--cs, 1) + 0.02));
+}
+.rpg-skills.aiming .rpg-skill.sel-aim,
+.rpg-skills.aiming .rpg-skill.sel-aim:hover { transform: translateX(10px) scale(1.04); }
+.rpg-skills.aiming .rpg-skill:not(.sel-aim) { transform: translateX(-46px); }
+.rpg-skills.aiming::after { position: absolute; left: 0; top: 100%; }
+/* тексты в макетной сетке карточки */
+.rpg-body { padding: 30px 40px 10px 74px; }
+.rpg-desc { -webkit-line-clamp: 2; margin-top: 6px; }
+
+/* ── босс: 1:1 по макету, без центрирующего сдвига ── */
+.rpg-boss {
+  left: 635px;
+  top: 41px;
+  width: 774px;
+  height: 136px;
+  margin-left: 0;
+  transform: none;
+}
+.rpg-boss .rpg-slab { inset: 31px 0 58px 25px; } /* плашка 749×47 @660,72 */
+
+/* ── игрок: макетные размеры; по X сдвинут на 48px левее контролов ── */
+.rpg-hero { width: 203px; height: 193px; }
+/* игрок — ровно по макету; чтобы не наезжать, наш контрол звука переезжает
+   ВЛЕВО от фаба (горизонтальный ряд вместо стопки): панель кончается на
+   y≈973, а ряд кнопок живёт ниже 996 — пересечения нет */
+.rpg-player { right: 34px; }
+.rpg-mute {
+  right: calc(84px + var(--twk, 0px));
+  bottom: 24px;
+}
+/* в макете у имён НЕТ межбуквенного интервала (leading-normal, без tracking) */
+.rpg-name,
+.rpg-player-name,
+.rpg-boss-name { letter-spacing: 0; }
+/* HP-строки в макете целиком Extended Bold (крупная часть 18px, мелкая 11.9) */
+.rpg-player-hp,
+.rpg-boss-hp {
+  font-family: "Onweer Var", "Arial Black", Arial, sans-serif;
+  font-variation-settings: "wght" 700, "wdth" 200;
+  font-weight: 700;
+}
+
+/* ═══ ИСТИННАЯ геометрия карточек (из кода Figma, не из метаданных) ═══
+   Метаданные дают bbox С ТЕНЬЮ (353.95×156.1), настоящая плашка —
+   342.276×113.278 со смещением (16.93, 16.83) внутри фрейма. Поворота НЕТ:
+   наклон нарисован в самом векторе. Внутренние элементы — тоже по коду
+   макета (координаты фрейма минус 16.93/16.83). */
+.rpg-skill { width: 342.276px; height: 113.278px; }
+.rpg-skill[data-i="0"] { --mx: 16.67px;  --my: 16.78px; }
+.rpg-skill[data-i="1"] { --mx: -2px;     --my: 187.2px; }
+.rpg-skill[data-i="2"] { --mx: -8.21px;  --my: 349.42px; }
+.rpg-skill[data-i="3"] { --mx: -7.29px;  --my: 514.86px; }
+.rpg-skill[data-i="4"] { --mx: -8.35px;  --my: 667.14px; }
+.rpg-skill[data-i="5"] { --mx: -8.35px;  --my: 819px; }
+
+/* квадрат клавиши: (0,57.78) фрейма → (−16.93, 40.95) карточки, 47.888px */
+.rpg-key {
+  left: -16.93px;
+  top: 40.95px;
+  width: 47.888px;
+  height: 47.888px;
+  transform: none;
+  border-width: 2.692px;
+  font-size: 23.89px;
+  line-height: 1;
+}
+/* тексты: имя (57.21, 18.84), описание (57.21, 52.5) шириной 222.78 */
+.rpg-body { padding: 0; }
+.rpg-name {
+  position: absolute;
+  left: 57.21px;
+  top: 18.84px;
+  font-size: 18.846px;
+  line-height: normal;
+}
+.rpg-desc {
+  position: absolute;
+  left: 57.21px;
+  top: 52.5px;
+  width: 222.78px;
+  max-width: none;
+  margin: 0;
+  font-size: 14.807px;
+  line-height: 21.538px;
+}
+/* ромб стоимости: (302.03, −16.83), 33.04px; число рядом */
+.rpg-cost {
+  left: 302.03px;
+  right: auto;
+  top: -16.83px;
+  width: 33.04px;
+  height: 33.04px;
+}
+.rpg-cost i { inset: 4.7px; border-width: 1.346px; }
+.rpg-cost b { font-size: 14.807px; }
+/* .rpg-body с абсолютными детьми имеет нулевую высоту, и <button> центрирует
+   её по вертикали (+57px). Растягиваем на всю карточку — координаты текстов
+   считаются от плашки, как в макете. */
+.rpg-body {
+  position: absolute;
+  inset: 0;
+}
+/* текстовый бокс имени в макете 35.47px с глифом по центру */
+.rpg-name {
+  height: 35.47px;
+  display: flex;
+  align-items: center;
+}
