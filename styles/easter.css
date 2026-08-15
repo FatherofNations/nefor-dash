@@ -1240,3 +1240,180 @@ body:has(.chat.open) .rpg-defeat {
   bottom: 96px; /* над кнопкой звука и фабом */
 }
 .rpg-boss { top: 18px; }
+
+/* ═══ Подгонка под макет v2 (сверка с рендером 29:11227): карточки —
+   компактные плашки внахлёст с индивидуальным наклоном, ромб стоимости
+   вписан в правый край плашки, крупный квадрат-буква; панель игрока
+   целиком под наклоном; босс-бар — одна тонкая длинная плашка ═══ */
+
+/* ── карточки: 240×92, каскад со сдвигом влево и наклоном ── */
+.rpg-skills {
+  top: 12%;
+  left: 88px;
+  gap: 8px;
+  transform: none;
+}
+.rpg-skill {
+  width: 244px;
+  min-height: 90px;
+  margin-left: 0;
+  /* каскад: каждая следующая чуть левее (макет 125→107→101→102→101 x) */
+  transform: translateX(calc(var(--i, 0) * -6px)) rotate(var(--tilt, -4deg));
+}
+.rpg-skill[data-i="0"] { --tilt: -3deg; }
+.rpg-skill[data-i="1"] { --tilt: -5deg; }
+.rpg-skill[data-i="2"] { --tilt: -3.5deg; }
+.rpg-skill[data-i="3"] { --tilt: -4.5deg; }
+.rpg-skill[data-i="4"] { --tilt: -3deg; }
+.rpg-skill[data-i="5"] { --tilt: -4deg; }
+/* магнит и hover — поверх наклона */
+.rpg-skills.live .rpg-skill {
+  transform: translate3d(calc(var(--cx, 0px) + var(--i, 0) * -6px), var(--cy, 0px), 0)
+    rotate(var(--tilt, -4deg)) scale(var(--cs, 1));
+}
+.rpg-skills.live .rpg-skill:not(.cd):not(.no-ap):not(.max):hover {
+  transform: translate3d(calc(var(--cx, 0px) + var(--i, 0) * -6px), var(--cy, 0px), 0)
+    rotate(var(--tilt, -4deg)) scale(calc(var(--cs, 1) + 0.015));
+}
+.rpg-skills.aiming .rpg-skill.sel-aim,
+.rpg-skills.aiming .rpg-skill.sel-aim:hover {
+  transform: translateX(8px) rotate(var(--tilt, -4deg)) scale(1.04);
+}
+.rpg-skills.aiming .rpg-skill:not(.sel-aim) {
+  transform: translateX(-40px) rotate(var(--tilt, -4deg));
+}
+/* квадрат-буква: крупнее, широкая рамка, серифная буква как в макете */
+.rpg-key {
+  left: -30px;
+  top: 30px;
+  width: 44px;
+  height: 44px;
+  border-width: 3px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 22px;
+  color: rgba(255, 255, 255, 0.5);
+}
+.rpg-body { padding: 16px 40px 14px 34px; }
+.rpg-name {
+  font-size: 15px;
+  letter-spacing: 1.2px;
+}
+.rpg-desc {
+  margin-top: 4px;
+  max-width: 172px;
+  font-size: 10.5px;
+  line-height: 13.5px;
+  /* описание в макете — 2 строки; наши длиннее → аккуратно клипаем */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+/* ромб стоимости — крупнее и вписан в правый край плашки, число ВНУТРИ */
+.rpg-cost {
+  right: -2px;
+  top: -8px;
+  width: 30px;
+  height: 30px;
+}
+.rpg-cost i {
+  inset: 3px;
+  border-width: 1.5px;
+}
+.rpg-cost b { font-size: 12px; }
+
+/* ── панель игрока: компактнее, вся под наклоном −4°, мечница на плашке ── */
+.rpg-player {
+  width: 300px;
+  height: 130px;
+  right: 40px;
+  bottom: 110px;
+  transform: rotate(-4deg);
+  transform-origin: 50% 50%;
+}
+.rpg-player .rpg-slab {
+  inset: 34px 0 6px 74px;
+  clip-path: polygon(0% 6%, 100% 0%, 96.4% 24%, 98% 52%, 93% 66%, 100% 100%, 8% 96%, 3% 60%, 0% 30%);
+}
+.rpg-hero {
+  left: -8px;
+  top: 8px;
+  width: 140px;
+  transform: rotate(-9deg);
+}
+.rpg-apgem {
+  left: 118px;
+  top: 8px;
+  width: 40px;
+  height: 40px;
+}
+.rpg-apgem i { inset: 5px; border-width: 3px; }
+.rpg-apgem b { font-size: 18px; }
+.rpg-player-name {
+  left: 152px;
+  top: 58px;
+  font-size: 15px;
+  letter-spacing: 1px;
+}
+.rpg-hpwrap {
+  left: 150px;
+  top: 82px;
+  width: 128px;
+  height: 36px;
+}
+.rpg-player-bar {
+  left: 8px;
+  width: 116px;
+  height: 30px;
+  transform: rotate(-3deg);
+}
+.rpg-player-hp { top: 8px; font-size: 10px; }
+.rpg-player-hp b { font-size: 15px; }
+
+/* ── босс-бар: одна тонкая длинная плашка, череп слева ── */
+.rpg-boss {
+  top: 26px;
+  width: 640px;
+  height: 78px;
+}
+.rpg-boss .rpg-slab {
+  inset: 26px 0 16px 92px;
+  clip-path: polygon(0% 10%, 100% 0%, 99.5% 100%, 0.4% 92%);
+}
+.rpg-boss .rpg-slab::before { clip-path: polygon(0% 10%, 100% 0%, 99.5% 100%, 0.4% 92%); }
+.rpg-villain {
+  left: 0;
+  top: 0;
+  width: 108px;
+}
+.rpg-boss-name {
+  left: 118px;
+  top: 34px;
+  font-size: 13px;
+  letter-spacing: 1px;
+}
+.rpg-boss-armor {
+  left: 118px;
+  top: 55px;
+}
+.rpg-boss-bar {
+  left: 210px;
+  top: 34px;
+  width: 300px;
+  height: 20px;
+  clip-path: polygon(0% 18%, 100% 0%, 100% 100%, 0% 86%);
+  transform: rotate(-0.8deg);
+}
+.rpg-boss-hp {
+  left: 528px;
+  top: 30px;
+  font-size: 10px;
+}
+.rpg-boss-hp b { font-size: 15px; }
+
+/* финальная подгонка: босс-бар не наезжает на табы, карточки ровнее */
+.rpg-boss { top: 12px; left: 46%; }
+.rpg-desc { -webkit-line-clamp: 2; }
+.rpg-skill { min-height: 84px; }
+.rpg-body { padding: 14px 40px 12px 34px; }
+.rpg-key { top: 26px; }
