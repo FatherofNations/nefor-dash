@@ -804,7 +804,9 @@ body:has(.chat.open) .rpg-defeat {
 /* ═══ Combat v3.1: громкость, магнит-карточки, вёрстка риск-виджета ═══ */
 
 /* ── ползунок громкости по наведению на кнопку звука ── */
-.rpg-mute { position: relative; overflow: visible; }
+/* НЕ position:relative — это перебивало fixed кнопки и уносило её за экран;
+   попап позиционируется от кнопки, т.к. fixed сам по себе containing block */
+.rpg-mute { overflow: visible; }
 .rpg-vol {
   position: absolute;
   right: 0;
