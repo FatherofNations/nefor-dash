@@ -1594,3 +1594,46 @@ body:has(.chat.open) .rpg-defeat {
   font-size: 11.9px;
 }
 .rpg-boss-hp b { font-size: 18px; }
+
+/* ═══ Наклон карточек по макету: дуга, «огибающая» экран ═══
+   Углы восстановлены из bbox буквенных квадратов в дереве макета (квадрат
+   47.888px, bbox = 47.888·(cosθ+sinθ)): A 53.62→6.9°, Q 50.42→3.1°, W 48.20→0.4°,
+   E 50.02→2.6°, R 50.89→3.6°; знак — по рендеру: верхние наклонены вниз-вправо,
+   нижние — вверх-вправо. Колода разворачивается сверху вниз, как по цилиндру. */
+.rpg-skill[data-i="0"] { --tilt: 6.9deg; }
+.rpg-skill[data-i="1"] { --tilt: 3.1deg; }
+.rpg-skill[data-i="2"] { --tilt: 0.4deg; }
+.rpg-skill[data-i="3"] { --tilt: -2.6deg; }
+.rpg-skill[data-i="4"] { --tilt: -3.6deg; }
+.rpg-skill[data-i="5"] { --tilt: -5deg; }
+/* компенсация bbox: при положительном угле повёрнутая плашка уходит выше/левее */
+.rpg-skill[data-i="0"] { --mx0: 4px;   --my0: 22px; }
+.rpg-skill[data-i="1"] { --mx0: -14px; --my0: 182px; }
+.rpg-skill[data-i="2"] { --mx0: -22px; --my0: 340px; }
+.rpg-skill[data-i="3"] { --mx0: -20px; --my0: 500px; }
+.rpg-skill[data-i="4"] { --mx0: -21px; --my0: 654px; }
+.rpg-skill[data-i="5"] { --mx0: -21px; --my0: 806px; }
+
+/* панель игрока и босс — привязка к краям вьюпорта (абсолютные px макета
+   на экранах уже 1899 уносили панель за правый край) */
+.rpg-player {
+  left: auto;
+  right: 34px;   /* макет: 1898.67 − (1475.5+390.4) = 32.8 */
+  top: auto;
+  bottom: 95px;  /* макет: 1068 − (780+193.4) = 94.6 */
+}
+.rpg-boss {
+  left: 50%;
+  transform: translateX(-50%);
+  margin-left: -78px; /* макет: центр 635..1409 = 1022 vs центр 949 → +73; учтём ширину */
+}
+/* босс: в макете центр 635..1409 = 1022 при центре фрейма 949 → смещение +73 */
+.rpg-boss { margin-left: 73px; }
+/* макет рассчитан на 1068px высоты; на экранах ниже колода масштабируется
+   от верхнего левого угла (углы и пропорции сохраняются) */
+@media (max-height: 1000px) {
+  .rpg-skills { transform: scale(0.86); transform-origin: 0 0; top: 100px; }
+}
+@media (max-height: 860px) {
+  .rpg-skills { transform: scale(0.74); top: 84px; }
+}
