@@ -73,6 +73,15 @@ const SFX_SKILL_GAIN = 0.25;
 // Файл каста записан заметно тише остальных (пик 0.43 против 0.70) — поднимаем
 const SFX_CAST_GAIN = 1.6;
 // 1×1 прозрачный PNG: шейдеру нужен связанный семплер, даже когда картинки нет
+type Shaders = typeof import("@paper-design/shaders");
+/* Модуль шейдеров (~800 КБ) и препроцессинг силуэта — один раз на страницу и
+   как можно раньше: качаем в момент включения пасхалки, пока пользователь ещё
+   смотрит на панель инструментов. Иначе первый ховер ждал и загрузку чанка, и
+   тяжёлую обработку картинки — отсюда подлагивание. */
+let shadersMod: Promise<Shaders> | null = null;
+const loadShaders = () => (shadersMod ??= import("@paper-design/shaders"));
+let smokeShapePromise: Promise<HTMLImageElement | null> | null = null;
+
 // Плашка карточки из макета — её габарит задаёт и силуэт стеклянной фигуры
 const SLAB_W = 342.276;
 const SLAB_H = 113.278;
@@ -246,6 +255,7 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
        включения пасхалки — к клику по слоту шрифт обычно уже готов. */
     void document.fonts.load('700 16px "Onweer Var"');
     void document.fonts.load('300 14px "Onweer Var"');
+    void loadShaders(); // чанк шейдеров тоже уезжает в фон заранее
     minedRef.current = 0;
     hpRef.current = new Map();
     riskRef.current = 0;
@@ -500,7 +510,11 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
        ровный, скиллы спрятаны): партиклы летят от карточки → урон → хил босса
        и +защита → ответный удар босса по игроку → возврат. ОД: старт 3, кап 9,
        +1 пассивно за ход; базовая атака генерит +1; R/«Встреча» — мгновенные. */
-    document.body.classList.add("rpg-armed"); // перспектива дашборда (CSS)
+    /* Вход в режим ставим сценой: сперва дашборд остаётся ровным и наверху по
+       центру проявляется аватар босса, затем он едет на своё место вместе со
+       шкалой HP, и только после этого доска наклоняется, приезжают скиллы и
+       панель игрока. Класс rpg-intro держит первые две фазы. */
+    document.body.classList.add("rpg-armed", "rpg-intro");
 
     // карточки скиллов слева (стоимость — ромбы ОД; «Встреча» скрыта до 50% HP)
     const panel = document.createElement("div");
@@ -574,7 +588,7 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
 
     // босс-бар сверху по центру
     const bossEl = document.createElement("div");
-    bossEl.className = "rpg-boss";
+    bossEl.className = "rpg-boss intro";
     bossEl.innerHTML =
       `<span class="rpg-slab"></span>` +
       `<span class="rpg-villain"><img src="/assets/easter/rpg-boss.png" alt=""></span>` +
@@ -695,7 +709,6 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
        контур в контур, зазора между ними нет по построению. */
     const smokeHost = document.createElement("span");
     smokeHost.className = "rpg-smoke";
-    type Shaders = typeof import("@paper-design/shaders");
     let shaders: Shaders | null = null;
     let smokeMount: InstanceType<Shaders["ShaderMount"]> | null = null;
     let smokeDead = false;
@@ -738,8 +751,10 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
         // её ровно в габарит карточки, чтобы не было того самого зазора.
         u_scale: SMOKE_SCALE,
         u_rotation: 0,
-        u_offsetX: 0,
-        u_offsetY: 0,
+        // Плотную часть дыма уводим в правый верхний угол: слева на карточке
+        // название и описание, и по ним эффект бил сильнее всего.
+        u_offsetX: 0.42,
+        u_offsetY: -0.34,
         u_originX: 0.5,
         u_originY: 0.5,
         u_worldWidth: 0,
@@ -748,18 +763,24 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
     };
     const blankPx = new Image();
     blankPx.src = TRANSPARENT_PX;
-    import("@paper-design/shaders")
+    loadShaders()
       .then(async (sh) => {
         if (smokeDead) return;
         shaders = sh;
-        // силуэт готовится один раз на всю колоду — от цвета он не зависит
-        try {
-          const processed = await sh.toProcessedGemSmoke(slabSvg());
-          const img = new Image();
-          img.src = URL.createObjectURL(processed.pngBlob);
-          await img.decode();
-          if (!smokeDead) smokeShape = img;
-        } catch {}
+        // силуэт не зависит ни от цвета, ни от партии — готовим один раз на
+        // страницу: обработка картинки самая дорогая часть всего конвейера
+        smokeShapePromise ??= (async () => {
+          try {
+            const processed = await sh.toProcessedGemSmoke(slabSvg());
+            const img = new Image();
+            img.src = URL.createObjectURL(processed.pngBlob);
+            await img.decode();
+            return img;
+          } catch {
+            return null;
+          }
+        })();
+        smokeShape = await smokeShapePromise;
         if (smokeDead) return;
         smokeMount = new sh.ShaderMount(
           smokeHost,
@@ -768,15 +789,31 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
           undefined,
           1
         );
+        /* Прогрев: пока хост не в DOM, ShaderMount ничего не рисует, и первый
+           кадр после наведения стоит компиляции программы и загрузки текстуры.
+           Подвешиваем невидимо к первой плашке, даём отрисоваться и снимаем —
+           дальше ховер получает уже тёплый контекст. */
+        const warmSlab = panel.querySelector(".rpg-skill .rpg-slab");
+        if (warmSlab) {
+          smokeHost.classList.add("warm");
+          warmSlab.appendChild(smokeHost);
+          window.setTimeout(() => {
+            smokeHost.remove();
+            smokeHost.classList.remove("warm");
+            smokeMount?.setSpeed(0); // вне ховера шейдер не крутится
+          }, 500);
+        }
       })
       .catch(() => {});
     const smokeTo = (card: HTMLElement | null) => {
       const slab = card?.querySelector(".rpg-slab");
       if (!slab || !smokeMount) {
         smokeHost.classList.remove("on");
+        smokeMount?.setSpeed(0);
         return;
       }
       smokeMount.setUniforms(smokeUniforms(SKILLS[+(card!.dataset.i ?? 0)].color));
+      smokeMount.setSpeed(1);
       slab.appendChild(smokeHost);
       requestAnimationFrame(() => smokeHost.classList.add("on"));
     };
@@ -885,7 +922,14 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
     const burns = new Map<HTMLElement, number>(); // поджиги: ходов осталось
     let frozen: HTMLElement | null = null; // цель без хила в эту резолюцию
     const turnTimers: number[] = [];
-    turnTimers.push(window.setTimeout(() => panel.classList.add("live"), 950)); // магнит после входа
+    turnTimers.push(
+      // фаза 2: босс едет на место, шкала и имя проявляются
+      window.setTimeout(() => bossEl.classList.remove("intro"), 700),
+      // фаза 3: наклон доски, скиллы, панель игрока
+      window.setTimeout(() => document.body.classList.remove("rpg-intro"), 1650),
+      // магнит — как и раньше, через 950мс после появления колоды
+      window.setTimeout(() => panel.classList.add("live"), 2600)
+    );
 
     const maxHp = (b: HTMLElement) => (b.classList.contains("luck") ? HP_LUCK : HP_BANNER);
     const hpOf = (b: HTMLElement) => hpRef.current.get(b) ?? maxHp(b);
@@ -1383,7 +1427,7 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
       bossEl.remove();
       playerEl.remove();
       mute.remove();
-      document.body.classList.remove("rpg-armed", "rpg-resolve", "rpg-aiming");
+      document.body.classList.remove("rpg-armed", "rpg-intro", "rpg-resolve", "rpg-aiming");
       // сложили инструмент — партия закончилась: мир восстанавливается сразу
       // (иначе баннер победы и HP-бары висели бы над обычным дашбордом)
       restoreWorldDom();

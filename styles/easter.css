@@ -2333,3 +2333,51 @@ body.rpg-aiming .chips .chip.luck:not(.mined) {
 .rpg-skill:hover .rpg-desc {
   text-shadow: 0 1px 5px rgba(0, 0, 0, 0.85), 0 0 2px rgba(0, 0, 0, 0.75);
 }
+
+/* ═══ Стеклянная подложка внутри карточки ═══
+   Поверх канваса лежит та же фигура, но на 8px меньше по каждому краю. В
+   получившемся зазоре шейдер виден в полную силу (кромка стекла по периметру,
+   как в примере), а внутри приглушён — там текст. Масштаб по осям разный:
+   плашка 342×113, одинаковый отступ в px даёт разные проценты. */
+.rpg-smoke::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  clip-path: var(--rpg-slab-clip);
+  transform: scale(0.953, 0.858);
+  background: rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+}
+/* прогрев: хост уже в DOM, но его не должно быть видно */
+.rpg-smoke.warm { opacity: 0; }
+
+/* ═══ Интро режима: дашборд ровный → аватар босса по центру сверху →
+   едет на своё место вместе со шкалой → и только потом наклон, скиллы
+   и панель игрока ═══ */
+body.rpg-intro.rpg-armed .board { transform: none; }
+body.rpg-intro .rpg-skills,
+body.rpg-intro .rpg-player {
+  opacity: 0;
+  pointer-events: none;
+}
+/* аватар босса центрируется по вьюпорту: 705.25 = 635 (левый край секции)
+   + половина аватара (140.5/2) */
+.rpg-boss {
+  transition: opacity 0.5s cubic-bezier(0.25, 0.1, 0.25, 1),
+              filter 0.5s cubic-bezier(0.25, 0.1, 0.25, 1),
+              transform 0.85s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.rpg-boss.intro { transform: translateX(calc(50vw - 705.25px)); }
+.rpg-boss .rpg-slab,
+.rpg-boss .rpg-boss-name,
+.rpg-boss .rpg-boss-armor,
+.rpg-boss .rpg-boss-bar,
+.rpg-boss .rpg-boss-hp { transition: opacity 0.55s ease 0.15s; }
+.rpg-boss.intro .rpg-slab,
+.rpg-boss.intro .rpg-boss-name,
+.rpg-boss.intro .rpg-boss-armor,
+.rpg-boss.intro .rpg-boss-bar,
+.rpg-boss.intro .rpg-boss-hp {
+  opacity: 0;
+  transition-delay: 0s;
+}
