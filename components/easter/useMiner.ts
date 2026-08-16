@@ -51,7 +51,11 @@ const AP_MAX = 9;
 const PLAYER_MAX = 500; // HP игрока «Продукт»
 const BOSS_HIT_MIN = 16; // босс бьёт игрока в фазе результатов
 const BOSS_HIT_MAX = 28;
-const DEFAULT_VOLUME = 0.22; // музыка по умолчанию вдвое тише прежнего
+// Потолок громкости: 100% на ползунке = такая громкость у <audio>. Прежние
+// 0.22 сделаны тише ещё на 20%; ползунок хранит ДОЛЮ потолка, поэтому по
+// умолчанию он на максимуме, а пользователю остаётся только убавлять.
+const VOLUME_CEIL = 0.176;
+const DEFAULT_VOLUME = 1;
 const DEFEAT_OUTRO_S = 15; // при поражении — последние 15с трека, и тишина
 type SkillKind = "attack" | "risk" | "meeting";
 // откатов НЕТ: скилл доступен, если хватает ОД
@@ -188,7 +192,7 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
   const riskRef = useRef(0); // уровень риска блокировки (0/1/2) — бафф урона
   const riskTimersRef = useRef<number[]>([]); // хореография смены вкладок/состояния
   const mutedRef = useRef(false); // выключение музыки — помнится между взятиями меча
-  const volumeRef = useRef(DEFAULT_VOLUME); // громкость (ползунок) — тоже помнится
+  const volumeRef = useRef(DEFAULT_VOLUME); // доля потолка (ползунок) — тоже помнится
 
   /* ── сессия: рестор «мира» только при выходе из режима ── */
   useEffect(() => {
@@ -545,7 +549,7 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
     outro.preload = "metadata";
     const tracks = [theme, outro];
     tracks.forEach((a) => {
-      a.volume = volumeRef.current;
+      a.volume = volumeRef.current * VOLUME_CEIL;
       a.muted = mutedRef.current;
     });
     startTheme();
@@ -572,7 +576,7 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
     vol.addEventListener("click", (e) => e.stopPropagation()); // не тогглить mute
     vol.querySelector("input")!.addEventListener("input", (e) => {
       volumeRef.current = +(e.target as HTMLInputElement).value / 100;
-      tracks.forEach((a) => (a.volume = volumeRef.current));
+      tracks.forEach((a) => (a.volume = volumeRef.current * VOLUME_CEIL));
     });
     mute.appendChild(vol);
     document.body.appendChild(mute);

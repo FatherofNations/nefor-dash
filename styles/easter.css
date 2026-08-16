@@ -455,9 +455,14 @@ body.rpg-armed .chips .chip.luck { cursor: crosshair; }
 /* резолюция хода: экран выравнивается, скиллы прячутся (босс-бар остаётся —
    на нём видно хил и защиты) */
 body.rpg-armed.rpg-resolve .board { transform: none; }
+/* Колода уезжает влево и гаснет, но НЕ теряет перспективу: раньше это
+   правило подменяло весь transform на плоский translateY/translateX, и на
+   возврате к выбору скиллов карточки на глазах меняли перспективу (заодно
+   терялся масштаб --ds на низких экранах). Теперь состояние выражено одной
+   переменной, а цепочка трансформов остаётся общей. */
 .rpg-resolve .rpg-skills {
   opacity: 0;
-  transform: translateY(-50%) translateX(-30px);
+  --dx: -30px;
   pointer-events: none !important;
 }
 
@@ -809,8 +814,10 @@ body:has(.chat.open) .rpg-defeat {
 .rpg-mute { overflow: visible; }
 .rpg-vol {
   position: absolute;
-  right: 0;
-  bottom: calc(100% + 10px);
+  /* выезжает СЛЕВА от кнопки, по центру её высоты */
+  right: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
   padding: 10px 12px;
   background: #16161a;
   border: 1px solid rgba(255, 255, 255, 0.14);
@@ -819,14 +826,14 @@ body:has(.chat.open) .rpg-defeat {
   pointer-events: none;
   transition: opacity 0.2s ease;
 }
-/* мостик, чтобы hover не рвался между кнопкой и попапом */
+/* мостик, чтобы hover не рвался между кнопкой и попапом (теперь сбоку) */
 .rpg-vol::after {
   content: "";
   position: absolute;
-  left: 0;
-  right: 0;
-  top: 100%;
-  height: 12px;
+  left: 100%;
+  top: 0;
+  bottom: 0;
+  width: 12px;
 }
 .rpg-mute:hover .rpg-vol {
   opacity: 1;
@@ -2168,10 +2175,18 @@ body.rpg-aiming .chips .chip.luck:not(.mined) {
   top: 50%;
   width: 390.51px;
   height: 769.55px;
-  /* сдвиг --dy стоит ПОСЛЕ scale, чтобы масштабироваться вместе с колодой */
+  /* Единственная цепочка трансформов колоды — все состояния меняют только
+     переменные, поэтому перспектива не пропадает НИ В ОДНОМ из них.
+     --dy (шестая карточка) и --optic стоят ПОСЛЕ scale, чтобы ехать вместе
+     с масштабом; --optic поднимает колоду на оптический перекос перспективы:
+     нижние карточки ближе и крупнее, из-за чего центр масс висит на 16px
+     ниже геометрического центра (замерено на 1068 и 900 — сдвиг одинаковый). */
   transform: translateY(-50%) perspective(1700px) rotateX(6deg) rotateY(14deg)
-             scale(var(--ds, 1)) translateY(var(--dy, 0px));
+             scale(var(--ds, 1))
+             translateY(calc(var(--dy, 0px) + var(--optic, -16px)))
+             translateX(var(--dx, 0px));
   transform-origin: 0% 50%;
+  transition: opacity 0.25s ease, transform 0.34s cubic-bezier(0.32, 0.72, 0, 1);
 }
 /* шестая карточка открывается по ходу боя и удлиняет колоду на 158px —
    поднимаем на половину, чтобы центр остался на месте */
