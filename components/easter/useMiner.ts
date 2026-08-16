@@ -92,8 +92,8 @@ const SLAB_H = 113.278;
    заливка внутри. Теперь канвас по-прежнему равен плашке (иначе дым лёг бы
    прямоугольником поверх дашборда), но фигуру ужимаем до FIGURE от него.
    Делитель 0.95 — поля, которые кладёт вокруг силуэта препроцессор. */
-const SMOKE_FIGURE = 0.85;
-const SMOKE_SCALE = SMOKE_FIGURE / 0.95;
+const SMOKE_GAP = 8; // зазор между фигурой и краем плашки, одинаковый по всем сторонам
+const SMOKE_SCALE = 1 / 0.95; // компенсация полей препроцессора (2.5% с каждой стороны)
 /* Палитры дыма по цвету скилла. Огненная — из присланного примера, остальные
    собраны по той же схеме: насыщенная база → яркий средний → белый. */
 const SMOKE_COLORS: Record<string, string[]> = {
@@ -724,8 +724,18 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
     // силуэт плашки в SVG — ровно тот полигон, что стоит в clip-path
     const slabSvg = () => {
       const raw = getComputedStyle(document.documentElement).getPropertyValue("--rpg-slab-clip");
+      /* Ужимаем полигон к центру ровно на SMOKE_GAP px с каждой стороны:
+         масштаб по осям разный, потому что плашка вытянутая (342×113) и
+         одинаковый отступ в пикселях — это разные доли по X и Y. Зазор нужен,
+         чтобы по периметру осталась полоса дыма со свечением кромки. */
+      const kx = (SLAB_W - 2 * SMOKE_GAP) / SLAB_W;
+      const ky = (SLAB_H - 2 * SMOKE_GAP) / SLAB_H;
       const pts = [...raw.matchAll(/([\d.]+)%\s+([\d.]+)%/g)]
-        .map((m) => `${(+m[1] * SLAB_W) / 100},${(+m[2] * SLAB_H) / 100}`)
+        .map((m) => {
+          const x = (+m[1] * SLAB_W) / 100;
+          const y = (+m[2] * SLAB_H) / 100;
+          return `${SLAB_W / 2 + (x - SLAB_W / 2) * kx},${SLAB_H / 2 + (y - SLAB_H / 2) * ky}`;
+        })
         .join(" ");
       const svg =
         `<svg xmlns="http://www.w3.org/2000/svg" width="${SLAB_W}" height="${SLAB_H}" ` +
@@ -758,10 +768,10 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
         // её ровно в габарит карточки, чтобы не было того самого зазора.
         u_scale: SMOKE_SCALE,
         u_rotation: 0,
-        // Плотную часть дыма уводим в правый верхний угол: слева на карточке
-        // название и описание, и по ним эффект бил сильнее всего.
-        u_offsetX: 0.3,
-        u_offsetY: -0.24,
+        // Фигура должна стоять по центру плашки: зазор нужен ОДИНАКОВЫЙ по
+        // всему периметру, а смещение сгоняло дым в один угол.
+        u_offsetX: 0,
+        u_offsetY: 0,
         u_originX: 0.5,
         u_originY: 0.5,
         u_worldWidth: 0,
