@@ -2184,3 +2184,30 @@ body.rpg-aiming .chips .chip.luck:not(.mined) {
 @media (max-height: 880px) { .rpg-skills:has(.rpg-skill[data-i="5"]:not(.hidden)) { --ds: 0.82; } }
 @media (max-height: 800px) { .rpg-skills:has(.rpg-skill[data-i="5"]:not(.hidden)) { --ds: 0.73; } }
 @media (max-height: 720px) { .rpg-skills:has(.rpg-skill[data-i="5"]:not(.hidden)) { --ds: 0.65; } }
+
+/* ═══ Появление колоды: карточки выезжают справа налево, сверху вниз ═══
+   Сдвиг вынесен в ОТДЕЛЬНОЕ свойство `translate` — оно композится до
+   `transform`, поэтому не конфликтует ни с наклоном карточки (--rot), ни с
+   магнитом (--cx/--cy), ни с фазой прицеливания, которые transform занимают.
+   (Старый канонный сдвиг слева в базовом правиле мёртв: `transform` там
+   давно перебит поворотом веера — новый въезд живёт только здесь.)
+   Тайминг: последняя карточка заканчивает движение к ~900ms, ровно перед
+   тем как на 950ms включается .live и управление забирает магнит. */
+.rpg-skill {
+  translate: 58px 0;
+  transition: opacity 0.44s cubic-bezier(0.32, 0.72, 0, 1),
+              filter 0.44s cubic-bezier(0.32, 0.72, 0, 1),
+              translate 0.62s cubic-bezier(0.32, 0.72, 0, 1),
+              transform 0.55s cubic-bezier(0.32, 0.72, 0, 1),
+              outline-color 0.15s ease;
+  transition-delay: calc(40ms + var(--i, 0) * 62ms);
+}
+.rpg-skills.on .rpg-skill { translate: 0 0; }
+/* после входа стаггер снимается, чтобы магнит отзывался мгновенно */
+.rpg-skills.live .rpg-skill {
+  transition: opacity 0.3s ease, filter 0.3s ease,
+              translate 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+              transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+              border-color 0.15s ease;
+  transition-delay: 0s;
+}
