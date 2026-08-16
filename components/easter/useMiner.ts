@@ -30,9 +30,13 @@ const PART_COLORS: Record<string, string[]> = {
 // ── РПГ: треки кладёт пользователь (в репо НЕ вшиты). Боевой крутится по
 //    кругу с 57-й секунды; звуком поражения остался финал ПРЕЖНЕГО трека,
 //    поэтому файла два и живут они в разных <audio>. ──
-const RPG_THEME_SRC = "/assets/easter/rpg-battle.mp3";
+// Уже закешированные браузером копии не спасёт даже новый заголовок (immutable
+// не перепроверяется до истечения срока), поэтому у звуковых файлов есть версия
+// в адресе: подменили файл — увеличили V, и браузер обязан скачать заново.
+const V = "?v=2";
+const RPG_THEME_SRC = "/assets/easter/rpg-battle.mp3" + V;
 const RPG_THEME_START = 57;
-const RPG_OUTRO_SRC = "/assets/easter/rpg-theme.mp3";
+const RPG_OUTRO_SRC = "/assets/easter/rpg-theme.mp3" + V;
 // бой с боссом «Продажи»: сумма блоков = 1000 (3 баннера × 300 + тег 100)
 const HP_BANNER = 300;
 const HP_LUCK = 100;
@@ -63,10 +67,10 @@ const SFX_CEIL = 0.225;
 const TRANSPARENT_PX =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
 const SFX = {
-  skill: "/assets/easter/sfx-skill.mp3", // наведение на карточку скилла
-  hit: "/assets/easter/sfx-hit.mp3", // удар прошёл
-  blocked: "/assets/easter/sfx-blocked.mp3", // защита босса поглотила удар
-  boss: "/assets/easter/sfx-boss.mp3", // ответный удар босса
+  skill: "/assets/easter/sfx-skill.mp3" + V, // наведение на карточку скилла
+  hit: "/assets/easter/sfx-hit.mp3" + V, // удар прошёл
+  blocked: "/assets/easter/sfx-blocked.mp3" + V, // защита босса поглотила удар
+  boss: "/assets/easter/sfx-boss.mp3" + V, // ответный удар босса
 } as const;
 const DEFEAT_OUTRO_S = 15; // при поражении — последние 15с трека, и тишина
 type SkillKind = "attack" | "risk" | "meeting";
@@ -351,7 +355,7 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
 
       // звук копания: играет только пока кнопка зажата на цели;
       // при успешном разрушении дозвучивает финал
-      const dig = new Audio("/assets/easter/dig.mp3");
+      const dig = new Audio("/assets/easter/dig.mp3" + V);
       dig.preload = "auto";
 
       let raf = 0;
