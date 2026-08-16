@@ -28,14 +28,14 @@ const PART_COLORS: Record<string, string[]> = {
 };
 
 // ── РПГ: треки кладёт пользователь (в репо НЕ вшиты). Боевой крутится по
-//    кругу с 57.5-й секунды; звуком поражения остался финал ПРЕЖНЕГО трека,
+//    кругу с 57.7-й секунды; звуком поражения остался финал ПРЕЖНЕГО трека,
 //    поэтому файла два и живут они в разных <audio>. ──
 // Уже закешированные браузером копии не спасёт даже новый заголовок (immutable
 // не перепроверяется до истечения срока), поэтому у звуковых файлов есть версия
 // в адресе: подменили файл — увеличили V, и браузер обязан скачать заново.
 const V = "?v=2";
 const RPG_THEME_SRC = "/assets/easter/rpg-battle.mp3" + V;
-const RPG_THEME_START = 57.5;
+const RPG_THEME_START = 57.7;
 const RPG_OUTRO_SRC = "/assets/easter/rpg-theme.mp3" + V;
 // бой с боссом «Продажи»: сумма блоков = 1000 (3 баннера × 300 + тег 100)
 const HP_BANNER = 300;
@@ -572,7 +572,7 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
       a.muted = mutedRef.current;
     });
     startTheme();
-    theme.addEventListener("ended", startTheme); // луп с той же 57.5-й секунды
+    theme.addEventListener("ended", startTheme); // луп с той же 57.7-й секунды
 
     /* ── эффекты боя ──
        Удары могут накладываться (мульти-хит, поджиг), поэтому каждый вызов
