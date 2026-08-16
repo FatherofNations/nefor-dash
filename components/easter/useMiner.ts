@@ -70,6 +70,8 @@ const SFX_CEIL = 0.225;
 // Тик наведения звучит на каждой карточке — он должен быть заметно тише
 // боевых эффектов, иначе при движении курсора по колоде выходит стрекотание.
 const SFX_SKILL_GAIN = 0.25;
+// Файл каста записан заметно тише остальных (пик 0.43 против 0.70) — поднимаем
+const SFX_CAST_GAIN = 1.6;
 // 1×1 прозрачный PNG: шейдеру нужен связанный семплер, даже когда картинки нет
 const TRANSPARENT_PX =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
@@ -222,6 +224,13 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
   /* ── сессия: рестор «мира» только при выходе из режима ── */
   useEffect(() => {
     if (!session) return;
+    /* Шрифт макета (632 КБ) грузится только ради игрового режима, поэтому в
+       <head> его не преloadим. Но если ждать до появления колоды, он приезжает
+       уже поверх отрисованных карточек и названия скиллов на первом заходе
+       перевёрстываются (75.4 → 91.1px у «Платежа»). Стартуем загрузку в момент
+       включения пасхалки — к клику по слоту шрифт обычно уже готов. */
+    void document.fonts.load('700 16px "Onweer Var"');
+    void document.fonts.load('300 14px "Onweer Var"');
     minedRef.current = 0;
     hpRef.current = new Map();
     riskRef.current = 0;
@@ -632,13 +641,13 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
        доставали и до уже играющих. Наведение на карточку — отдельный
        переиспользуемый элемент: сметая курсором колоду, плодить объекты
        незачем, а новый тик и должен обрывать предыдущий. */
-    const sfxLive = new Set<HTMLAudioElement>();
-    const sfxVol = () => Math.min(1, volumeRef.current * SFX_CEIL);
-    const playSfx = (src: string) => {
+    const sfxLive = new Map<HTMLAudioElement, number>(); // элемент → его множитель
+    const sfxVol = (gain = 1) => Math.min(1, volumeRef.current * SFX_CEIL * gain);
+    const playSfx = (src: string, gain = 1) => {
       const a = new Audio(src);
-      a.volume = sfxVol();
+      a.volume = sfxVol(gain);
       a.muted = mutedRef.current;
-      sfxLive.add(a);
+      sfxLive.set(a, gain);
       const drop = () => sfxLive.delete(a);
       a.addEventListener("ended", drop, { once: true });
       a.play().catch(drop);
@@ -647,7 +656,7 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
     hoverSfx.preload = "auto";
     const playHover = () => {
       hoverSfx.muted = mutedRef.current;
-      hoverSfx.volume = sfxVol() * SFX_SKILL_GAIN;
+      hoverSfx.volume = sfxVol(SFX_SKILL_GAIN);
       hoverSfx.currentTime = 0;
       hoverSfx.play().catch(() => {});
     };
@@ -760,7 +769,7 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
     mute.addEventListener("click", () => {
       mutedRef.current = !mutedRef.current;
       tracks.forEach((a) => (a.muted = mutedRef.current));
-      sfxLive.forEach((a) => (a.muted = mutedRef.current));
+      sfxLive.forEach((_gain, a) => (a.muted = mutedRef.current));
       hoverSfx.muted = mutedRef.current;
       mute.classList.toggle("muted", mutedRef.current);
     });
@@ -772,7 +781,7 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
     vol.querySelector("input")!.addEventListener("input", (e) => {
       volumeRef.current = +(e.target as HTMLInputElement).value / 100;
       applyMusicVol();
-      sfxLive.forEach((a) => (a.volume = sfxVol()));
+      sfxLive.forEach((gain, a) => (a.volume = sfxVol(gain)));
     });
     mute.appendChild(vol);
     document.body.appendChild(mute);
@@ -1065,7 +1074,7 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
     const castMeeting = () => {
       if (!meetingUnlocked || meetingUsed || victory || defeat || turnBusy) return;
       if (ap < SKILLS[5].ap) return;
-      playSfx(SFX.cast);
+      playSfx(SFX.cast, SFX_CAST_GAIN);
       ap -= SKILLS[5].ap;
       meetingUsed = true;
       armorBlocked = true;
@@ -1167,7 +1176,7 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
        виджет риска растворяется в новое состояние, вкладка возвращается */
     const castRisk = () => {
       if (riskRef.current >= 2) return;
-      playSfx(SFX.cast);
+      playSfx(SFX.cast, SFX_CAST_GAIN);
       // прежняя хореография отменяется — второй каст не должен рвать показ первого
       riskTimersRef.current.forEach((t) => clearTimeout(t));
       riskTimersRef.current = [];
@@ -1311,7 +1320,7 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
       smokeDead = true;
       smokeMount?.dispose();
       smokeHost.remove();
-      sfxLive.forEach((a) => a.pause());
+      sfxLive.forEach((_gain, a) => a.pause());
       sfxLive.clear();
       hoverSfx.pause();
       sfxWarm.length = 0;

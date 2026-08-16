@@ -2248,12 +2248,27 @@ body.rpg-aiming .chips .chip.luck:not(.mined) {
 .rpg-skill {
   opacity: 1;
   translate: 0 0;
-  filter: none;
+  /* та же цепочка фильтров, что и во всех остальных состояниях: иначе тень
+     проявлялась переходом 0.44с */
+  filter: blur(0px)
+    drop-shadow(0 10px 16px rgba(0, 0, 0, 0.4))
+    drop-shadow(0 0 6px transparent)
+    drop-shadow(0 0 18px transparent);
   transition-delay: 0s;
 }
 .rpg-skills.on .rpg-skill,
 .rpg-skills.live .rpg-skill {
   transition-delay: 0s;
+}
+/* Главное, что оставалось от старого входа: правило `.rpg-skills.on .rpg-skill`
+   держало `transform: translateX(0)` и по специфичности перебивало наклон
+   веера. Карточки появлялись РОВНЫМИ и доворачивались только через 950мс,
+   когда приходил класс .live со своей цепочкой transform — отсюда и «дёрганье»
+   на первом входе. Ставим здесь ровно ту же цепочку, что в .live: между
+   состояниями не остаётся ни кадра разницы, анимировать нечего. */
+.rpg-skills.on .rpg-skill {
+  transform: translate3d(var(--cx, 0px), var(--cy, 0px), 0)
+    rotate(var(--rot, 0deg)) scale(var(--cs, 1));
 }
 
 /* 2. Первая карточка выбивалась из веера — заваливаем слабее */
