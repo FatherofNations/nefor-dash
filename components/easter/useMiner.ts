@@ -56,6 +56,15 @@ const BOSS_HIT_MAX = 28;
 // умолчанию он на максимуме, а пользователю остаётся только убавлять.
 const VOLUME_CEIL = 0.176;
 const DEFAULT_VOLUME = 1;
+// Эффекты боя. Свой потолок — заметно выше музыкального, чтобы удары
+// пробивали фон; общий ползунок и общая кнопка mute.
+const SFX_CEIL = 0.45;
+const SFX = {
+  skill: "/assets/easter/sfx-skill.mp3", // наведение на карточку скилла
+  hit: "/assets/easter/sfx-hit.mp3", // удар прошёл
+  blocked: "/assets/easter/sfx-blocked.mp3", // защита босса поглотила удар
+  boss: "/assets/easter/sfx-boss.mp3", // ответный удар босса
+} as const;
 const DEFEAT_OUTRO_S = 15; // при поражении — последние 15с трека, и тишина
 type SkillKind = "attack" | "risk" | "meeting";
 // откатов НЕТ: скилл доступен, если хватает ОД
@@ -555,6 +564,55 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
     startTheme();
     theme.addEventListener("ended", startTheme); // луп с той же 58-й секунды
 
+    /* ── эффекты боя ──
+       Удары могут накладываться (мульти-хит, поджиг), поэтому каждый вызов
+       заводит свой экземпляр; звучащие держим в наборе, чтобы mute и ползунок
+       доставали и до уже играющих. Наведение на карточку — отдельный
+       переиспользуемый элемент: сметая курсором колоду, плодить объекты
+       незачем, а новый тик и должен обрывать предыдущий. */
+    const sfxLive = new Set<HTMLAudioElement>();
+    const sfxVol = () => Math.min(1, volumeRef.current * SFX_CEIL);
+    const playSfx = (src: string) => {
+      const a = new Audio(src);
+      a.volume = sfxVol();
+      a.muted = mutedRef.current;
+      sfxLive.add(a);
+      const drop = () => sfxLive.delete(a);
+      a.addEventListener("ended", drop, { once: true });
+      a.play().catch(drop);
+    };
+    const hoverSfx = new Audio(SFX.skill);
+    hoverSfx.preload = "auto";
+    const playHover = () => {
+      hoverSfx.muted = mutedRef.current;
+      hoverSfx.volume = sfxVol();
+      hoverSfx.currentTime = 0;
+      hoverSfx.play().catch(() => {});
+    };
+    // прогрев: без него первый удар звучит с задержкой на скачивание файла
+    const sfxWarm = Object.values(SFX).map((src) => {
+      const a = new Audio(src);
+      a.preload = "auto";
+      a.load();
+      return a;
+    });
+    /* тик при наведении на доступную карточку. mouseover всплывает и с
+       потомков карточки, поэтому сравниваем с прошлой — иначе тик дребезжал
+       бы на каждом слове описания. Слушатель живёт на панели и умирает
+       вместе с ней. */
+    let hoverCard: HTMLElement | null = null;
+    panel.addEventListener("mouseover", (e) => {
+      const card = (e.target as Element | null)?.closest?.(".rpg-skill") as HTMLElement | null;
+      if (card === hoverCard) return;
+      hoverCard = card;
+      if (!card || aiming >= 0 || !panel.classList.contains("live")) return;
+      if (["cd", "no-ap", "max", "hidden"].some((c) => card.classList.contains(c))) return;
+      playHover();
+    });
+    panel.addEventListener("mouseleave", () => {
+      hoverCard = null;
+    });
+
     // кнопка звука над фабом tools
     const mute = document.createElement("button");
     mute.className = "rpg-mute" + (mutedRef.current ? " muted" : "");
@@ -567,6 +625,8 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
     mute.addEventListener("click", () => {
       mutedRef.current = !mutedRef.current;
       tracks.forEach((a) => (a.muted = mutedRef.current));
+      sfxLive.forEach((a) => (a.muted = mutedRef.current));
+      hoverSfx.muted = mutedRef.current;
       mute.classList.toggle("muted", mutedRef.current);
     });
     // ползунок громкости — раскрывается по наведению на кнопку
@@ -577,6 +637,7 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
     vol.querySelector("input")!.addEventListener("input", (e) => {
       volumeRef.current = +(e.target as HTMLInputElement).value / 100;
       tracks.forEach((a) => (a.volume = volumeRef.current * VOLUME_CEIL));
+      sfxLive.forEach((a) => (a.volume = sfxVol()));
     });
     mute.appendChild(vol);
     document.body.appendChild(mute);
@@ -627,6 +688,7 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
     let playerHp = PLAYER_MAX;
     let armor = 0; // защиты босса: 1 шт впитывает удар целиком
     let armorBlocked = false; // «Встреча в 9 утра»
+    let turnSfx = false; // звук удара — один на ход, а не на каждый хит серии
     let meetingUnlocked = false;
     let meetingUsed = false;
     let rLock = false;
@@ -706,10 +768,12 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
       if (b.classList.contains("mined")) return;
       if (armor > 0) {
         armor--;
+        if (!turnSfx) { turnSfx = true; playSfx(SFX.blocked); }
         floatText(b, "поглощено", "absorb", "#aab3c5");
         updateBoss();
         return;
       }
+      if (!turnSfx) { turnSfx = true; playSfx(SFX.hit); }
       applyDamage(b, dmg, color, crit);
     };
 
@@ -758,6 +822,7 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
 
     const bossAttack = () => {
       if (victory || defeat) return;
+      playSfx(SFX.boss);
       const dmg = BOSS_HIT_MIN + Math.round(Math.random() * (BOSS_HIT_MAX - BOSS_HIT_MIN));
       playerHp = Math.max(0, playerHp - dmg);
       floatText(playerEl, `−${dmg}`, "player-hit", "#ff4d5e");
@@ -887,6 +952,7 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
       ap -= s.ap;
       updatePlayer();
       turnBusy = true;
+      turnSfx = false;
       refreshCards();
       document.body.classList.add("rpg-resolve"); // экран ровный, скиллы спрятаны
 
@@ -1091,6 +1157,10 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
       cancelAnimationFrame(magnetRaf);
       turnTimers.forEach((t) => clearTimeout(t));
       theme.removeEventListener("ended", startTheme);
+      sfxLive.forEach((a) => a.pause());
+      sfxLive.clear();
+      hoverSfx.pause();
+      sfxWarm.length = 0;
       tracks.forEach((a) => {
         a.pause();
         a.removeAttribute("src");
