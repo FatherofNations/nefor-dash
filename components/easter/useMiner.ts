@@ -67,9 +67,9 @@ const DEFAULT_VOLUME = 1;
 // Эффекты боя. Потолок выше музыкального, чтобы удары пробивали фон, но
 // вдвое ниже прежнего (просьба); общий ползунок и общая кнопка mute.
 const SFX_CEIL = 0.225;
-// Тик наведения звучит на каждой карточке, поэтому он вдвое тише остальных
-// эффектов — иначе при перемещении курсора по колоде получается стрекотание.
-const SFX_SKILL_GAIN = 0.5;
+// Тик наведения звучит на каждой карточке — он должен быть заметно тише
+// боевых эффектов, иначе при движении курсора по колоде выходит стрекотание.
+const SFX_SKILL_GAIN = 0.25;
 // 1×1 прозрачный PNG: шейдеру нужен связанный семплер, даже когда картинки нет
 const TRANSPARENT_PX =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
@@ -78,6 +78,7 @@ const SFX = {
   hit: "/assets/easter/sfx-hit.mp3" + V, // удар прошёл
   blocked: "/assets/easter/sfx-blocked.mp3" + V, // защита босса поглотила удар
   boss: "/assets/easter/sfx-boss.mp3" + V, // ответный удар босса
+  cast: "/assets/easter/sfx-cast.mp3" + V, // «Риск блокировки» и «Встреча в 9 утра»
 } as const;
 const DEFEAT_OUTRO_S = 15; // при поражении — последние 15с трека, и тишина
 type SkillKind = "attack" | "risk" | "meeting";
@@ -1063,6 +1064,7 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
     const castMeeting = () => {
       if (!meetingUnlocked || meetingUsed || victory || defeat || turnBusy) return;
       if (ap < SKILLS[5].ap) return;
+      playSfx(SFX.cast);
       ap -= SKILLS[5].ap;
       meetingUsed = true;
       armorBlocked = true;
@@ -1164,6 +1166,7 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
        виджет риска растворяется в новое состояние, вкладка возвращается */
     const castRisk = () => {
       if (riskRef.current >= 2) return;
+      playSfx(SFX.cast);
       // прежняя хореография отменяется — второй каст не должен рвать показ первого
       riskTimersRef.current.forEach((t) => clearTimeout(t));
       riskTimersRef.current = [];
