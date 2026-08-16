@@ -28,14 +28,18 @@ const PART_COLORS: Record<string, string[]> = {
 };
 
 // ── РПГ: треки кладёт пользователь (в репо НЕ вшиты). Боевой крутится по
-//    кругу с 58-й секунды; звуком поражения остался финал ПРЕЖНЕГО трека,
+//    кругу с 57.48-й секунды; звуком поражения остался финал ПРЕЖНЕГО трека,
 //    поэтому файла два и живут они в разных <audio>. ──
 // Уже закешированные браузером копии не спасёт даже новый заголовок (immutable
 // не перепроверяется до истечения срока), поэтому у звуковых файлов есть версия
 // в адресе: подменили файл — увеличили V, и браузер обязан скачать заново.
 const V = "?v=2";
 const RPG_THEME_SRC = "/assets/easter/rpg-battle.mp3" + V;
-const RPG_THEME_START = 58;
+const RPG_THEME_START = 57.48;
+// Короткие фейды, чтобы трек не включался и не обрывался щелчком: на старте
+// и на возврате лупа, перед концом дорожки, при поражении и при выходе.
+const FADE_IN_MS = 700;
+const FADE_OUT_MS = 900;
 const RPG_OUTRO_SRC = "/assets/easter/rpg-theme.mp3" + V;
 // бой с боссом «Продажи»: сумма блоков = 1000 (3 баннера × 300 + тег 100)
 const HP_BANNER = 300;
@@ -558,19 +562,65 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
     // музыка: файлы кладёт пользователь; нет файла — режим работает молча
     const theme = new Audio(RPG_THEME_SRC);
     theme.preload = "auto";
-    const startTheme = () => {
-      theme.currentTime = RPG_THEME_START;
-      theme.play().catch(() => {});
-    };
     // финал прежнего трека — отдельный элемент; metadata вместо auto, чтобы
     // не тянуть 4 МБ ради звука, который зазвучит только при поражении
     const outro = new Audio(RPG_OUTRO_SRC);
     outro.preload = "metadata";
     const tracks = [theme, outro];
+
+    /* ── фейды ──
+       Громкость трека = «целевая» (ползунок × потолок) × ОГИБАЮЩАЯ фейда.
+       Разделение важно: пока идёт фейд, пользователь может двигать ползунок —
+       и то и другое должно учитываться, а не перетирать друг друга. */
+    const env = new Map<HTMLAudioElement, number>();
+    const fades = new Map<HTMLAudioElement, number>();
+    const musicVol = () => volumeRef.current * VOLUME_CEIL;
+    const applyMusicVol = () =>
+      tracks.forEach((a) => (a.volume = musicVol() * (env.get(a) ?? 1)));
+    const fade = (a: HTMLAudioElement, to: number, ms: number, done?: () => void) => {
+      window.clearInterval(fades.get(a));
+      fades.delete(a);
+      const from = env.get(a) ?? 1;
+      if (ms <= 0 || Math.abs(to - from) < 0.001) {
+        env.set(a, to);
+        applyMusicVol();
+        done?.();
+        return;
+      }
+      const t0 = performance.now();
+      const id = window.setInterval(() => {
+        const k = Math.min(1, (performance.now() - t0) / ms);
+        env.set(a, from + (to - from) * k);
+        applyMusicVol();
+        if (k >= 1) {
+          window.clearInterval(id);
+          fades.delete(a);
+          done?.();
+        }
+      }, 25);
+      fades.set(a, id);
+    };
+
+    const startTheme = () => {
+      env.set(theme, 0);
+      applyMusicVol();
+      theme.currentTime = RPG_THEME_START;
+      theme.play().catch(() => {});
+      fade(theme, 1, FADE_IN_MS);
+    };
+    // затухание перед самым концом дорожки — стык лупа перестаёт щёлкать
+    theme.addEventListener("timeupdate", () => {
+      const left = theme.duration - theme.currentTime;
+      if (!Number.isFinite(left) || fades.has(theme)) return;
+      if (left <= FADE_OUT_MS / 1000 && (env.get(theme) ?? 1) > 0) {
+        fade(theme, 0, Math.max(60, left * 1000));
+      }
+    });
     tracks.forEach((a) => {
-      a.volume = volumeRef.current * VOLUME_CEIL;
+      env.set(a, 1);
       a.muted = mutedRef.current;
     });
+    applyMusicVol();
     startTheme();
     theme.addEventListener("ended", startTheme); // луп с той же 58-й секунды
 
@@ -719,7 +769,7 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
     vol.addEventListener("click", (e) => e.stopPropagation()); // не тогглить mute
     vol.querySelector("input")!.addEventListener("input", (e) => {
       volumeRef.current = +(e.target as HTMLInputElement).value / 100;
-      tracks.forEach((a) => (a.volume = volumeRef.current * VOLUME_CEIL));
+      applyMusicVol();
       sfxLive.forEach((a) => (a.volume = sfxVol()));
     });
     mute.appendChild(vol);
@@ -877,12 +927,15 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
       // после — тишина. Длительность может быть ещё не подгружена (preload
       // metadata) — тогда ждём её одним разовым слушателем.
       theme.removeEventListener("ended", startTheme);
-      theme.pause();
+      fade(theme, 0, FADE_OUT_MS, () => theme.pause());
       const playOutro = () => {
         if (Number.isFinite(outro.duration) && outro.duration > DEFEAT_OUTRO_S) {
           outro.currentTime = outro.duration - DEFEAT_OUTRO_S;
         }
+        env.set(outro, 0);
+        applyMusicVol();
         outro.play().catch(() => {});
+        fade(outro, 1, FADE_IN_MS);
       };
       if (Number.isFinite(outro.duration)) playOutro();
       else outro.addEventListener("loadedmetadata", playOutro, { once: true });
@@ -1240,6 +1293,16 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
       cancelAnimationFrame(magnetRaf);
       turnTimers.forEach((t) => clearTimeout(t));
       theme.removeEventListener("ended", startTheme);
+      // выход из режима: короткий фейд вместо щелчка. Элементы уже не в DOM,
+      // таймер живёт сам по себе и после последнего шага их выгружает.
+      tracks.forEach((a) => {
+        if (a.paused) return;
+        fade(a, 0, 350, () => {
+          a.pause();
+          a.removeAttribute("src");
+          a.load();
+        });
+      });
       smokeDead = true;
       smokeMount?.dispose();
       smokeHost.remove();
@@ -1248,7 +1311,7 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
       hoverSfx.pause();
       sfxWarm.length = 0;
       tracks.forEach((a) => {
-        a.pause();
+        if (!a.paused) return; // играющие догаснут фейдом выше и выгрузятся сами
         a.removeAttribute("src");
         a.load(); // только load() реально обрывает стриминг трека
       });
