@@ -28,10 +28,10 @@ const PART_COLORS: Record<string, string[]> = {
 };
 
 // ── РПГ: треки кладёт пользователь (в репо НЕ вшиты). Боевой крутится по
-//    кругу с 58-й секунды; звуком поражения остался финал ПРЕЖНЕГО трека,
+//    кругу с 57-й секунды; звуком поражения остался финал ПРЕЖНЕГО трека,
 //    поэтому файла два и живут они в разных <audio>. ──
 const RPG_THEME_SRC = "/assets/easter/rpg-battle.mp3";
-const RPG_THEME_START = 58;
+const RPG_THEME_START = 57;
 const RPG_OUTRO_SRC = "/assets/easter/rpg-theme.mp3";
 // бой с боссом «Продажи»: сумма блоков = 1000 (3 баннера × 300 + тег 100)
 const HP_BANNER = 300;
@@ -56,9 +56,12 @@ const BOSS_HIT_MAX = 28;
 // умолчанию он на максимуме, а пользователю остаётся только убавлять.
 const VOLUME_CEIL = 0.176;
 const DEFAULT_VOLUME = 1;
-// Эффекты боя. Свой потолок — заметно выше музыкального, чтобы удары
-// пробивали фон; общий ползунок и общая кнопка mute.
-const SFX_CEIL = 0.45;
+// Эффекты боя. Потолок выше музыкального, чтобы удары пробивали фон, но
+// вдвое ниже прежнего (просьба); общий ползунок и общая кнопка mute.
+const SFX_CEIL = 0.225;
+// 1×1 прозрачный PNG: шейдеру нужен связанный семплер, даже когда картинки нет
+const TRANSPARENT_PX =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
 const SFX = {
   skill: "/assets/easter/sfx-skill.mp3", // наведение на карточку скилла
   hit: "/assets/easter/sfx-hit.mp3", // удар прошёл
@@ -562,7 +565,7 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
       a.muted = mutedRef.current;
     });
     startTheme();
-    theme.addEventListener("ended", startTheme); // луп с той же 58-й секунды
+    theme.addEventListener("ended", startTheme); // луп с той же 57-й секунды
 
     /* ── эффекты боя ──
        Удары могут накладываться (мульти-хит, поджиг), поэтому каждый вызов
@@ -596,6 +599,74 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
       a.load();
       return a;
     });
+    /* ── дым по ховеру: шейдер «gem smoke» из @paper-design/shaders ──
+       Один WebGL-контекст на всю колоду: хост-элемент переезжает внутрь
+       плашки той карточки, на которую навели, и там наследует и её рваный
+       clip-path, и перспективу колоды. Библиотека грузится динамически —
+       иначе 800 КБ шейдеров попали бы в основной бандл дашборда, который
+       про пасхалку знать не должен. */
+    const smokeHost = document.createElement("span");
+    smokeHost.className = "rpg-smoke";
+    type Shaders = typeof import("@paper-design/shaders");
+    let shaders: Shaders | null = null;
+    let smokeMount: InstanceType<Shaders["ShaderMount"]> | null = null;
+    let smokeDead = false;
+    const blankPx = new Image();
+    blankPx.src = TRANSPARENT_PX;
+    const smokeUniforms = (clr: string) => {
+      const C = shaders!.getShaderColorFromString;
+      return {
+        // дым красим в цвет скилла, подложку оставляем прозрачной — под ним
+        // должна оставаться собственная чёрная плашка карточки
+        u_colors: [C(clr), C("#ffffff")],
+        u_colorsCount: 2,
+        u_colorBack: C("#00000000"),
+        u_colorInner: C("#00000000"),
+        u_image: blankPx,
+        u_isImage: false,
+        u_shape: shaders!.GemSmokeShapes.none, // силуэт задаёт сама плашка
+        u_innerDistortion: 0.8,
+        u_outerDistortion: 0.6,
+        u_outerGlow: 0.55,
+        u_innerGlow: 1,
+        u_offset: 0,
+        u_angle: 0,
+        u_size: 0.8,
+        u_fit: shaders!.ShaderFitOptions.contain,
+        u_scale: 0.6,
+        u_rotation: 0,
+        u_offsetX: 0,
+        u_offsetY: 0,
+        u_originX: 0.5,
+        u_originY: 0.5,
+        u_worldWidth: 0,
+        u_worldHeight: 0,
+      };
+    };
+    import("@paper-design/shaders")
+      .then((sh) => {
+        if (smokeDead) return;
+        shaders = sh;
+        smokeMount = new sh.ShaderMount(
+          smokeHost,
+          sh.gemSmokeFragmentShader,
+          smokeUniforms(SKILLS[0].color),
+          undefined,
+          1
+        );
+      })
+      .catch(() => {});
+    const smokeTo = (card: HTMLElement | null) => {
+      const slab = card?.querySelector(".rpg-slab");
+      if (!slab || !smokeMount) {
+        smokeHost.classList.remove("on");
+        return;
+      }
+      smokeMount.setUniforms(smokeUniforms(SKILLS[+(card!.dataset.i ?? 0)].color));
+      slab.appendChild(smokeHost);
+      requestAnimationFrame(() => smokeHost.classList.add("on"));
+    };
+
     /* тик при наведении на доступную карточку. mouseover всплывает и с
        потомков карточки, поэтому сравниваем с прошлой — иначе тик дребезжал
        бы на каждом слове описания. Слушатель живёт на панели и умирает
@@ -605,12 +676,17 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
       const card = (e.target as Element | null)?.closest?.(".rpg-skill") as HTMLElement | null;
       if (card === hoverCard) return;
       hoverCard = card;
-      if (!card || aiming >= 0 || !panel.classList.contains("live")) return;
-      if (["cd", "no-ap", "max", "hidden"].some((c) => card.classList.contains(c))) return;
-      playHover();
+      const ok =
+        card &&
+        aiming < 0 &&
+        panel.classList.contains("live") &&
+        !["cd", "no-ap", "max", "hidden"].some((c) => card.classList.contains(c));
+      smokeTo(ok ? card : null);
+      if (ok) playHover();
     });
     panel.addEventListener("mouseleave", () => {
       hoverCard = null;
+      smokeTo(null);
     });
 
     // кнопка звука над фабом tools
@@ -1157,6 +1233,9 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
       cancelAnimationFrame(magnetRaf);
       turnTimers.forEach((t) => clearTimeout(t));
       theme.removeEventListener("ended", startTheme);
+      smokeDead = true;
+      smokeMount?.dispose();
+      smokeHost.remove();
       sfxLive.forEach((a) => a.pause());
       sfxLive.clear();
       hoverSfx.pause();

@@ -9,6 +9,7 @@
     "lint": "eslint . --max-warnings 0"
   },
   "dependencies": {
+    "@paper-design/shaders": "^0.0.80",
     "next": "^15.1.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
