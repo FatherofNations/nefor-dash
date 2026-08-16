@@ -1047,6 +1047,10 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
         card.classList.toggle("sel-aim", aiming === i);
       });
     };
+    // Стартовое состояние карточек. Раньше refreshCards звался только из
+    // обработчиков, поэтому до первого хода «Риск блокировки» горел
+    // доступным, хотя стоит 4 ОД при стартовых трёх.
+    refreshCards();
 
     /* ── фаза прицеливания: остаётся одна карточка, борд подъезжает левее ── */
     const enterAiming = (i: number) => {
