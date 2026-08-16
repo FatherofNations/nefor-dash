@@ -2381,3 +2381,12 @@ body.rpg-intro .rpg-player {
   opacity: 0;
   transition-delay: 0s;
 }
+
+/* Фигура теперь меньше канваса (см. SMOKE_FIGURE), и зазор между ней и краем
+   плашки занят дымом со свечением — отдельная затемняющая подложка больше не
+   нужна, роль тёмного тела карточки играет colorInner самой фигуры. */
+.rpg-smoke::after { content: none; }
+/* содержимое карточки — поверх дыма */
+.rpg-skill .rpg-body,
+.rpg-skill .rpg-key,
+.rpg-skill .rpg-cost { z-index: 2; }
