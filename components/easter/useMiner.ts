@@ -78,7 +78,8 @@ const SFX = {
   hit: "/assets/easter/sfx-hit.mp3" + V, // удар прошёл
   blocked: "/assets/easter/sfx-blocked.mp3" + V, // защита босса поглотила удар
   boss: "/assets/easter/sfx-boss.mp3" + V, // ответный удар босса
-  cast: "/assets/easter/sfx-cast.mp3" + V, // «Риск блокировки» и «Встреча в 9 утра»
+  cast: "/assets/easter/sfx-cast.mp3" + V, // нажатие «Риска» и «Встречи в 9 утра»
+  risk: "/assets/easter/sfx-risk.mp3" + V, // момент подмены состояния виджета риска
 } as const;
 const DEFEAT_OUTRO_S = 15; // при поражении — последние 15с трека, и тишина
 type SkillKind = "attack" | "risk" | "meeting";
@@ -1182,6 +1183,7 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
           document.querySelector(".widget.wg-risk")?.classList.add("risk-fading");
         }, 650),
         window.setTimeout(() => {
+          playSfx(SFX.risk); // виджет меняет состояние — озвучиваем сам переход
           applyRiskState(level);
           document.querySelector(".widget.wg-risk")?.classList.remove("risk-fading");
         }, 950),
