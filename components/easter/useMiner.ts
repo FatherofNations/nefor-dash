@@ -73,6 +73,21 @@ const SFX_SKILL_GAIN = 0.25;
 // Файл каста записан заметно тише остальных (пик 0.43 против 0.70) — поднимаем
 const SFX_CAST_GAIN = 1.6;
 // 1×1 прозрачный PNG: шейдеру нужен связанный семплер, даже когда картинки нет
+// Плашка карточки из макета — её габарит задаёт и силуэт стеклянной фигуры
+const SLAB_W = 342.276;
+const SLAB_H = 113.278;
+const SMOKE_SCALE = 1 / 0.95; // компенсация полей, которые кладёт препроцессор
+/* Палитры дыма по цвету скилла. Огненная — из присланного примера, остальные
+   собраны по той же схеме: насыщенная база → яркий средний → белый. */
+const SMOKE_COLORS: Record<string, string[]> = {
+  "#ff6a3d": ["#fe5b16", "#f7ff61", "#ffffff"], // Холды — огонь
+  "#e9e7de": ["#b9b3a2", "#f2efe2", "#ffffff"], // Платёж — тёплый пепел
+  "#4db8ff": ["#1668fe", "#61e8ff", "#ffffff"], // Овердрафт — лёд
+  "#ffd34d": ["#fe9c16", "#fff261", "#ffffff"], // Кассовый разрыв — золото
+  "#ff9c26": ["#fe6b16", "#ffc861", "#ffffff"], // Риск блокировки — янтарь
+  "#7a63f1": ["#5b16fe", "#b061ff", "#ffffff"], // Встреча в 9 утра — фиолет
+  default: ["#fe5b16", "#f7ff61", "#ffffff"],
+};
 const TRANSPARENT_PX =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
 const SFX = {
@@ -672,36 +687,56 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
        плашки той карточки, на которую навели, и там наследует и её рваный
        clip-path, и перспективу колоды. Библиотека грузится динамически —
        иначе 800 КБ шейдеров попали бы в основной бандл дашборда, который
-       про пасхалку знать не должен. */
+       про пасхалку знать не должен.
+
+       Стеклянная фигура шейдера — САМА КАРТОЧКА: силуэт берём из той же
+       CSS-переменной `--rpg-slab-clip`, что рисует рваный кант плашки, и
+       скармливаем шейдеру картинкой. Так фигура и карточка совпадают
+       контур в контур, зазора между ними нет по построению. */
     const smokeHost = document.createElement("span");
     smokeHost.className = "rpg-smoke";
     type Shaders = typeof import("@paper-design/shaders");
     let shaders: Shaders | null = null;
     let smokeMount: InstanceType<Shaders["ShaderMount"]> | null = null;
     let smokeDead = false;
-    const blankPx = new Image();
-    blankPx.src = TRANSPARENT_PX;
+    let smokeShape: HTMLImageElement | null = null;
+    // силуэт плашки в SVG — ровно тот полигон, что стоит в clip-path
+    const slabSvg = () => {
+      const raw = getComputedStyle(document.documentElement).getPropertyValue("--rpg-slab-clip");
+      const pts = [...raw.matchAll(/([\d.]+)%\s+([\d.]+)%/g)]
+        .map((m) => `${(+m[1] * SLAB_W) / 100},${(+m[2] * SLAB_H) / 100}`)
+        .join(" ");
+      const svg =
+        `<svg xmlns="http://www.w3.org/2000/svg" width="${SLAB_W}" height="${SLAB_H}" ` +
+        `viewBox="0 0 ${SLAB_W} ${SLAB_H}"><polygon points="${pts}" fill="#ffffff"/></svg>`;
+      return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+    };
     const smokeUniforms = (clr: string) => {
       const C = shaders!.getShaderColorFromString;
+      const palette = SMOKE_COLORS[clr] ?? SMOKE_COLORS.default;
       return {
-        // дым красим в цвет скилла, подложку оставляем прозрачной — под ним
-        // должна оставаться собственная чёрная плашка карточки
-        u_colors: [C(clr), C("#ffffff")],
-        u_colorsCount: 2,
-        u_colorBack: C("#00000000"),
-        u_colorInner: C("#00000000"),
-        u_image: blankPx,
-        u_isImage: false,
-        u_shape: shaders!.GemSmokeShapes.none, // силуэт задаёт сама плашка
-        u_innerDistortion: 0.8,
-        u_outerDistortion: 0.6,
-        u_outerGlow: 0.55,
+        u_colors: palette.map(C),
+        u_colorsCount: palette.length,
+        // фон и внутренняя заливка — чёрные, как сама плашка: канвас лежит
+        // ВНУТРИ клипа, поэтому чёрное поле шейдера сливается с карточкой
+        u_colorBack: C("#000000"),
+        u_colorInner: C("#000000"),
+        u_image: smokeShape ?? blankPx,
+        u_isImage: !!smokeShape,
+        u_shape: shaders!.GemSmokeShapes.none,
+        u_innerDistortion: 0.6,
+        u_outerDistortion: 0.47,
+        u_outerGlow: 1,
         u_innerGlow: 1,
-        u_offset: 0,
-        u_angle: 0,
-        u_size: 0.8,
+        u_offset: -1,
+        u_angle: 164,
+        u_size: 1,
         u_fit: shaders!.ShaderFitOptions.contain,
-        u_scale: 0.6,
+        // Единственное отступление от присланных параметров: scale вместо 0.6.
+        // toProcessedGemSmoke кладёт вокруг фигуры поля в 2.5% с каждой
+        // стороны, поэтому фигура занимает 95% картинки — 1/0.95 возвращает
+        // её ровно в габарит карточки, чтобы не было того самого зазора.
+        u_scale: SMOKE_SCALE,
         u_rotation: 0,
         u_offsetX: 0,
         u_offsetY: 0,
@@ -711,10 +746,21 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
         u_worldHeight: 0,
       };
     };
+    const blankPx = new Image();
+    blankPx.src = TRANSPARENT_PX;
     import("@paper-design/shaders")
-      .then((sh) => {
+      .then(async (sh) => {
         if (smokeDead) return;
         shaders = sh;
+        // силуэт готовится один раз на всю колоду — от цвета он не зависит
+        try {
+          const processed = await sh.toProcessedGemSmoke(slabSvg());
+          const img = new Image();
+          img.src = URL.createObjectURL(processed.pngBlob);
+          await img.decode();
+          if (!smokeDead) smokeShape = img;
+        } catch {}
+        if (smokeDead) return;
         smokeMount = new sh.ShaderMount(
           smokeHost,
           sh.gemSmokeFragmentShader,
