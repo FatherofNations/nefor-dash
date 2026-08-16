@@ -27,9 +27,12 @@ const PART_COLORS: Record<string, string[]> = {
   luck: ["#9eff01", "#7fd400", "#111c00", "#c6ff4d"],
 };
 
-// ── РПГ: трек кладёт пользователь (в репо НЕ вшит); старт с 49-й секунды
-const RPG_THEME_SRC = "/assets/easter/rpg-theme.mp3";
-const RPG_THEME_START = 49;
+// ── РПГ: треки кладёт пользователь (в репо НЕ вшиты). Боевой крутится по
+//    кругу с 58-й секунды; звуком поражения остался финал ПРЕЖНЕГО трека,
+//    поэтому файла два и живут они в разных <audio>. ──
+const RPG_THEME_SRC = "/assets/easter/rpg-battle.mp3";
+const RPG_THEME_START = 58;
+const RPG_OUTRO_SRC = "/assets/easter/rpg-theme.mp3";
 // бой с боссом «Продажи»: сумма блоков = 1000 (3 баннера × 300 + тег 100)
 const HP_BANNER = 300;
 const HP_LUCK = 100;
@@ -529,17 +532,24 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
     document.body.appendChild(bossEl);
     requestAnimationFrame(() => bossEl.classList.add("on"));
 
-    // музыка: файл кладёт пользователь; нет файла — режим работает молча
+    // музыка: файлы кладёт пользователь; нет файла — режим работает молча
     const theme = new Audio(RPG_THEME_SRC);
     theme.preload = "auto";
-    theme.volume = volumeRef.current;
-    theme.muted = mutedRef.current;
     const startTheme = () => {
       theme.currentTime = RPG_THEME_START;
       theme.play().catch(() => {});
     };
+    // финал прежнего трека — отдельный элемент; metadata вместо auto, чтобы
+    // не тянуть 4 МБ ради звука, который зазвучит только при поражении
+    const outro = new Audio(RPG_OUTRO_SRC);
+    outro.preload = "metadata";
+    const tracks = [theme, outro];
+    tracks.forEach((a) => {
+      a.volume = volumeRef.current;
+      a.muted = mutedRef.current;
+    });
     startTheme();
-    theme.addEventListener("ended", startTheme); // луп с той же 49-й секунды
+    theme.addEventListener("ended", startTheme); // луп с той же 58-й секунды
 
     // кнопка звука над фабом tools
     const mute = document.createElement("button");
@@ -552,7 +562,7 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
       `<path class="mx" d="M16.5 9.5l5 5M21.5 9.5l-5 5"/></svg>`;
     mute.addEventListener("click", () => {
       mutedRef.current = !mutedRef.current;
-      theme.muted = mutedRef.current;
+      tracks.forEach((a) => (a.muted = mutedRef.current));
       mute.classList.toggle("muted", mutedRef.current);
     });
     // ползунок громкости — раскрывается по наведению на кнопку
@@ -562,7 +572,7 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
     vol.addEventListener("click", (e) => e.stopPropagation()); // не тогглить mute
     vol.querySelector("input")!.addEventListener("input", (e) => {
       volumeRef.current = +(e.target as HTMLInputElement).value / 100;
-      theme.volume = volumeRef.current;
+      tracks.forEach((a) => (a.volume = volumeRef.current));
     });
     mute.appendChild(vol);
     document.body.appendChild(mute);
@@ -712,12 +722,19 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
     const defeatNow = () => {
       if (defeat || victory) return;
       defeat = true;
-      // финал: последние 15 секунд трека, после — тишина (луп снят)
+      // финал: боевой луп глушим, играем последние 15 секунд прежнего трека,
+      // после — тишина. Длительность может быть ещё не подгружена (preload
+      // metadata) — тогда ждём её одним разовым слушателем.
       theme.removeEventListener("ended", startTheme);
-      if (Number.isFinite(theme.duration) && theme.duration > DEFEAT_OUTRO_S) {
-        theme.currentTime = theme.duration - DEFEAT_OUTRO_S;
-        theme.play().catch(() => {});
-      }
+      theme.pause();
+      const playOutro = () => {
+        if (Number.isFinite(outro.duration) && outro.duration > DEFEAT_OUTRO_S) {
+          outro.currentTime = outro.duration - DEFEAT_OUTRO_S;
+        }
+        outro.play().catch(() => {});
+      };
+      if (Number.isFinite(outro.duration)) playOutro();
+      else outro.addEventListener("loadedmetadata", playOutro, { once: true });
       const d = document.createElement("div");
       d.className = "rpg-defeat";
       d.innerHTML = `<b>Продукт закрыт</b><span>Продажи победили. Возьми меч заново — новая партия.</span>`;
@@ -1070,9 +1087,11 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
       cancelAnimationFrame(magnetRaf);
       turnTimers.forEach((t) => clearTimeout(t));
       theme.removeEventListener("ended", startTheme);
-      theme.pause();
-      theme.removeAttribute("src");
-      theme.load(); // только load() реально обрывает стриминг трека
+      tracks.forEach((a) => {
+        a.pause();
+        a.removeAttribute("src");
+        a.load(); // только load() реально обрывает стриминг трека
+      });
       panel.remove();
       bossEl.remove();
       playerEl.remove();
