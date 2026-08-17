@@ -2459,3 +2459,83 @@ body.rpg-intro .rpg-player {
 /* интро: аватар (его центр теперь на 37.39px правее левого края контейнера)
    выводим ровно в центр вьюпорта — сдвиг стал константой */
 .rpg-boss.intro { transform: translateX(331.2px); }
+
+/* ═══ Выпавший блок (режим кирки) ═══
+   Кубик 30px: подскок → падение с ускорением → два затухающих отскока, дальше
+   бесконечное вращение вокруг вертикали и лёгкое покачивание — как предмет,
+   выпавший из блока в майнкрафте. Грани затенены по-майнкрафтовски: верх
+   самый светлый, бока темнее лица. */
+.mine-drop {
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  z-index: 40;
+  pointer-events: none;
+  perspective: 300px;
+  animation: mine-drop-fall 1.15s cubic-bezier(0.4, 0, 0.7, 1) forwards;
+}
+@keyframes mine-drop-fall {
+  0%   { transform: translate(0, 0) scale(0.55); }
+  16%  { transform: translate(calc(var(--dx) * 0.18), calc(var(--dy) * -0.1)) scale(1); }
+  58%  { transform: translate(calc(var(--dx) * 0.74), var(--dy)); }
+  70%  { transform: translate(calc(var(--dx) * 0.85), calc(var(--dy) - 13px)); }
+  82%  { transform: translate(calc(var(--dx) * 0.94), var(--dy)); }
+  91%  { transform: translate(var(--dx), calc(var(--dy) - 4px)); }
+  100% { transform: translate(var(--dx), var(--dy)); }
+}
+/* покачивание включается ровно когда кубик долетел */
+.mine-drop .bob {
+  position: absolute;
+  inset: 0;
+  display: block;
+  transform-style: preserve-3d;
+  animation: mine-drop-bob 2.1s ease-in-out 1.15s infinite;
+}
+@keyframes mine-drop-bob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-5px); }
+}
+.mine-drop .cube {
+  position: absolute;
+  inset: 0;
+  display: block;
+  transform-style: preserve-3d;
+  animation: mine-drop-spin 3.4s linear infinite;
+  /* НИКАКИХ filter на этой цепочке: filter принудительно ставит элементу
+     transform-style: flat, и все шесть граней слипаются в одну плоскость —
+     кубик превращался в вертящуюся карточку. Тень рисует отдельный слой. */
+}
+/* тень под предметом — плоский элемент вне 3D-контекста */
+.mine-drop::after {
+  content: "";
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  bottom: -3px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.22);
+  filter: blur(3px);
+}
+@keyframes mine-drop-spin {
+  to { transform: rotateX(-16deg) rotateY(360deg); }
+}
+.mine-drop .cube { transform: rotateX(-16deg) rotateY(0deg); }
+.mine-drop b {
+  position: absolute;
+  inset: 0;
+  display: block;
+  background: var(--c1);
+  image-rendering: pixelated;
+}
+.mine-drop b.f  { transform: translateZ(15px); }
+.mine-drop b.bk { transform: rotateY(180deg) translateZ(15px); }
+.mine-drop b.l  { transform: rotateY(-90deg) translateZ(15px); background: var(--c2); }
+.mine-drop b.r  { transform: rotateY(90deg) translateZ(15px); background: var(--c2); }
+.mine-drop b.t  { transform: rotateX(90deg) translateZ(15px); background: var(--c3); }
+.mine-drop b.bm { transform: rotateX(-90deg) translateZ(15px); background: var(--c2); }
+
+/* Секция «С чего начать» — система координат для выпавших предметов.
+   Статичным детям relative ничего не меняет, а кубики теперь едут вместе с
+   плитой, когда слоты разрушенных баннеров схлопываются. */
+.onboarding { position: relative; }

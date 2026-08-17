@@ -221,7 +221,7 @@ function restoreWorldDom() {
     luck.style.width = "";
   }
   document
-    .querySelectorAll(".mine-part, .rpg-hp, .rpg-dmg, .rpg-victory, .rpg-defeat, .rpg-fly")
+    .querySelectorAll(".mine-part, .mine-drop, .rpg-hp, .rpg-dmg, .rpg-victory, .rpg-defeat, .rpg-fly")
     .forEach((p) => p.remove());
   restoreRiskState();
   // если хореография риска оборвалась на «Моих продуктах» — вернуть AI-Сводку
@@ -326,6 +326,68 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
       b.classList.toggle("crack3", frac <= 0.2 && hp > 0);
     };
 
+    // палитра цели: та же, что у частиц разрушения
+    const kindOf = (b: HTMLElement) =>
+      b.classList.contains("luck")
+        ? "luck"
+        : b.classList.contains("dark")
+          ? "dark"
+          : b.classList.contains("blue")
+            ? "blue"
+            : "red";
+    // подмешать белого — верхняя грань кубика в майнкрафте самая светлая
+    const lighten = (hex: string, k: number) => {
+      const m = hex.replace("#", "");
+      const full = m.length === 3 ? m.split("").map((c) => c + c).join("") : m;
+      const n = parseInt(full, 16);
+      const mix = (v: number) => Math.round(v + (255 - v) * k);
+      return `rgb(${mix((n >> 16) & 255)},${mix((n >> 8) & 255)},${mix(n & 255)})`;
+    };
+
+    /* ── дроп предмета ──
+       Разрушенный блок не исчезает, а выпадает кубиком: подскакивает, падает
+       на белую плиту «С чего начать», отпрыгивает и остаётся там крутиться —
+       как выпавший блок в майнкрафте. Кубик живёт в .board-body (это и
+       скролл-контейнер, и position:fixed-предок), поэтому едет вместе с
+       контентом; внутрь самой плиты его класть нельзя — у неё overflow:hidden. */
+    const DROP = 30;
+    const spawnDrop = (b: HTMLElement) => {
+      /* Хост — СЕКЦИЯ «С чего начать», а не скролл-контейнер: по мере
+         разрушения баннеров их слоты схлопываются и весь контент ниже
+         подъезжает вверх. Привязка к секции тащит кубики вместе с плитой,
+         иначе они остаются висеть там, где плита была на момент падения.
+         Внутрь самой плиты класть нельзя — у неё overflow:hidden. */
+      const host = document.querySelector<HTMLElement>(".onboarding");
+      const card = document.querySelector<HTMLElement>(".ob-card");
+      if (!host || !card) return;
+      const hr = host.getBoundingClientRect();
+      const br = b.getBoundingClientRect();
+      const cr = card.getBoundingClientRect();
+      const x0 = br.left + br.width / 2 - hr.left - DROP / 2;
+      const y0 = br.top + br.height / 2 - hr.top - DROP / 2;
+      const cl = cr.left - hr.left;
+      /* Каждый следующий предмет кладём правее предыдущего: после разрушения
+         баннеры съезжают влево, и следующий добывается на том же месте — без
+         разноса все кубики легли бы друг в друга. Плюс небольшой случайный сдвиг,
+         чтобы кучка не выглядела линейкой. */
+      const n = host.querySelectorAll(".mine-drop").length;
+      const spread = n * 38 + (Math.random() - 0.5) * 10;
+      const x1 = Math.min(Math.max(x0 + spread, cl + 28), cl + cr.width - 28 - DROP);
+      const y1 = cr.top - hr.top - DROP;
+      const [base, dark] = PART_COLORS[kindOf(b)];
+      const el = document.createElement("span");
+      el.className = "mine-drop";
+      el.style.cssText =
+        `left:${x0}px;top:${y0}px;--dx:${x1 - x0}px;--dy:${y1 - y0}px;` +
+        `--c1:${base};--c2:${dark};--c3:${lighten(base, 0.34)};`;
+      el.innerHTML =
+        `<i class="bob"><i class="cube">` +
+        `<b class="f"></b><b class="bk"></b><b class="l"></b><b class="r"></b>` +
+        `<b class="t"></b><b class="bm"></b>` +
+        `</i></i>`;
+      host.appendChild(el);
+    };
+
     const spawnParticles = (b: HTMLElement) => {
       const kind = b.classList.contains("luck")
         ? "luck"
@@ -368,6 +430,7 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
     const destroyTarget = (b: HTMLElement) => {
       clearCracks(b);
       spawnParticles(b);
+      spawnDrop(b);
       b.classList.add("mined");
       b.querySelector(".rpg-hp")?.remove();
       onMined();
