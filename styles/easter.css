@@ -2403,3 +2403,12 @@ body.rpg-intro .rpg-player {
    добавка, и на светлом дашборде она читалась как лишний кусок слева от
    спрайта: фон там уходил с 220 до 189 по яркости вместо ровного 220. */
 .rpg-villain { filter: none; }
+
+/* ═══ Цифры урона и хила — начертанием как заголовки боя ═══
+   Узел макета 29:12582 («Продажи»): Onweer Var, начертание Extended Bold.
+   Меняем только семейство и жирноту — размеры и цвета вариантов прежние. */
+.rpg-dmg {
+  font-family: "Onweer Var", "Arial Black", Arial, sans-serif;
+  font-variation-settings: "wght" 700, "wdth" 200;
+  font-weight: 700;
+}
