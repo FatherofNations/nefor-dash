@@ -180,19 +180,22 @@ function FabButton({
   return (
     <button
       className="twk-fab"
-      aria-label="Инструменты"
+      aria-label="Инструменты (клавиша «/»)"
       aria-expanded={panelOpen}
       onClick={() => setPanelOpen(!panelOpen)}
     >
-      <svg className="sliders" width="20" height="20" viewBox="0 0 20 20" fill="none">
-        <path
-          d="M2 5.5h7.5M16.5 5.5h1.5M2 14.5h1.5M10.5 14.5h7.5"
+      {/* клавиша «/» — она же горячая клавиша открытия панели */}
+      <svg className="slash" width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <rect
+          x="2.6"
+          y="2.6"
+          width="14.8"
+          height="14.8"
+          rx="4.2"
           stroke="#fff"
           strokeWidth="1.8"
-          strokeLinecap="round"
         />
-        <circle cx="13" cy="5.5" r="2.2" stroke="#fff" strokeWidth="1.8" />
-        <circle cx="7" cy="14.5" r="2.2" stroke="#fff" strokeWidth="1.8" />
+        <path d="M8.2 13.7 11.8 6.3" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" />
       </svg>
       <svg className="x" width="20" height="20" viewBox="0 0 20 20" fill="none">
         <path

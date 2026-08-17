@@ -511,7 +511,7 @@ body.twk-open .twk { transform: none; }
   transition: opacity 0.35s ease, transform 0.55s cubic-bezier(0.32, 0.72, 0, 1);
 }
 .twk-fab .x { opacity: 0; transform: rotate(-90deg); }
-body.twk-open .twk-fab .sliders { opacity: 0; transform: rotate(90deg); }
+body.twk-open .twk-fab .slash { opacity: 0; transform: rotate(90deg); }
 body.twk-open .twk-fab .x { opacity: 1; transform: rotate(0); }
 
 /* Строка нейропомощника вынесена в общий модуль: css/neuro-bar.css + js/neuro-bar.js */

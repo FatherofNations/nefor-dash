@@ -136,9 +136,9 @@ export default function ToolsProvider({ children }: { children: ReactNode }) {
   const [minedCount, setMinedCount] = useState(0);
 
   useEffect(() => {
-    if (dashboard !== "main") return; // на других дашбордах триггер не активен
     let count = 0;
     let last = 0;
+    let tap = 0; // отложенный тоггл панели — чтобы серия не дёргала её пять раз
     // на многих раскладках «/» набирается через Shift — модификаторы серию не сбивают
     const MODS = new Set(["Shift", "Alt", "Control", "Meta", "CapsLock", "AltGraph"]);
     const onKey = (e: KeyboardEvent) => {
@@ -155,16 +155,26 @@ export default function ToolsProvider({ children }: { children: ReactNode }) {
         count = 0;
         return;
       }
+      e.preventDefault(); // иначе Chrome ловит «/» своим поиском по странице
       const now = performance.now();
       count = now - last < 1500 ? count + 1 : 1;
       last = now;
-      if (count >= 5) {
+      /* «/» — это и обычная горячая клавиша панели инструментов (та же клавиша
+         нарисована на её кнопке). Тоггл откладываем: если следом посыпалась
+         серия, таймер отменяется и панель не мигает пять раз подряд. */
+      window.clearTimeout(tap);
+      if (count >= 5 && dashboard === "main") {
         count = 0;
-        setEaster((on) => !on);
+        setEaster((on) => !on); // вход в режим сам раскроет панель
+        return;
       }
+      tap = window.setTimeout(() => setPanelOpen((o) => !o), 260);
     };
     document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
+    return () => {
+      window.clearTimeout(tap);
+      document.removeEventListener("keydown", onKey);
+    };
   }, [dashboard]);
 
   // вход в режим — раскрыть панель (секретный экран должен быть видно);
