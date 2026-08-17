@@ -30,9 +30,10 @@ const PART_COLORS: Record<string, string[]> = {
 // ── РПГ: треки кладёт пользователь (в репо НЕ вшиты). Боевой крутится по
 //    кругу с 57.48-й секунды; звуком поражения остался финал ПРЕЖНЕГО трека,
 //    поэтому файла два и живут они в разных <audio>. ──
-// Уже закешированные браузером копии не спасёт даже новый заголовок (immutable
-// не перепроверяется до истечения срока), поэтому у звуковых файлов есть версия
-// в адресе: подменили файл — увеличили V, и браузер обязан скачать заново.
+// Копии, закешированные ДО правки заголовков, не спасёт и no-cache: запись с
+// immutable не перепроверяется до истечения срока. Поэтому у всех подменяемых
+// ассеток пасхалки (звуки, треки, спрайты) версия стоит в адресе: подменили
+// файл — увеличили V, и браузер обязан скачать заново.
 const V = "?v=2";
 const RPG_THEME_SRC = "/assets/easter/rpg-battle.mp3" + V;
 const RPG_THEME_START = 57.48;
@@ -151,19 +152,19 @@ const RISK_STATES = [
   null,
   {
     cls: "risk-mid",
-    gauge: "/assets/easter/risk-gauge-mid.svg",
-    icon: "/assets/easter/risk-ico-mid.svg",
+    gauge: "/assets/easter/risk-gauge-mid.svg" + V,
+    icon: "/assets/easter/risk-ico-mid.svg" + V,
     title: "Средний риск",
     desc: "Некоторые действия компании<br>нарушают требования 115-ФЗ",
-    rows: ["/assets/easter/risk-warn.svg", "/assets/easter/risk-warn.svg", "/assets/figma/wgCheck.svg"],
+    rows: ["/assets/easter/risk-warn.svg" + V, "/assets/easter/risk-warn.svg" + V, "/assets/figma/wgCheck.svg"],
   },
   {
     cls: "risk-high",
-    gauge: "/assets/easter/risk-gauge-high.svg",
-    icon: "/assets/easter/risk-ico-high.svg",
+    gauge: "/assets/easter/risk-gauge-high.svg" + V,
+    icon: "/assets/easter/risk-ico-high.svg" + V,
     title: "Высокий риск",
     desc: "Действия компании нарушают<br>требования 115-ФЗ",
-    rows: ["/assets/easter/risk-flash.svg", "/assets/easter/risk-flash.svg", "/assets/easter/risk-warn.svg"],
+    rows: ["/assets/easter/risk-flash.svg" + V, "/assets/easter/risk-flash.svg" + V, "/assets/easter/risk-warn.svg" + V],
   },
 ] as const;
 
@@ -407,7 +408,7 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
       const cur = document.createElement("div");
       cur.className = "pickaxe-cur";
       cur.style.visibility = "hidden"; // не светить в углу (0,0) до первого движения мыши
-      cur.innerHTML = `<img src="/assets/easter/pickaxe.png" alt="" width="42" height="48">`;
+      cur.innerHTML = `<img src="/assets/easter/pickaxe.png${V}" alt="" width="42" height="48">`;
       document.body.appendChild(cur);
       document.body.classList.add("mine-armed");
 
@@ -593,7 +594,7 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
     playerEl.className = "rpg-player";
     playerEl.innerHTML =
       `<span class="rpg-slab"></span>` +
-      `<img class="rpg-hero" src="/assets/easter/rpg-player.png" alt="">` +
+      `<img class="rpg-hero" src="/assets/easter/rpg-player.png${V}" alt="">` +
       `<span class="rpg-apgem"><i></i><b class="rpg-ap-num">${AP_START}</b></span>` +
       `<span class="rpg-player-name">Продукт</span>` +
       `<span class="rpg-hpwrap"><span class="rpg-player-bar"><i style="width:100%"></i></span>` +
@@ -606,7 +607,7 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
     bossEl.className = "rpg-boss intro";
     bossEl.innerHTML =
       `<span class="rpg-slab"></span>` +
-      `<span class="rpg-villain"><i><img src="/assets/easter/rpg-boss.png" alt=""></i></span>` +
+      `<span class="rpg-villain"><i><img src="/assets/easter/rpg-boss.png${V}" alt=""></i></span>` +
       `<span class="rpg-boss-name">Продажи</span>` +
       `<span class="rpg-boss-armor"></span>` +
       `<span class="rpg-boss-bar"><i style="width:100%"></i></span>` +
