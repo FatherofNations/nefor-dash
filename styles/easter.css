@@ -2460,18 +2460,19 @@ body.rpg-intro .rpg-player {
    выводим ровно в центр вьюпорта — сдвиг стал константой */
 .rpg-boss.intro { transform: translateX(331.2px); }
 
-/* ═══ Выпавший блок (режим кирки) ═══
-   Кубик 30px: подскок → падение с ускорением → два затухающих отскока, дальше
-   бесконечное вращение вокруг вертикали и лёгкое покачивание — как предмет,
-   выпавший из блока в майнкрафте. Грани затенены по-майнкрафтовски: верх
-   самый светлый, бока темнее лица. */
+/* ═══ Выпавший предмет (режим кирки) ═══
+   Падает МИНИАТЮРА баннера — его же форма и содержимое, ужатые по ширине.
+   Подскок → падение с ускорением → два затухающих отскока, дальше бесконечное
+   вращение вокруг вертикали и лёгкое покачивание, как у предмета в майнкрафте.
+   Ракурс почти в упор (rotateX −3°): смотрим на предмет с его уровня, а не
+   сверху вниз. С обратной стороны миниатюра видна зеркально — так же, как
+   плоские предметы в игре. */
 .mine-drop {
   position: absolute;
-  width: 30px;
-  height: 30px;
   z-index: 40;
   pointer-events: none;
-  perspective: 300px;
+  user-select: none;
+  perspective: 700px;
   animation: mine-drop-fall 1.15s cubic-bezier(0.4, 0, 0.7, 1) forwards;
 }
 @keyframes mine-drop-fall {
@@ -2483,7 +2484,7 @@ body.rpg-intro .rpg-player {
   91%  { transform: translate(var(--dx), calc(var(--dy) - 4px)); }
   100% { transform: translate(var(--dx), var(--dy)); }
 }
-/* покачивание включается ровно когда кубик долетел */
+/* покачивание включается ровно когда предмет долетел */
 .mine-drop .bob {
   position: absolute;
   inset: 0;
@@ -2495,45 +2496,45 @@ body.rpg-intro .rpg-player {
   0%, 100% { transform: translateY(0); }
   50%      { transform: translateY(-5px); }
 }
-.mine-drop .cube {
+.mine-drop .spin {
   position: absolute;
   inset: 0;
   display: block;
   transform-style: preserve-3d;
+  transform: rotateX(-3deg) rotateY(0deg);
   animation: mine-drop-spin 3.4s linear infinite;
   /* НИКАКИХ filter на этой цепочке: filter принудительно ставит элементу
-     transform-style: flat, и все шесть граней слипаются в одну плоскость —
-     кубик превращался в вертящуюся карточку. Тень рисует отдельный слой. */
+     transform-style: flat, и 3D-вращение схлопывается в плоскость. Тень
+     рисует отдельный слой ::after вне 3D-контекста. */
 }
-/* тень под предметом — плоский элемент вне 3D-контекста */
+@keyframes mine-drop-spin {
+  to { transform: rotateX(-3deg) rotateY(360deg); }
+}
+/* сама миниатюра: клон баннера в натуральную величину, ужатый scale-ом —
+   так сохраняются его форма, скругления, текст и картинка */
+.mine-drop .prev {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+  width: var(--sw);
+  height: var(--sh);
+  transform: scale(var(--k));
+  transform-origin: 0 0;
+}
+.mine-drop .prev > * { margin: 0; }
+/* тень под предметом — плоский слой вне 3D-контекста */
 .mine-drop::after {
   content: "";
   position: absolute;
-  left: 3px;
-  right: 3px;
-  bottom: -3px;
+  left: 12%;
+  right: 12%;
+  bottom: -4px;
   height: 7px;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.22);
+  background: rgba(0, 0, 0, 0.2);
   filter: blur(3px);
 }
-@keyframes mine-drop-spin {
-  to { transform: rotateX(-16deg) rotateY(360deg); }
-}
-.mine-drop .cube { transform: rotateX(-16deg) rotateY(0deg); }
-.mine-drop b {
-  position: absolute;
-  inset: 0;
-  display: block;
-  background: var(--c1);
-  image-rendering: pixelated;
-}
-.mine-drop b.f  { transform: translateZ(15px); }
-.mine-drop b.bk { transform: rotateY(180deg) translateZ(15px); }
-.mine-drop b.l  { transform: rotateY(-90deg) translateZ(15px); background: var(--c2); }
-.mine-drop b.r  { transform: rotateY(90deg) translateZ(15px); background: var(--c2); }
-.mine-drop b.t  { transform: rotateX(90deg) translateZ(15px); background: var(--c3); }
-.mine-drop b.bm { transform: rotateX(-90deg) translateZ(15px); background: var(--c2); }
 
 /* Секция «С чего начать» — система координат для выпавших предметов.
    Статичным детям relative ничего не меняет, а кубики теперь едут вместе с
