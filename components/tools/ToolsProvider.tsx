@@ -128,53 +128,55 @@ export default function ToolsProvider({ children }: { children: ReactNode }) {
     router.prefetch("/current");
   }, [router]);
 
-  /* ── пасхалка: 5 нажатий «/» подряд включают/выключают секретный режим ──
+  /* ── пасхалка: «6», затем «7» в течение секунды ──
      Только на Главной (баннеры живут там). Никаких следов в URL/доках.
-     Выход: ещё 5× «/» или перезагрузка — всё возвращается как было. */
+     Выход: та же пара клавиш или перезагрузка — всё возвращается как было.
+     Прежний триггер (серия из пяти «/») снят: слэш теперь только открывает
+     панель инструментов, та же клавиша нарисована на её кнопке. */
   const [easter, setEaster] = useState(false);
   const [easterTool, setEasterTool] = useState<EasterTool | null>(null);
   const [minedCount, setMinedCount] = useState(0);
 
   useEffect(() => {
-    let count = 0;
-    let last = 0;
-    let tap = 0; // отложенный тоггл панели — чтобы серия не дёргала её пять раз
-    // на многих раскладках «/» набирается через Shift — модификаторы серию не сбивают
+    let six = 0; // время нажатия «6»; ноль — последовательность сброшена
     const MODS = new Set(["Shift", "Alt", "Control", "Meta", "CapsLock", "AltGraph"]);
+    // цифру опознаём и по key, и по code: на других раскладках и на нумпаде
+    const digit = (e: KeyboardEvent, d: string) =>
+      e.key === d || e.code === `Digit${d}` || e.code === `Numpad${d}`;
     const onKey = (e: KeyboardEvent) => {
       if (MODS.has(e.key)) return;
       const t = e.target as HTMLElement | null;
-      // guard только для ТЕКСТОВОГО ввода: фокус на чекбоксе-свитче серию не глушит
+      // guard только для ТЕКСТОВОГО ввода: фокус на чекбоксе-свитче не мешает
       const typing =
         !!t &&
         (t.tagName === "TEXTAREA" ||
           t.isContentEditable ||
           (t instanceof HTMLInputElement &&
             !/^(checkbox|radio|button|range|submit|reset|file|color)$/.test(t.type)));
-      if (e.key !== "/" || e.repeat || typing) {
-        count = 0;
+      if (typing || e.repeat) {
+        six = 0;
         return;
       }
-      e.preventDefault(); // иначе Chrome ловит «/» своим поиском по странице
-      const now = performance.now();
-      count = now - last < 1500 ? count + 1 : 1;
-      last = now;
-      /* «/» — это и обычная горячая клавиша панели инструментов (та же клавиша
-         нарисована на её кнопке). Тоггл откладываем: если следом посыпалась
-         серия, таймер отменяется и панель не мигает пять раз подряд. */
-      window.clearTimeout(tap);
-      if (count >= 5 && dashboard === "main") {
-        count = 0;
-        setEaster((on) => !on); // вход в режим сам раскроет панель
+      // «/» — горячая клавиша панели инструментов
+      if (e.key === "/" || e.code === "Slash") {
+        e.preventDefault(); // иначе Chrome ловит «/» своим поиском по странице
+        setPanelOpen((o) => !o);
+        six = 0;
         return;
       }
-      tap = window.setTimeout(() => setPanelOpen((o) => !o), 260);
+      if (digit(e, "6")) {
+        six = performance.now();
+        return;
+      }
+      if (digit(e, "7") && six && performance.now() - six < 1000) {
+        six = 0;
+        if (dashboard === "main") setEaster((on) => !on); // вход сам раскроет панель
+        return;
+      }
+      six = 0;
     };
     document.addEventListener("keydown", onKey);
-    return () => {
-      window.clearTimeout(tap);
-      document.removeEventListener("keydown", onKey);
-    };
+    return () => document.removeEventListener("keydown", onKey);
   }, [dashboard]);
 
   // вход в режим — раскрыть панель (секретный экран должен быть видно);
