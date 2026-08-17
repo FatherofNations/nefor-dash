@@ -606,7 +606,7 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
     bossEl.className = "rpg-boss intro";
     bossEl.innerHTML =
       `<span class="rpg-slab"></span>` +
-      `<span class="rpg-villain"><img src="/assets/easter/rpg-boss.png" alt=""></span>` +
+      `<span class="rpg-villain"><i><img src="/assets/easter/rpg-boss.png" alt=""></i></span>` +
       `<span class="rpg-boss-name">Продажи</span>` +
       `<span class="rpg-boss-armor"></span>` +
       `<span class="rpg-boss-bar"><i style="width:100%"></i></span>` +

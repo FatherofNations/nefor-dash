@@ -2412,3 +2412,40 @@ body.rpg-intro .rpg-player {
   font-variation-settings: "wght" 700, "wdth" 200;
   font-weight: 700;
 }
+
+/* ═══ Новый аватар босса (узел макета 39:12614) ═══
+   Теперь это не просто картинка в рамке: фрейм 148.379×142.607 на (598.2, 14.7)
+   держит ПОВЁРНУТЫЙ на 10.74° бокс 128.099×120.848, а внутри него картинка
+   растянута до 132.57%/136% со сдвигом −6.62%/−7% (кроп из макета). Поэтому
+   у спрайта появился промежуточный <i> — клип обязан вращаться вместе с боксом.
+   Координаты считаются от .rpg-boss, который стоит на (635, 41). */
+.rpg-villain {
+  left: -36.8px;
+  top: -26.3px;
+  width: 148.379px;
+  height: 142.607px;
+  overflow: visible;
+  display: grid;
+  place-items: center;
+  filter: none;
+}
+.rpg-villain i {
+  position: relative;
+  display: block;
+  width: 128.099px;
+  height: 120.848px;
+  overflow: hidden;
+  transform: rotate(10.74deg);
+}
+.rpg-villain img {
+  position: absolute;
+  inset: auto;
+  left: -6.62%;
+  top: -7%;
+  width: 132.57%;
+  height: 136%;
+  max-width: none;
+  object-fit: fill;
+  transform: none;
+  image-rendering: pixelated;
+}
