@@ -11,7 +11,10 @@ import {
 import { usePathname, useRouter } from "next/navigation";
 import ToolsPanel from "./ToolsPanel";
 import { useMiner, EasterTool } from "@/components/easter/useMiner";
+import { useTowers } from "@/components/easter/useTowers";
 import "@/styles/easter.css";
+// styles/td.css НЕ здесь: он уехал в динамический чанк игры (td/index.ts),
+// иначе 20 КБ стилей качал бы каждый посетитель дашборда
 
 /* Контекст инструмента tools — общий для всех дашбордов, живёт в root layout
    (переживает смену роута → панель остаётся открытой при свопе, требование #4).
@@ -49,7 +52,8 @@ interface ToolsCtx {
   panelOpen: boolean;
   setPanelOpen: (o: boolean) => void;
   swapTo: (url: "/" | "/current") => void;
-  // пасхалка (5× «/»): секретный режим панели + инструменты (кирка/РПГ)
+  // пасхалка («6», затем «7»): секретный режим панели + инструменты
+  // (кирка / РПГ / «Защита счёта»)
   easter: boolean;
   easterTool: EasterTool | null;
   setEasterTool: (t: EasterTool | null) => void;
@@ -212,6 +216,7 @@ export default function ToolsProvider({ children }: { children: ReactNode }) {
 
   const onMined = useCallback(() => setMinedCount((c) => c + 1), []);
   useMiner(easter && dashboard === "main", easterTool, onMined);
+  useTowers(easter && dashboard === "main" && easterTool === "td");
 
   /* ── связь состояния панели с URL (deep-link, без перезагрузки) ──
      variant (v1/v2) и стек v2 живут в контексте → в ссылку их кладём сами:

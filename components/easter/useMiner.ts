@@ -11,7 +11,9 @@ import { useEffect, useRef } from "react";
    Всё через делегирование на document (переживает ремаунты
    dangerouslySetInnerHTML-контента) + полный cleanup (StrictMode). */
 
-export type EasterTool = "pickaxe" | "rpg";
+// "td" обслуживает отдельный хук (components/easter/useTowers.ts) — здесь он
+// присутствует только в типе, чтобы панель могла его выбрать
+export type EasterTool = "pickaxe" | "rpg" | "td";
 
 // ── кирка: звук копания длится 3.5s; блок ломается на 1.0s РАНЬШЕ конца
 // дорожки — финальный «хруст» дозвучивает поверх разлёта. Стадии 0.4/1.1/1.8s
@@ -292,7 +294,8 @@ export function useMiner(session: boolean, tool: EasterTool | null, onMined: () 
   /* ── инструмент: обработчики. Каждое взятие инструмента = НОВАЯ ПАРТИЯ:
      мир, HP, риск и счёт сбрасываются (перезагрузка страницы не нужна) ── */
   useEffect(() => {
-    if (!session || !tool) return;
+    // «Защита счёта» живёт в своём хуке и мир дашборда не ломает — сюда не лезем
+    if (!session || !tool || tool === "td") return;
 
     clearTimeout(collapseTimerRef.current);
     clearTimeout(luckTimerRef.current);

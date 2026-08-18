@@ -47,7 +47,7 @@ export default function ToolsPanel() {
     minedCount,
   } = useTools();
 
-  // секретный режим (5× «/»): вместо настроек — «инвентарь» с инструментами
+  // секретный режим («6», затем «7»): вместо настроек — «инвентарь» с инструментами
   if (easter) {
     return (
       <>
@@ -78,8 +78,22 @@ export default function ToolsPanel() {
               Режим РПГ: наведи курсор на баннер и бей скиллами — Q, W, E
               (или кликом, выбрав скилл слева).
             </p>
+            <button
+              className={"twk-slot" + (easterTool === "td" ? " armed" : "")}
+              onClick={() => setEasterTool(easterTool === "td" ? null : "td")}
+              aria-label="Защита счёта"
+              title="Защита счёта"
+            >
+              <img src="/assets/easter/td-tower.svg" alt="" width="40" height="44" />
+            </button>
+            <p className="twk-egg-hint">
+              Защита счёта: дашборд становится ночным кварталом — зазоры между
+              блоками это улицы, по ним к балансу бегут списания. Башни (1–5)
+              ставятся на баннеры и чипсы над ними; чтобы продать за половину —
+              перетащи башню обратно в колоду.
+            </p>
             <p className="twk-egg-count">Добыто: {minedCount}/4</p>
-            <p className="twk-egg-hint">Выход — ещё пять раз «/» или перезагрузка.</p>
+            <p className="twk-egg-hint">Выход — снова «6», затем «7», или перезагрузка.</p>
           </div>
         </aside>
         <FabButton panelOpen={panelOpen} setPanelOpen={setPanelOpen} />
