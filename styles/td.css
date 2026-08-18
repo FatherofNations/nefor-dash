@@ -779,3 +779,32 @@ body.td-hit .board {
   height: 44px;
   image-rendering: pixelated;
 }
+
+/* ── уважение к prefers-reduced-motion ──
+   Сама игра — движение по определению, её не выключить. Но декоративный
+   моушен интерфейса гасим целиком: въезды панелей, тряску борда при прорыве,
+   пульсацию и переходы. Играть остаётся возможно, укачивать перестаёт. */
+@media (prefers-reduced-motion: reduce) {
+  .td-veil,
+  .td-canvas,
+  .td-hud,
+  .td-card,
+  .td-bestiary,
+  .td-best-row.fresh {
+    animation: none;
+  }
+  body.td-hit .board {
+    animation: none;
+  }
+  .td-toast,
+  .td-tpanel,
+  .td-over,
+  .td-bar s,
+  .td-best-body,
+  .td-chev,
+  .td-card,
+  .td-next,
+  .td-ico-btn {
+    transition: none;
+  }
+}

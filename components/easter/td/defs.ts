@@ -229,9 +229,9 @@ export const ENEMY_ORDER: EnemyKey[] = ["pena", "commission", "fine", "tax", "bl
    апгрейдом уже стоящей. */
 export const ENEMIES: Record<EnemyKey, EnemyDef> = {
   pena: { key: "pena", name: "Пеня", hp: 22, speed: 276, bounty: 3, steal: 18_000, armor: 0, scale: 2 },
-  commission: { key: "commission", name: "Комиссия", hp: 36, speed: 162, bounty: 5, steal: 30_000, armor: 0, scale: 2 },
+  commission: { key: "commission", name: "Комиссия", hp: 36, speed: 162, bounty: 5, steal: 30_000, armor: 1, scale: 2 },
   fine: { key: "fine", name: "Штраф", hp: 74, speed: 82, bounty: 8, steal: 58_000, armor: 2, scale: 2 },
-  tax: { key: "tax", name: "Налог", hp: 270, speed: 58, bounty: 18, steal: 145_000, armor: 7, scale: 2 },
+  tax: { key: "tax", name: "Налог", hp: 270, speed: 64, bounty: 18, steal: 145_000, armor: 7, scale: 2 },
   block: { key: "block", name: "Блокировка 115-ФЗ", short: "Блокировка", hp: 1500, speed: 30, bounty: 100, steal: 520_000, armor: 11, scale: 2 },
 };
 
@@ -405,6 +405,12 @@ function buildWave(n: number): Wave {
       : undefined,
   };
 }
+
+/* Каждые десять волн враги целиком крепчают на 10%: HP, скорость, броня и
+   сумма, которую уносит прорыв. Множитель НЕ трогает награду — иначе рост
+   сложности сам себя и оплачивал бы. Считается ступенькой (волны 1–9 → ×1,
+   10–19 → ×1.1, 20–29 → ×1.21 …), поэтому каждая десятая ощущается порогом. */
+export const decadeMul = (wave: number) => Math.pow(1.1, Math.floor(wave / 10));
 
 /** Прибавка HP за волну. */
 export const hpMul = (wave: number) => 1 + (wave - 1) * 0.09;

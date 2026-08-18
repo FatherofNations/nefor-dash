@@ -21,6 +21,7 @@ import {
   WAVE_GAP,
   bountyMul,
   chainDecay,
+  decadeMul,
   hpMul,
   statsOf,
   upgradeCost,
@@ -76,6 +77,11 @@ interface Enemy {
   maxHp: number;
   /** награда с учётом множителя волны — фиксируется на спавне */
   bounty: number;
+  /* Скорость, броня и урон по счёту тоже фиксируются на спавне: каждый десяток
+     волн усиливает их на 10%, и брать их из def напрямую больше нельзя. */
+  speed: number;
+  armor: number;
+  steal: number;
   route: Route;
   ri: number;
   d: number;
@@ -240,6 +246,8 @@ export class Game {
   private gap = WAVE_GAP;
   private running = false; // волна в процессе выпуска/зачистки
   private paused = false;
+  /** вкладка скрыта — считаем как паузу, но кнопку паузы не трогаем */
+  private hidden = false;
   private speed = 1;
   private over: null | "win" | "lose" = null;
   private kills = 0;
@@ -285,7 +293,7 @@ export class Game {
       if (this.dead) return;
       const dt = Math.min(0.05, (now - this.last) / 1000) * this.speed;
       this.last = now;
-      if (!this.paused && !this.over) this.update(dt);
+      if (!this.paused && !this.hidden && !this.over) this.update(dt);
       this.draw();
       this.raf = requestAnimationFrame(frame);
     };
@@ -541,6 +549,18 @@ export class Game {
     this.pushStats();
   }
 
+  /* Уход на другую вкладку не должен «проигрывать» волну в фоне: rAF браузер
+     притормозит, но не остановит, и вернувшийся игрок обнаружил бы обнулённый
+     счёт. Отдельный флаг, а не paused, — чтобы по возвращении не пришлось
+     снимать паузу, которую игрок не ставил. */
+  setHidden(v: boolean) {
+    if (this.hidden === v) return;
+    this.hidden = v;
+    // без сброса отсчёта первый кадр после возвращения принёс бы огромный dt
+    if (!v) this.last = performance.now();
+    this.pushStats();
+  }
+
   /** переключение 1× ↔ 2× */
   toggleSpeed() {
     this.speed = this.speed === 1 ? 2 : 1;
@@ -691,13 +711,17 @@ export class Game {
     if (!routes.length) return;
     const ri = (Math.random() * routes.length) | 0;
     const def = ENEMIES[key];
-    const hp = Math.round(def.hp * hpMul(this.wave));
+    const dec = decadeMul(this.wave);
+    const hp = Math.round(def.hp * hpMul(this.wave) * dec);
     const lane = key === "block" ? 0 : rnd(-9, 9);
     this.enemies.push({
       def,
       hp,
       maxHp: hp,
       bounty: Math.round(def.bounty * bountyMul(this.wave)),
+      speed: def.speed * dec,
+      armor: def.armor * dec,
+      steal: Math.round(def.steal * dec),
       route: routes[ri],
       ri,
       d: 0,
@@ -753,7 +777,7 @@ export class Game {
         e.slowT -= dt;
         if (e.slowT <= 0) e.slowF = 0;
       }
-      const speed = e.def.speed * (e.slowT > 0 ? 1 - e.slowF : 1);
+      const speed = e.speed * (e.slowT > 0 ? 1 - e.slowF : 1);
       e.d += speed * dt;
       e.anim += dt * (speed / 26);
       if (e.d >= e.route.len) {
@@ -786,12 +810,12 @@ export class Game {
         if (lead.d - me.d >= gapWant) continue;
         // разошлись по ширине улицы — друг другу не мешают
         if (Math.abs(lead.lane - me.lane) > 11) continue;
-        if (me.def.speed > lead.def.speed) {
+        if (me.speed > lead.speed) {
           // догоняющий быстрее — уходит вбок и обгоняет
           const dir = me.lane >= lead.lane ? 1 : -1;
           me.lane = clampLane(me.lane + dir * dt * 60);
           passing.add(me);
-        } else if (me.def.speed < lead.def.speed) {
+        } else if (me.speed < lead.speed) {
           /* Впереди кто-то быстрее — он оторвётся сам. Тормозить себя здесь
              нельзя: иначе «Налог», которого обгоняет рой «Пеней», волочился
              бы за ними и терял собственную скорость. */
@@ -822,7 +846,7 @@ export class Game {
   }
 
   private damage(e: Enemy, raw: number, ignoreArmor = false) {
-    const d = ignoreArmor ? raw : Math.max(raw * 0.2, raw - e.def.armor);
+    const d = ignoreArmor ? raw : Math.max(raw * 0.2, raw - e.armor);
     e.hp -= d;
     e.flash = 1;
   }
@@ -857,13 +881,13 @@ export class Game {
   }
 
   private leak(e: Enemy) {
-    this.account = Math.max(0, this.account - e.def.steal);
+    this.account = Math.max(0, this.account - e.steal);
     this.hooks.onAccount(this.account);
     this.hooks.onShake();
     this.hooks.sfx("leak");
     const c = this.field.core;
     this.ring(c.x, c.y, 90, "#ff2f4d");
-    this.label(c.x, c.y - 30, `−${(e.def.steal / 1000) | 0}к ₽`, "#ff6a7a");
+    this.label(c.x, c.y - 30, `−${(e.steal / 1000) | 0}к ₽`, "#ff6a7a");
     for (let i = 0; i < 16; i++) {
       const a = rnd(0, TAU);
       this.sparks.push({
@@ -997,7 +1021,7 @@ export class Game {
         // навес летит в упреждённую точку: за время полёта цель уходит вперёд
         for (let i = 0; i < st.volley; i++) {
           const flight = Math.max(0.45, Math.hypot(target.x - tip.x, target.y - tip.y) / 420);
-          const lead = pointAt(target.route, target.d + target.def.speed * flight);
+          const lead = pointAt(target.route, target.d + target.speed * flight);
           // второй снаряд залпа кладём рядом, иначе он бьёт в ту же точку
           const off = i === 0 ? 0 : rnd(-st.splash * 0.55, st.splash * 0.55);
           this.shots.push({

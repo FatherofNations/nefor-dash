@@ -13,7 +13,8 @@ import ToolsPanel from "./ToolsPanel";
 import { useMiner, EasterTool } from "@/components/easter/useMiner";
 import { useTowers } from "@/components/easter/useTowers";
 import "@/styles/easter.css";
-import "@/styles/td.css";
+// styles/td.css НЕ здесь: он уехал в динамический чанк игры (td/index.ts),
+// иначе 20 КБ стилей качал бы каждый посетитель дашборда
 
 /* Контекст инструмента tools — общий для всех дашбордов, живёт в root layout
    (переживает смену роута → панель остаётся открытой при свопе, требование #4).
