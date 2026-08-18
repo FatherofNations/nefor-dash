@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 22" width="20" height="22" shape-rendering="crispEdges">
+  <!-- Иконка слота «Защита счёта»: турель в палитре игровых башен.
+       Тёмный силуэт снизу играет роль обводки пиксель-арта. -->
+  <g fill="#04050b">
+    <rect x="2" y="17" width="16" height="5"/>
+    <rect x="4" y="9" width="11" height="9"/>
+    <rect x="11" y="10" width="8" height="6"/>
+    <rect x="7" y="6" width="6" height="5"/>
+  </g>
+  <g>
+    <rect x="3" y="19" width="14" height="2" fill="#171b2e"/>
+    <rect x="4" y="18" width="12" height="1" fill="#3b4570"/>
+    <rect x="5" y="15" width="10" height="3" fill="#262d4c"/>
+    <rect x="5" y="15" width="10" height="1" fill="#3b4570"/>
+    <rect x="5" y="17" width="10" height="1" fill="#a3560c"/>
+    <rect x="7" y="17" width="6" height="1" fill="#ff9a1f"/>
+    <rect x="5" y="10" width="8" height="5" fill="#262d4c"/>
+    <rect x="5" y="10" width="8" height="1" fill="#3b4570"/>
+    <rect x="4" y="11" width="2" height="3" fill="#a3560c"/>
+    <rect x="4" y="12" width="1" height="1" fill="#ff9a1f"/>
+    <rect x="12" y="11" width="6" height="3" fill="#262d4c"/>
+    <rect x="12" y="11" width="6" height="1" fill="#3b4570"/>
+    <rect x="17" y="11" width="1" height="3" fill="#ff9a1f"/>
+    <rect x="8" y="7" width="4" height="3" fill="#262d4c"/>
+    <rect x="8" y="7" width="4" height="1" fill="#3b4570"/>
+    <rect x="9" y="8" width="2" height="1" fill="#ffd97a"/>
+  </g>
+</svg>

@@ -1,0 +1,781 @@
+/* ═══ Пасхалка №3: «Защита счёта» — киберпанк-tower defence ═══
+   Дашборд не переверстывается: поверх него ложится вуаль (ночной квартал),
+   канвас с игрой и DOM-интерфейс. Всё — fixed на body, вне .board, потому что
+   .board во время прорыва трясётся, а fixed внутри transform-предка ломается. */
+
+:root {
+  --td-cyan: #4ce0ff;
+  --td-magenta: #ff2fb8;
+  --td-lime: #7effb0;
+  --td-red: #ff5a6a;
+  --td-ink: #05070f;
+  --td-panel: rgba(9, 12, 24, 0.82);
+  --td-line: rgba(76, 224, 255, 0.28);
+  --td-z: 240;
+}
+
+/* ── режим включён: борд не скроллится (поле считается по видимому кадру),
+      курсор — прицел, стандартные интерактивы гасим ── */
+body.td-armed .board-body {
+  overflow: hidden;
+}
+body.td-armed .board,
+body.td-armed .board * {
+  cursor: default;
+}
+/* пилюля поиска и оверлеи нейро в игре только мешают */
+body.td-armed .nbar,
+body.td-armed .spot,
+body.td-armed .chat {
+  display: none !important;
+}
+/* кнопка панели инструментов должна остаться доступной поверх игры */
+body.td-armed .twk-fab {
+  z-index: 320;
+}
+
+/* тряска дашборда при прорыве к ядру */
+body.td-hit .board {
+  animation: td-shake 0.32s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+@keyframes td-shake {
+  10% { transform: translate(-6px, 2px); }
+  25% { transform: translate(5px, -3px); }
+  40% { transform: translate(-4px, -2px); }
+  60% { transform: translate(3px, 3px); }
+  80% { transform: translate(-2px, 1px); }
+  100% { transform: translate(0, 0); }
+}
+
+/* ── вуаль: гасим и обесцвечиваем дашборд, кладём неоновую атмосферу ── */
+.td-veil {
+  position: fixed;
+  inset: 0;
+  z-index: var(--td-z);
+  pointer-events: none;
+  /* backdrop-filter вместо filter на .board: filter сделал бы борд containing
+     block для fixed-потомков и развалил бы позиционирование сайдбаров */
+  /* затемнение ослаблено примерно на 20%: дашборд под игрой должен читаться */
+  backdrop-filter: saturate(0.36) brightness(0.55) contrast(1.12);
+  -webkit-backdrop-filter: saturate(0.36) brightness(0.55) contrast(1.12);
+  background:
+    radial-gradient(900px 520px at 78% 12%, rgba(255, 47, 184, 0.18), transparent 70%),
+    radial-gradient(760px 520px at 12% 78%, rgba(76, 224, 255, 0.16), transparent 70%),
+    linear-gradient(180deg, rgba(4, 6, 16, 0.44), rgba(4, 6, 16, 0.56));
+  animation: td-veil-in 0.5s cubic-bezier(0.25, 0.1, 0.25, 1) both;
+}
+/* сканлайны отдельным слоем — чтобы не участвовали в градиентной анимации */
+.td-veil::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.24) 0 1px,
+    transparent 1px 3px
+  );
+  mix-blend-mode: multiply;
+  opacity: 0.75;
+}
+@keyframes td-veil-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ── канвас поля ── */
+.td-canvas {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: calc(var(--td-z) + 1);
+  animation: td-veil-in 0.5s 0.1s cubic-bezier(0.25, 0.1, 0.25, 1) both;
+}
+.td-canvas.aiming {
+  cursor: crosshair;
+}
+
+/* ── общий вид панелей интерфейса ── */
+.td-hud,
+.td-build,
+.td-toast,
+.td-over {
+  position: fixed;
+  z-index: calc(var(--td-z) + 2);
+  font-family: "Alfa Interface Sans", system-ui, sans-serif;
+  color: #eaf4ff;
+}
+
+.td-hud {
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  padding: 2px;
+  background: var(--td-panel);
+  border: 1px solid var(--td-line);
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5), 0 10px 40px rgba(0, 0, 0, 0.55),
+    0 0 30px rgba(76, 224, 255, 0.13);
+  backdrop-filter: blur(6px);
+  animation: td-hud-in 0.45s 0.15s cubic-bezier(0.25, 0.1, 0.25, 1) both;
+}
+@keyframes td-hud-in {
+  from { opacity: 0; transform: translate(-50%, -14px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+.td-cell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 92px;
+  padding: 7px 12px 8px;
+  background: rgba(76, 224, 255, 0.05);
+}
+.td-cell span {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  color: rgba(160, 208, 255, 0.6);
+}
+.td-cell b {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  font-variant-numeric: tabular-nums;
+}
+.td-cell-core {
+  min-width: 150px;
+}
+.td-cell-core b {
+  color: var(--td-lime);
+}
+.td-bar {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  width: 100%;
+  background: rgba(126, 255, 176, 0.16);
+}
+.td-bar s {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 100%;
+  background: var(--td-lime);
+  box-shadow: 0 0 8px rgba(126, 255, 176, 0.8);
+  transition: width 0.35s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+.td-bar s.low {
+  background: var(--td-red);
+  box-shadow: 0 0 8px rgba(255, 90, 106, 0.8);
+}
+
+.td-next,
+.td-ico-btn {
+  border: 0;
+  background: rgba(255, 47, 184, 0.16);
+  color: #ffd8f2;
+  font: 700 10px/1 "Alfa Interface Sans", system-ui, sans-serif;
+  letter-spacing: 1.2px;
+  cursor: pointer;
+  transition: background 0.16s ease, color 0.16s ease;
+}
+.td-next {
+  padding: 0 16px;
+  min-width: 158px;
+}
+.td-next:hover:not(:disabled) {
+  background: rgba(255, 47, 184, 0.34);
+  color: #fff;
+}
+.td-next:disabled {
+  background: rgba(120, 140, 180, 0.1);
+  color: rgba(190, 214, 240, 0.42);
+  cursor: default;
+}
+.td-ico-btn {
+  width: 34px;
+  background: rgba(76, 224, 255, 0.1);
+  color: var(--td-cyan);
+  font-size: 11px;
+}
+.td-ico-btn:hover { background: rgba(76, 224, 255, 0.22); }
+.td-ico-btn.on {
+  background: rgba(126, 255, 176, 0.22);
+  color: var(--td-lime);
+}
+.td-mute.off { color: rgba(190, 214, 240, 0.4); }
+/* перезапуск: взведённая кнопка расширяется под слово «точно?» */
+.td-restart {
+  font-size: 13px;
+}
+.td-restart.armed {
+  width: auto;
+  padding: 0 10px;
+  background: rgba(255, 90, 106, 0.26);
+  color: #ffd7dc;
+  font-size: 9px;
+  letter-spacing: 1px;
+}
+.td-mute { font-size: 13px; }
+
+/* ── панель улучшения выбранной башни ── */
+.td-tpanel {
+  position: fixed;
+  z-index: calc(var(--td-z) + 3);
+  width: 226px;
+  transform: translateY(-100%) scale(0.96);
+  transform-origin: 50% 100%;
+  padding: 8px;
+  background: rgba(9, 12, 24, 0.94);
+  border: 1px solid var(--neon, #4ce0ff);
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5), 0 12px 34px rgba(0, 0, 0, 0.6),
+    0 0 26px -8px var(--neon, #4ce0ff);
+  backdrop-filter: blur(6px);
+  font-family: "Alfa Interface Sans", system-ui, sans-serif;
+  color: #eaf4ff;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.16s ease, transform 0.16s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+.td-tpanel.on {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(-100%) scale(1);
+}
+.td-tp-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 4px 8px;
+}
+.td-tp-head b {
+  font-size: 12px;
+  color: var(--neon);
+}
+.td-tp-pips {
+  display: flex;
+  gap: 3px;
+}
+.td-tp-pips i {
+  width: 9px;
+  height: 4px;
+  border: 1px solid var(--neon-d);
+  border-radius: 1px;
+}
+.td-tp-pips i.on {
+  background: var(--neon);
+  border-color: var(--neon);
+}
+.td-tp-up,
+.td-tp-sell {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 1px solid rgba(76, 224, 255, 0.2);
+  border-radius: 3px;
+  background: rgba(76, 224, 255, 0.06);
+  color: #eaf4ff;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.14s ease, border-color 0.14s ease;
+}
+.td-tp-up {
+  position: relative;
+  padding: 7px 9px 8px;
+  border-color: var(--neon-d);
+}
+.td-tp-up:hover { background: rgba(76, 224, 255, 0.16); border-color: var(--neon); }
+.td-tp-up.poor { opacity: 0.45; }
+.td-tp-nm {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--neon);
+  padding-right: 48px;
+}
+.td-tp-ds {
+  display: block;
+  margin-top: 2px;
+  font-size: 10px;
+  line-height: 13px;
+  color: rgba(168, 200, 236, 0.7);
+}
+.td-tp-cost {
+  position: absolute;
+  right: 9px;
+  top: 7px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--neon);
+}
+.td-tp-sell {
+  margin-top: 6px;
+  padding: 6px 9px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  color: rgba(190, 220, 250, 0.8);
+}
+.td-tp-sell:hover {
+  background: rgba(126, 255, 176, 0.14);
+  border-color: var(--td-lime);
+  color: var(--td-lime);
+}
+.td-tp-max,
+.td-tp-frozen {
+  margin: 0 0 6px;
+  padding: 7px 9px;
+  border-radius: 3px;
+  background: rgba(126, 255, 176, 0.1);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  color: var(--td-lime);
+}
+.td-tp-frozen {
+  background: rgba(110, 231, 255, 0.12);
+  color: #9de7ff;
+}
+
+/* ── колода башен ── */
+.td-build {
+  left: 14px;
+  bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 262px;
+}
+/* колода — она же приёмник продажи: тащим сюда башню «туда, где купили» */
+.td-build.sell::after {
+  content: attr(data-refund);
+  position: absolute;
+  inset: -8px;
+  display: grid;
+  place-items: center;
+  border: 1px dashed var(--td-lime);
+  border-radius: 6px;
+  background: rgba(126, 255, 176, 0.08);
+  color: var(--td-lime);
+  font: 700 11px/1 "Alfa Interface Sans", system-ui, sans-serif;
+  letter-spacing: 1.4px;
+  pointer-events: none;
+}
+.td-build.sell-over::after {
+  border-style: solid;
+  background: rgba(126, 255, 176, 0.2);
+  box-shadow: 0 0 30px -6px var(--td-lime);
+}
+.td-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 20px 30px 1fr;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 9px;
+  text-align: left;
+  background: var(--td-panel);
+  border: 1px solid rgba(76, 224, 255, 0.18);
+  border-left: 2px solid var(--neon-d);
+  border-radius: 3px;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  transition: transform 0.16s cubic-bezier(0.25, 0.1, 0.25, 1),
+    border-color 0.16s ease, background 0.16s ease, opacity 0.16s ease;
+  animation: td-card-in 0.4s cubic-bezier(0.25, 0.1, 0.25, 1) both;
+}
+.td-card:nth-child(1) { animation-delay: 0.18s; }
+.td-card:nth-child(2) { animation-delay: 0.23s; }
+.td-card:nth-child(3) { animation-delay: 0.28s; }
+.td-card:nth-child(4) { animation-delay: 0.33s; }
+.td-card:nth-child(5) { animation-delay: 0.38s; }
+@keyframes td-card-in {
+  from { opacity: 0; transform: translateX(-16px); filter: blur(8px); }
+  to { opacity: 1; transform: translateX(0); filter: blur(0); }
+}
+.td-card:hover {
+  transform: translateX(4px);
+  border-color: var(--neon);
+  background: rgba(14, 20, 38, 0.92);
+}
+.td-card.on {
+  border-color: var(--neon);
+  background: rgba(18, 26, 48, 0.95);
+  box-shadow: 0 0 0 1px var(--neon-d), 0 0 22px -6px var(--neon);
+}
+.td-card.poor {
+  opacity: 0.42;
+}
+.td-hot {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--neon);
+  border: 1px solid var(--neon-d);
+  border-radius: 2px;
+}
+.td-ico {
+  display: grid;
+  place-items: end center;
+  height: 30px;
+}
+.td-ico-c {
+  image-rendering: pixelated;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--neon) 55%, transparent));
+}
+.td-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+/* Название — цветом своей башни. Явный color обязателен: .td-card это
+   <button>, а браузер ставит кнопке собственный buttontext (чёрный), и
+   цвет с родителя в неё не наследуется. */
+.td-nm {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  color: var(--neon);
+  text-shadow: 0 0 12px color-mix(in srgb, var(--neon) 45%, transparent);
+}
+.td-ds {
+  font-size: 10px;
+  line-height: 13px;
+  color: rgba(168, 200, 236, 0.62);
+}
+/* ── строка характеристик под описанием карточки ── */
+.td-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 5px;
+  margin-top: 5px;
+}
+.td-stats i {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 4px 2px;
+  border: 1px solid rgba(76, 224, 255, 0.16);
+  border-radius: 2px;
+  background: rgba(76, 224, 255, 0.06);
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 12px;
+  color: rgba(214, 234, 252, 0.9);
+  font-variant-numeric: tabular-nums;
+  cursor: help;
+}
+/* сам значок — в цвет башни, чтобы строка не сливалась в серую кашу */
+.td-stats u {
+  text-decoration: none;
+  font-size: 10px;
+  line-height: 1;
+  color: var(--neon);
+}
+
+.td-cost {
+  position: absolute;
+  right: 8px;
+  top: 7px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--neon);
+  letter-spacing: 0.4px;
+}
+
+/* ── бестиарий: сворачиваемая справка над колодой ── */
+.td-bestiary {
+  position: fixed;
+  z-index: calc(var(--td-z) + 2);
+  left: 14px;
+  display: flex;
+  flex-direction: column;
+  width: 262px;
+  font-family: "Alfa Interface Sans", system-ui, sans-serif;
+  color: #eaf4ff;
+  background: var(--td-panel);
+  border: 1px solid rgba(76, 224, 255, 0.18);
+  border-radius: 3px;
+  backdrop-filter: blur(6px);
+  overflow: hidden;
+  animation: td-card-in 0.4s 0.12s cubic-bezier(0.25, 0.1, 0.25, 1) both;
+}
+/* «ping» — короткая подсветка рамки, когда объявили нового противника */
+.td-bestiary.ping {
+  border-color: var(--td-red);
+  box-shadow: 0 0 24px -6px var(--td-red);
+}
+.td-best-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  background: rgba(76, 224, 255, 0.06);
+  color: rgba(160, 208, 255, 0.82);
+  font: 700 9px/1 "Alfa Interface Sans", system-ui, sans-serif;
+  letter-spacing: 1.4px;
+  cursor: pointer;
+  transition: background 0.16s ease, color 0.16s ease;
+}
+.td-best-head:hover {
+  background: rgba(76, 224, 255, 0.14);
+  color: #eaf4ff;
+}
+.td-chev {
+  width: 7px;
+  height: 7px;
+  border-right: 1.6px solid currentColor;
+  border-bottom: 1.6px solid currentColor;
+  /* Уголок из двух границ смотрит вправо-вниз, поэтому «вверх» — это −135°,
+     а не −45°: панель раскрывается вверх, туда же должен указывать шеврон. */
+  transform: rotate(-135deg) translate(-1px, -1px);
+  transition: transform 0.24s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+.td-bestiary.open .td-chev {
+  transform: rotate(45deg) translate(-1px, -1px);
+}
+/* Сворачивание высотой: содержимое известно и невелико, grid-строка 0fr→1fr
+   анимируется без магических чисел max-height. */
+.td-best-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.28s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+.td-bestiary.open .td-best-body {
+  grid-template-rows: 1fr;
+}
+/* min-height:0 обязателен: без него грид отдаёт элементу min-content и
+   строка 0fr ничего не схлопывает */
+.td-best-in {
+  min-height: 0;
+  overflow: hidden;
+}
+.td-best-row {
+  display: grid;
+  grid-template-columns: 1fr 30px 30px 22px 44px;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border-top: 1px solid rgba(76, 224, 255, 0.08);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.td-best-row b {
+  text-align: right;
+  font-weight: 700;
+  color: rgba(200, 224, 248, 0.86);
+}
+.td-best-hdr {
+  border-top: 0;
+  padding-top: 7px;
+}
+.td-best-hdr span,
+.td-best-hdr b {
+  font-size: 8px;
+  letter-spacing: 1px;
+  color: rgba(150, 190, 230, 0.5);
+  font-weight: 700;
+}
+.td-best-nm {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  font-weight: 700;
+  color: var(--neon);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.td-best-ico {
+  display: grid;
+  place-items: center;
+  flex: 0 0 18px;
+  height: 16px;
+}
+.td-best-steal {
+  color: var(--td-red) !important;
+}
+.td-best-row.fresh {
+  animation: td-fresh 2.2s ease;
+}
+@keyframes td-fresh {
+  0%, 70% { background: color-mix(in srgb, var(--neon) 22%, transparent); }
+  100% { background: transparent; }
+}
+.td-best-note {
+  margin: 0;
+  padding: 8px 10px 10px;
+  border-top: 1px solid rgba(76, 224, 255, 0.08);
+  font-size: 9px;
+  line-height: 13px;
+  color: rgba(160, 196, 232, 0.55);
+}
+
+/* ── объявления: по центру экрана и крупно, чтобы читались с ходу ── */
+.td-toast {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.94);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 20px 56px;
+  background: rgba(6, 9, 20, 0.66);
+  border-top: 2px solid var(--td-magenta);
+  border-bottom: 2px solid var(--td-magenta);
+  backdrop-filter: blur(3px);
+  opacity: 0;
+  pointer-events: none;
+  text-align: center;
+  transition: opacity 0.28s ease, transform 0.28s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+.td-toast.on {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+.td-toast b {
+  font-size: 40px;
+  line-height: 1.05;
+  font-weight: 700;
+  letter-spacing: 5px;
+  text-shadow: 0 0 26px rgba(255, 47, 184, 0.85);
+}
+.td-toast i {
+  font-style: normal;
+  font-size: 14px;
+  letter-spacing: 0.8px;
+  color: rgba(190, 220, 250, 0.82);
+}
+.td-toast i:empty { display: none; }
+/* анонс нового типа врага и босс-волны — красный и ещё крупнее */
+.td-toast.danger {
+  border-color: var(--td-red);
+  background: rgba(20, 5, 9, 0.7);
+}
+.td-toast.danger b {
+  color: #ffdfe3;
+  font-size: 46px;
+  letter-spacing: 4px;
+  text-shadow: 0 0 30px rgba(255, 90, 106, 0.9);
+}
+
+/* ── финальный экран ── */
+.td-over {
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(4, 6, 14, 0.62);
+  backdrop-filter: blur(3px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+  z-index: calc(var(--td-z) + 3);
+}
+.td-over.on {
+  opacity: 1;
+  pointer-events: auto;
+}
+.td-over-in {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 34px 54px;
+  background: var(--td-panel);
+  border: 1px solid var(--td-red);
+  border-radius: 4px;
+  box-shadow: 0 0 60px -10px rgba(255, 90, 106, 0.6);
+}
+.td-over.win .td-over-in {
+  border-color: var(--td-lime);
+  box-shadow: 0 0 60px -10px rgba(126, 255, 176, 0.6);
+}
+.td-over-in b {
+  font-size: 26px;
+  letter-spacing: 4px;
+  color: var(--td-red);
+}
+.td-over.win .td-over-in b {
+  color: var(--td-lime);
+}
+.td-over-in i {
+  font-style: normal;
+  font-size: 12px;
+  color: rgba(180, 214, 246, 0.72);
+}
+/* итоги партии на финальном экране */
+.td-score {
+  display: flex;
+  gap: 2px;
+  margin-top: 14px;
+}
+.td-score > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 118px;
+  padding: 10px 14px;
+  background: rgba(76, 224, 255, 0.06);
+  text-align: center;
+}
+.td-score span {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  color: rgba(160, 208, 255, 0.6);
+}
+.td-score b {
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+  color: #eaf4ff;
+}
+.td-again {
+  margin-top: 10px;
+  padding: 10px 26px;
+  border: 1px solid var(--td-cyan);
+  background: rgba(76, 224, 255, 0.12);
+  color: #eaf4ff;
+  font: 700 11px/1 "Alfa Interface Sans", system-ui, sans-serif;
+  letter-spacing: 2px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: background 0.16s ease;
+}
+.td-again:hover { background: rgba(76, 224, 255, 0.26); }
+.td-exit {
+  font-size: 10px;
+  letter-spacing: 0.6px;
+  color: rgba(150, 184, 220, 0.5);
+}
+
+/* ── плашка баланса в сайдбаре: вспышка на списании ── */
+.td-drain {
+  animation: td-drain 0.6s ease;
+}
+@keyframes td-drain {
+  0% { color: #ff5a6a; text-shadow: 0 0 14px rgba(255, 90, 106, 0.9); }
+  100% { color: inherit; text-shadow: none; }
+}
+
+/* ── слот пасхалки в панели инструментов ── */
+.twk-slot img[src*="td-tower"] {
+  width: 40px;
+  height: 44px;
+  image-rendering: pixelated;
+}
