@@ -274,9 +274,12 @@ export default function ToolsProvider({ children }: { children: ReactNode }) {
     }
   }, [dashboard, variant, v2State, nbDock, pathname]);
 
-  // док-бар умного поиска: класс на body — фаб панели приподнимается над баром
+  // док-бар умного поиска: класс на body и html — фаб приподнимается над
+  // баром, фон страницы темнеет (html тоже: его фон виден при оверскролле)
   useEffect(() => {
-    document.body.classList.toggle("nb-dock", dashboard === "main" && variant === "v2" && nbDock);
+    const on = dashboard === "main" && variant === "v2" && nbDock;
+    document.body.classList.toggle("nb-dock", on);
+    document.documentElement.classList.toggle("nb-dock", on);
   }, [dashboard, variant, nbDock]);
 
   // класс дашборда на body (скоуп для push/scale правил)

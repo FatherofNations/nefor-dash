@@ -475,3 +475,10 @@ body.nb-dock .sidebar {
               width 0.55s cubic-bezier(0.32, 0.72, 0, 1);
 }
 body.nb-dock .board-body { bottom: 56px; }
+
+/* ═══ Фон страницы в режиме дока — темнее (фрейм макета «01 — Главная»
+   залит #e7e8eb, и бар #f2f3f5 читается на нём отдельным слоем; на нашем
+   дефолтном #f2f3f5 он сливался со страницей). Переменную переключаем на
+   html: body и все потребители var(--page-bg) наследуют. ═══ */
+html.nb-dock { --page-bg: #e7e8eb; }
+html, body { transition: background-color 0.55s cubic-bezier(0.32, 0.72, 0, 1); }
