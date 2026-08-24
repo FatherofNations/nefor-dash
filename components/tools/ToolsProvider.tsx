@@ -149,6 +149,7 @@ export default function ToolsProvider({ children }: { children: ReactNode }) {
   const [minedCount, setMinedCount] = useState(0);
   const easterRef = useRef(easter);
   easterRef.current = easter;
+  const toolRef = useRef<EasterTool | null>(null);
   const panelRef = useRef(panelOpen);
   panelRef.current = panelOpen;
 
@@ -181,6 +182,15 @@ export default function ToolsProvider({ children }: { children: ReactNode }) {
         slashes = 0;
         return;
       }
+      if (e.key === "Escape") {
+        /* Лесенка Esc: открытая панель закрывается своим обработчиком;
+           прицеливание в РПГ отменяет сама игра; иначе Esc складывает
+           инструмент — выходим из игры. */
+        if (panelRef.current) return;
+        if (document.body.classList.contains("rpg-aiming")) return;
+        if (toolRef.current) setEasterTool(null);
+        return;
+      }
       if (e.key === "/" || e.code === "Slash") {
         e.preventDefault(); // иначе Chrome ловит «/» своим поиском по странице
         six = 0;
@@ -208,6 +218,13 @@ export default function ToolsProvider({ children }: { children: ReactNode }) {
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [dashboard]);
+
+  // в игре: бар прячется, кнопки уезжают вниз, фон возвращается светлым
+  useEffect(() => {
+    toolRef.current = easterTool;
+    document.body.classList.toggle("game-on", !!easterTool);
+    document.documentElement.classList.toggle("game-on", !!easterTool);
+  }, [easterTool]);
 
   // уход с Главной: сложить инструмент (мир игр живёт только там)
   useEffect(() => {

@@ -204,15 +204,17 @@ function FabButton({
   panelOpen: boolean;
   setPanelOpen: (o: boolean) => void;
 }) {
-  const { setEasterView } = useTools();
+  const { setEasterView, easterTool, setEasterTool } = useTools();
+  const inGame = easterTool !== null;
   return (
     <button
       className="twk-fab fab-games"
-      aria-label="Игры (клавиши «6», «7»)"
+      aria-label={inGame ? "Закрыть игру (Esc)" : "Игры (клавиши «6», «7»)"}
       aria-expanded={panelOpen}
       onClick={() => {
-        // закрытая кнопка открывает панель ИГР; открытая панель — закрывается
-        if (panelOpen) setPanelOpen(false);
+        // в игре кнопка закрывает игру; иначе тогглит панель (открывает в играх)
+        if (inGame && !panelOpen) setEasterTool(null);
+        else if (panelOpen) setPanelOpen(false);
         else {
           setEasterView(true);
           setPanelOpen(true);
@@ -220,7 +222,7 @@ function FabButton({
       }}
     >
       <span className="fg-lbl">
-        <i aria-hidden>🕹️</i>Игры
+        {inGame ? "Закрыть" : <><i aria-hidden>🕹️</i>Игры</>}
       </span>
       <svg className="x" width="20" height="20" viewBox="0 0 20 20" fill="none">
         <path

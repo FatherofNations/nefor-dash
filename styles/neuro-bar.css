@@ -513,3 +513,21 @@ body.nb-dock .board-body {
    html: body и все потребители var(--page-bg) наследуют. ═══ */
 html.nb-dock { --page-bg: #e7e8eb; }
 html, body { transition: background-color 0.55s cubic-bezier(0.32, 0.72, 0, 1); }
+
+/* ═══ Режим игры (взят инструмент): док-бар прячется, слои возвращаются ═══
+   Инпут под боем не нужен (Enter поднял бы чат поверх игры), кнопки уезжают
+   в правый нижний угол одним рядом: [звук][Закрыть]. */
+/* специфичность выше, чем у .nb-root.dock .nbdock — иначе док побеждал */
+body.game-on .nb-root.dock .nbdock,
+body.game-on .nbdock {
+  transform: translateY(calc(100% + 8px));
+  pointer-events: none;
+}
+body.game-on.nb-dock .twk-fab { bottom: 24px; }
+body.game-on.nb-dock .board-body {
+  bottom: 0;
+  border-radius: 0;
+  background: transparent;
+}
+body.game-on.nb-dock .sidebar { height: calc(100vh - 32px); }
+html.game-on { --page-bg: #f2f3f5; }

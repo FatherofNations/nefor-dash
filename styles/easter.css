@@ -488,11 +488,12 @@ body.rpg-armed.rpg-resolve .board { transform: none; }
   100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 }
 
-/* кнопка звука — над фабом tools */
+/* кнопка звука — в ряд с кнопкой «Закрыть», слева от неё
+   (24 отступ + 116 пилюля + 12 зазор) */
 .rpg-mute {
   position: fixed;
-  right: calc(24px + var(--twk, 0px));
-  bottom: 84px;
+  right: calc(152px + var(--twk, 0px));
+  bottom: 24px;
   z-index: 85;
   width: 48px;
   height: 48px;
@@ -1979,7 +1980,7 @@ body.rpg-aiming .chips .chip.luck:not(.mined) {
    y≈973, а ряд кнопок живёт ниже 996 — пересечения нет */
 .rpg-player { right: 34px; }
 .rpg-mute {
-  right: calc(84px + var(--twk, 0px));
+  right: calc(152px + var(--twk, 0px)); /* 24 + пилюля «Закрыть» 116 + зазор 12 */
   bottom: 24px;
 }
 /* в макете у имён НЕТ межбуквенного интервала (leading-normal, без tracking) */
