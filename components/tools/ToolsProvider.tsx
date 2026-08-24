@@ -81,8 +81,8 @@ export default function ToolsProvider({ children }: { children: ReactNode }) {
 
   // v2 — вариант Главной по умолчанию (просьба 2026-08-18); v1 остаётся по ?menu=v1
   const [variant, setVariant] = useState<Variant>("v2");
-  // нижняя умная строка на v2: false — пилюля, true — док-бар во всю ширину
-  const [nbDock, setNbDock] = useState(false);
+  // нижняя умная строка на v2: док-бар по умолчанию, пилюля — по ?nb=pill
+  const [nbDock, setNbDock] = useState(true);
   const [v2State, setV2State] = useState<V2State>(DEFAULT_V2);
   const [panelOpen, setPanelOpen] = useState(false);
   const setV2 = useCallback(
@@ -236,7 +236,8 @@ export default function ToolsProvider({ children }: { children: ReactNode }) {
     const sp = new URLSearchParams(window.location.search);
     const menu = sp.get("menu");
     if (menu === "v1" || menu === "v2") setVariant(menu);
-    if (sp.get("nb") === "dock") setNbDock(true);
+    if (sp.get("nb") === "pill") setNbDock(false);
+    // nb=dock в старых ссылках — теперь дефолт, читать не нужно
     if (sp.has("stack")) {
       const on = new Set((sp.get("stack") ?? "").split(",").filter(Boolean));
       setV2State({
@@ -264,7 +265,7 @@ export default function ToolsProvider({ children }: { children: ReactNode }) {
         const defStack = V2_KEYS.filter((k) => DEFAULT_V2[k]).join(",");
         const parts: string[] = [];
         if (stack !== defStack) parts.push(`menu=v2&stack=${stack}`);
-        if (nbDock) parts.push("nb=dock");
+        if (!nbDock) parts.push("nb=pill");
         url = parts.length ? `/?${parts.join("&")}` : "/";
       }
     } // current — путь /current без параметров
