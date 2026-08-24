@@ -42,6 +42,7 @@ export function useNeuroBar(
     // док-бар (вид 967:75048): свой инпут и кнопка «развернуть»
     const dockInput = root.querySelector<HTMLInputElement>(".nbd-input");
     const dockExpand = root.querySelector<HTMLButtonElement>(".nbd-expand");
+    const dockSupport = root.querySelector<HTMLButtonElement>(".nbd-support");
 
     // ── позиция контентной колонки ──
     if (left) nbar.style.setProperty("--nbar-left", left);
@@ -387,6 +388,7 @@ export function useNeuroBar(
     };
     dockInput?.addEventListener("keydown", onDockKey);
     dockExpand?.addEventListener("click", onDockExpand);
+    dockSupport?.addEventListener("click", onDockExpand); // «Связь с банком» — тот же чат
 
     // клик мимо пилюли при пустом поле — сворачивает обратно
     const onDocClick = (e: MouseEvent) => {
@@ -427,6 +429,7 @@ export function useNeuroBar(
     return () => {
       dockInput?.removeEventListener("keydown", onDockKey);
       dockExpand?.removeEventListener("click", onDockExpand);
+      dockSupport?.removeEventListener("click", onDockExpand);
       nbPill.removeEventListener("click", onPillClick);
       nbGo.removeEventListener("click", onGoClick);
       nbInput.removeEventListener("keydown", onInputKey);

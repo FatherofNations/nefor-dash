@@ -52,6 +52,11 @@ export default function NeuroBar({
               <img src={`${b}nbDockExpand.svg`} alt="" width="20" height="20" />
             </button>
           </div>
+          {/* кнопка «Связь с банком» (макет 3031:28563) — открывает тот же чат */}
+          <button className="nbd-support" tabIndex={dock ? 0 : -1}>
+            <img src={`${b}nbDockChat.svg`} alt="" width="24" height="24" />
+            <span>Связь с банком</span>
+          </button>
         </div>
       </div>
       {/* ── строка ── */}

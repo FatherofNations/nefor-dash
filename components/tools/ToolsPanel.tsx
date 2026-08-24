@@ -2,6 +2,9 @@
 import { useTools, V2State } from "./ToolsProvider";
 import "@/styles/tools.css";
 
+// Кирка временно скрыта из панели игр (просьба 2026-08-18); код не удалять
+const SHOW_PICKAXE = false;
+
 // Свитч iOS-стиля (стили .twk-sw из menu2.css, загруженного глобально)
 function Switch({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
   return (
@@ -49,25 +52,31 @@ export default function ToolsPanel() {
     minedCount,
   } = useTools();
 
-  // секретный режим («6», затем «7»): вместо настроек — «инвентарь» с инструментами
+  // вкладка «Игры» («6», затем «7», или кнопка 🕹): инвентарь с инструментами
   if (easter) {
     return (
       <>
         <aside className="twk" aria-hidden={!panelOpen}>
           <div className="twk-dyn" key="easter">
-            <p className="twk-sec">Секретный уровень</p>
-            <button
-              className={"twk-slot" + (easterTool === "pickaxe" ? " armed" : "")}
-              onClick={() => setEasterTool(easterTool === "pickaxe" ? null : "pickaxe")}
-              aria-label="Кирка"
-              title="Кирка"
-            >
-              <img src="/assets/easter/pickaxe.png" alt="" width="40" height="46" />
-            </button>
-            <p className="twk-egg-hint">
-              Возьми кирку и зажми кнопку мыши на рекламном баннере — он добывается,
-              как блок, со звуком. Отпустишь раньше — трещины затянутся.
-            </p>
+            <p className="twk-sec">Игры</p>
+            {/* Майнкрафт-кирка временно скрыта (код и ассеты на месте —
+                вернуть, переключив флаг SHOW_PICKAXE) */}
+            {SHOW_PICKAXE && (
+              <>
+                <button
+                  className={"twk-slot" + (easterTool === "pickaxe" ? " armed" : "")}
+                  onClick={() => setEasterTool(easterTool === "pickaxe" ? null : "pickaxe")}
+                  aria-label="Кирка"
+                  title="Кирка"
+                >
+                  <img src="/assets/easter/pickaxe.png" alt="" width="40" height="46" />
+                </button>
+                <p className="twk-egg-hint">
+                  Возьми кирку и зажми кнопку мыши на рекламном баннере — он добывается,
+                  как блок, со звуком. Отпустишь раньше — трещины затянутся.
+                </p>
+              </>
+            )}
             <button
               className={"twk-slot" + (easterTool === "rpg" ? " armed" : "")}
               onClick={() => setEasterTool(easterTool === "rpg" ? null : "rpg")}
@@ -94,8 +103,10 @@ export default function ToolsPanel() {
               ставятся на баннеры и чипсы над ними; чтобы продать за половину —
               перетащи башню обратно в колоду.
             </p>
-            <p className="twk-egg-count">Добыто: {minedCount}/4</p>
-            <p className="twk-egg-hint">Выход — снова «6», затем «7», или перезагрузка.</p>
+            {SHOW_PICKAXE && <p className="twk-egg-count">Добыто: {minedCount}/4</p>}
+            <p className="twk-egg-hint">
+              Панель игр — клавиши «6», «7» подряд. Настройки дашборда — пять раз «/».
+            </p>
           </div>
         </aside>
         <FabButton panelOpen={panelOpen} setPanelOpen={setPanelOpen} />
@@ -198,26 +209,24 @@ function FabButton({
   panelOpen: boolean;
   setPanelOpen: (o: boolean) => void;
 }) {
+  const { setEasterView } = useTools();
   return (
     <button
-      className="twk-fab"
-      aria-label="Инструменты (клавиша «/»)"
+      className="twk-fab fab-games"
+      aria-label="Игры (клавиши «6», «7»)"
       aria-expanded={panelOpen}
-      onClick={() => setPanelOpen(!panelOpen)}
+      onClick={() => {
+        // закрытая кнопка открывает панель ИГР; открытая панель — закрывается
+        if (panelOpen) setPanelOpen(false);
+        else {
+          setEasterView(true);
+          setPanelOpen(true);
+        }
+      }}
     >
-      {/* клавиша «/» — она же горячая клавиша открытия панели */}
-      <svg className="slash" width="20" height="20" viewBox="0 0 20 20" fill="none">
-        <rect
-          x="2.6"
-          y="2.6"
-          width="14.8"
-          height="14.8"
-          rx="4.2"
-          stroke="#fff"
-          strokeWidth="1.8"
-        />
-        <path d="M8.2 13.7 11.8 6.3" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" />
-      </svg>
+      <span className="fg-lbl">
+        <i aria-hidden>🕹️</i>Игры
+      </span>
       <svg className="x" width="20" height="20" viewBox="0 0 20 20" fill="none">
         <path
           d="M4.5 4.5l11 11M15.5 4.5l-11 11"

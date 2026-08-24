@@ -474,7 +474,38 @@ body.nb-dock .sidebar {
   transition: height 0.55s cubic-bezier(0.32, 0.72, 0, 1),
               width 0.55s cubic-bezier(0.32, 0.72, 0, 1);
 }
-body.nb-dock .board-body { bottom: 56px; }
+/* Тело дашборда — СВЕТЛЫЙ слой на тёмной странице (фрейм макета: «тело»
+   1600×840 #f2f3f5 на #e7e8eb, под ним щель 4px до бара). Скругление снизу —
+   20px (просьба; в макете 16). Скролл-область и есть тело: красим её и
+   поднимаем кромку на 60px (56 бар + 4 щель). */
+body.nb-dock .board-body {
+  bottom: 60px;
+  background: #f2f3f5;
+  border-radius: 0 0 20px 20px;
+}
+
+/* кнопка «Связь с банком» справа от поля (макет 3031:28563):
+   чёрная пилюля 48px, иконка 24 + текст Alfa Medium 16/20 белым */
+.nbd-body { gap: 12px; }
+.nbd-support {
+  flex: 0 0 auto;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent-secondary, #212124);
+  color: rgba(255, 255, 255, 0.94);
+  font-family: var(--font);
+  font-size: 16px;
+  line-height: 20px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.nbd-support span { padding: 0 4px; }
 
 /* ═══ Фон страницы в режиме дока — темнее (фрейм макета «01 — Главная»
    залит #e7e8eb, и бар #f2f3f5 читается на нём отдельным слоем; на нашем

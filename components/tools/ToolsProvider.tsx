@@ -55,9 +55,10 @@ interface ToolsCtx {
   // вид умной строки на Главной v2: пилюля (false) или док-бар (true)
   nbDock: boolean;
   setNbDock: (v: boolean) => void;
-  // пасхалка («6», затем «7»): секретный режим панели + инструменты
-  // (кирка / РПГ / «Защита счёта»)
+  // панель игр («6», затем «7» или кнопка 🕹) и её инструменты
+  // (кирка [скрыта] / РПГ / «Защита счёта»)
   easter: boolean;
+  setEasterView: (games: boolean) => void; // какая вкладка в панели: игры/настройки
   easterTool: EasterTool | null;
   setEasterTool: (t: EasterTool | null) => void;
   minedCount: number;
@@ -138,25 +139,37 @@ export default function ToolsProvider({ children }: { children: ReactNode }) {
     router.prefetch("/current");
   }, [router]);
 
-  /* ── пасхалка: «6», затем «7» в течение секунды ──
-     Только на Главной (баннеры живут там). Никаких следов в URL/доках.
-     Выход: та же пара клавиш или перезагрузка — всё возвращается как было.
-     Прежний триггер (серия из пяти «/») снят: слэш теперь только открывает
-     панель инструментов, та же клавиша нарисована на её кнопке. */
-  const [easter, setEaster] = useState(false);
+  /* ── две панели на горячих клавишах ──
+     «6», затем «7» (в течение секунды) — панель ИГР (бывший секретный
+     уровень, теперь включён всегда; только на Главной — мир игр живёт там).
+     Пять раз «/» подряд — обычная панель НАСТРОЕК дашборда.
+     Одиночный «/» больше ничего не делает: он лишь член серии. */
+  const [easter, setEaster] = useState(false); // true — в панели вкладка игр
   const [easterTool, setEasterTool] = useState<EasterTool | null>(null);
   const [minedCount, setMinedCount] = useState(0);
+  const easterRef = useRef(easter);
+  easterRef.current = easter;
+  const panelRef = useRef(panelOpen);
+  panelRef.current = panelOpen;
 
   useEffect(() => {
     let six = 0; // время нажатия «6»; ноль — последовательность сброшена
+    let slashes = 0;
+    let lastSlash = 0;
     const MODS = new Set(["Shift", "Alt", "Control", "Meta", "CapsLock", "AltGraph"]);
-    // цифру опознаём и по key, и по code: на других раскладках и на нумпаде
     const digit = (e: KeyboardEvent, d: string) =>
       e.key === d || e.code === `Digit${d}` || e.code === `Numpad${d}`;
+    const openAs = (games: boolean) => {
+      // повторный вызов той же панели — закрыть; иначе открыть/переключить вкладку
+      if (panelRef.current && easterRef.current === games) setPanelOpen(false);
+      else {
+        setEaster(games);
+        setPanelOpen(true);
+      }
+    };
     const onKey = (e: KeyboardEvent) => {
       if (MODS.has(e.key)) return;
       const t = e.target as HTMLElement | null;
-      // guard только для ТЕКСТОВОГО ввода: фокус на чекбоксе-свитче не мешает
       const typing =
         !!t &&
         (t.tagName === "TEXTAREA" ||
@@ -165,22 +178,29 @@ export default function ToolsProvider({ children }: { children: ReactNode }) {
             !/^(checkbox|radio|button|range|submit|reset|file|color)$/.test(t.type)));
       if (typing || e.repeat) {
         six = 0;
+        slashes = 0;
         return;
       }
-      // «/» — горячая клавиша панели инструментов
       if (e.key === "/" || e.code === "Slash") {
         e.preventDefault(); // иначе Chrome ловит «/» своим поиском по странице
-        setPanelOpen((o) => !o);
         six = 0;
+        const now = performance.now();
+        slashes = now - lastSlash < 1500 ? slashes + 1 : 1;
+        lastSlash = now;
+        if (slashes >= 5) {
+          slashes = 0;
+          openAs(false); // настройки
+        }
         return;
       }
+      slashes = 0;
       if (digit(e, "6")) {
         six = performance.now();
         return;
       }
       if (digit(e, "7") && six && performance.now() - six < 1000) {
         six = 0;
-        if (dashboard === "main") setEaster((on) => !on); // вход сам раскроет панель
+        if (dashboard === "main") openAs(true); // игры
         return;
       }
       six = 0;
@@ -189,29 +209,13 @@ export default function ToolsProvider({ children }: { children: ReactNode }) {
     return () => document.removeEventListener("keydown", onKey);
   }, [dashboard]);
 
-  // вход в режим — раскрыть панель (секретный экран должен быть видно);
-  // выход — вернуть панель в состояние до входа
-  const panelOpenRef = useRef(panelOpen);
-  panelOpenRef.current = panelOpen;
-  const panelBeforeEaster = useRef<boolean | null>(null);
+  // уход с Главной: сложить инструмент (мир игр живёт только там)
   useEffect(() => {
-    if (easter) {
-      panelBeforeEaster.current = panelOpenRef.current;
-      setPanelOpen(true);
-    } else if (panelBeforeEaster.current !== null) {
-      setPanelOpen(panelBeforeEaster.current);
-      panelBeforeEaster.current = null;
-    }
-  }, [easter]);
-
-  // выход из режима (или уход с Главной): сложить кирку, обнулить счёт
-  useEffect(() => {
-    if (dashboard !== "main" && easter) setEaster(false);
-    if (!easter) {
+    if (dashboard !== "main") {
       setEasterTool(null);
       setMinedCount(0);
     }
-  }, [dashboard, easter]);
+  }, [dashboard]);
 
   // взятие инструмента: панель tools прячется (игровое поле чистое),
   // счёт сбрасывается вместе с миром (новая партия — без перезагрузки)
@@ -221,8 +225,8 @@ export default function ToolsProvider({ children }: { children: ReactNode }) {
   }, [easterTool]);
 
   const onMined = useCallback(() => setMinedCount((c) => c + 1), []);
-  useMiner(easter && dashboard === "main", easterTool, onMined);
-  useTowers(easter && dashboard === "main" && easterTool === "td");
+  useMiner(dashboard === "main", easterTool, onMined);
+  useTowers(dashboard === "main" && easterTool === "td");
 
   /* ── связь состояния панели с URL (deep-link, без перезагрузки) ──
      variant (v1/v2) и стек v2 живут в контексте → в ссылку их кладём сами:
@@ -316,6 +320,7 @@ export default function ToolsProvider({ children }: { children: ReactNode }) {
         nbDock,
         setNbDock,
         easter,
+        setEasterView: setEaster,
         easterTool,
         setEasterTool,
         minedCount,
