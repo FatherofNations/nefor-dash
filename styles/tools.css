@@ -171,11 +171,15 @@ body.twk-open .board {
 }
 
 /* ═══ Кнопка «Игры» (бывший фаб tools) ═══
-   Закрыто — пилюля с джойстиком и подписью, открыто — прежний круг 48px с
-   крестиком. Ширина и подпись анимируются канон-кривой вместе с right/bottom. */
+   Закрыто — пилюля с джойстиком и подписью, открыто — круг 48px с крестиком.
+   ВСЁ внутри заякорено к ПРАВОМУ краю: кнопка прибита right'ом, при сжатии
+   122→48 двигается только левый край — контент и крестик стоят на месте,
+   лишнее срезает overflow. Раньше крестик был прибит слева (left:14) и во
+   время сжатия ехал вместе с левым краем — отсюда и был скачок. */
 .twk-fab.fab-games {
-  width: 122px;
+  width: 116px; /* 66.4 контента (gap 14) + боковые паддинги 24.6 (−20%) */
   border-radius: 24px;
+  overflow: hidden;
   transition: right 0.55s cubic-bezier(0.32, 0.72, 0, 1),
               bottom 0.55s cubic-bezier(0.32, 0.72, 0, 1),
               width 0.55s cubic-bezier(0.32, 0.72, 0, 1);
@@ -183,17 +187,22 @@ body.twk-open .board {
 body.twk-open .twk-fab.fab-games { width: 48px; }
 .twk-fab.fab-games .fg-lbl {
   position: absolute;
-  inset: 0;
+  top: 0;
+  bottom: 0;
+  left: auto;
+  right: 0;
+  width: 116px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 14px;
   color: #fff;
   font-size: 15px;
   font-weight: 600;
   white-space: nowrap;
-  overflow: hidden;
-  transition: opacity 0.35s ease, transform 0.55s cubic-bezier(0.32, 0.72, 0, 1);
+  transition: opacity 0.3s ease;
 }
 .twk-fab.fab-games .fg-lbl i { font-style: normal; font-size: 18px; line-height: 1; }
-body.twk-open .twk-fab.fab-games .fg-lbl { opacity: 0; transform: scale(0.6); }
+body.twk-open .twk-fab.fab-games .fg-lbl { opacity: 0; }
+/* крестик — тоже от правого края: вращается на месте, не путешествует */
+.twk-fab.fab-games .x { left: auto; right: 14px; }

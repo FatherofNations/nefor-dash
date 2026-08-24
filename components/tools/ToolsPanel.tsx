@@ -99,14 +99,9 @@ export default function ToolsPanel() {
             </button>
             <p className="twk-egg-hint">
               Защита счёта: дашборд становится ночным кварталом — зазоры между
-              блоками это улицы, по ним к балансу бегут списания. Башни (1–5)
-              ставятся на баннеры и чипсы над ними; чтобы продать за половину —
-              перетащи башню обратно в колоду.
+              блоками это улицы, по ним к балансу бегут списания.
             </p>
             {SHOW_PICKAXE && <p className="twk-egg-count">Добыто: {minedCount}/4</p>}
-            <p className="twk-egg-hint">
-              Панель игр — клавиши «6», «7» подряд. Настройки дашборда — пять раз «/».
-            </p>
           </div>
         </aside>
         <FabButton panelOpen={panelOpen} setPanelOpen={setPanelOpen} />
