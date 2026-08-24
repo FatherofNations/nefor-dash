@@ -195,7 +195,11 @@ export default function NeuroBar({
       <div className="chat" aria-hidden="true">
         <aside className="chat-menu">
           <div className="chat-logo">
-            <img src={`${b}chatLogo.webp`} alt="" width="40" height="40" />
+            {/* лого из макета 3070:128887: сквиркл-подложка + нейроиконка по центру */}
+            <span className="cl-ico">
+              <img className="shape" src={`${b}chatLogoShape.svg`} alt="" width="40" height="40" />
+              <img className="glyph" src={`${b}chatLogoIcon.svg`} alt="" width="24" height="24" />
+            </span>
             <span>Нейропомощник</span>
           </div>
           <nav className="chat-nav">

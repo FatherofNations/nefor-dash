@@ -193,11 +193,25 @@ body.twk-open .nbar { right: 344px; }
 /* левое меню — идентично Spotlight */
 .chat-menu { width: 248px; min-width: 248px; background: #fff; }
 .chat-logo { position: relative; padding: 12px 0 0 12px; display: flex; gap: 12px; align-items: center; }
-.chat-logo img { position: relative; }
-/* «Нейропомощник» — тёмный SF Pro Text Bold (в макете этого чата НЕ градиент) */
+/* Лого по макету «Демо-стенда» 3070:128887: сквиркл 40 (градиентная подложка
+   #A7A7F7→#FF1418) с белой нейроиконкой 24 по центру (сдвиг −1px по Y, как в
+   макете), подпись — Alfa Bold 18/24 +0.38 градиентом индиго→пурпур. */
+.chat-logo .cl-ico { position: relative; width: 40px; height: 40px; flex: none; }
+.chat-logo .cl-ico .shape { position: absolute; inset: 0; }
+.chat-logo .cl-ico .glyph {
+  position: absolute;
+  left: 50%;
+  top: calc(50% - 1px);
+  transform: translate(-50%, -50%);
+}
 .chat-logo span {
-  font-size: 16px; line-height: 24px; font-weight: 700;
-  color: rgba(3, 3, 6, 0.88); white-space: nowrap;
+  font-size: 18px; line-height: 24px; font-weight: 700; letter-spacing: 0.38px;
+  white-space: nowrap;
+  background: linear-gradient(90deg, #7a63f1 0%, #9933ff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
 }
 .chat-nav { padding: 16px 0; margin-top: 12px; }
 .chat-cell { position: relative; height: 64px; padding: 8px 12px 8px 16px; display: flex; align-items: center; }

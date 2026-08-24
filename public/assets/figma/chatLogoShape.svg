@@ -1,0 +1,21 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="&#240;&#159;&#148;&#169; Shape" filter="url(#filter0_i_0_2399)">
+<path id="Mask" d="M40 20C40 31.0457 31.0457 40 20 40C8.9543 40 0 31.0457 0 20C0 8.9543 8.9543 0 20 0C31.0457 0 40 8.9543 40 20Z" fill="url(#paint0_linear_0_2399)"/>
+</g>
+<defs>
+<filter id="filter0_i_0_2399" x="0" y="0" width="40" height="40" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+<feOffset/>
+<feGaussianBlur stdDeviation="2"/>
+<feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1"/>
+<feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0"/>
+<feBlend mode="normal" in2="shape" result="effect1_innerShadow_0_2399"/>
+</filter>
+<linearGradient id="paint0_linear_0_2399" x1="20" y1="42.6361" x2="20" y2="-1.23786e-06" gradientUnits="userSpaceOnUse">
+<stop stop-color="#A7A7F7"/>
+<stop offset="0.798077" stop-color="#FF1418"/>
+</linearGradient>
+</defs>
+</svg>
