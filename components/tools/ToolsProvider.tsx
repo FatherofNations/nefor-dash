@@ -52,6 +52,9 @@ interface ToolsCtx {
   panelOpen: boolean;
   setPanelOpen: (o: boolean) => void;
   swapTo: (url: "/" | "/current") => void;
+  // вид умной строки на Главной v2: пилюля (false) или док-бар (true)
+  nbDock: boolean;
+  setNbDock: (v: boolean) => void;
   // пасхалка («6», затем «7»): секретный режим панели + инструменты
   // (кирка / РПГ / «Защита счёта»)
   easter: boolean;
@@ -76,7 +79,10 @@ export default function ToolsProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const dashboard: Dashboard = pathname?.startsWith("/current") ? "current" : "main";
 
-  const [variant, setVariant] = useState<Variant>("v1");
+  // v2 — вариант Главной по умолчанию (просьба 2026-08-18); v1 остаётся по ?menu=v1
+  const [variant, setVariant] = useState<Variant>("v2");
+  // нижняя умная строка на v2: false — пилюля, true — док-бар во всю ширину
+  const [nbDock, setNbDock] = useState(false);
   const [v2State, setV2State] = useState<V2State>(DEFAULT_V2);
   const [panelOpen, setPanelOpen] = useState(false);
   const setV2 = useCallback(
@@ -230,6 +236,7 @@ export default function ToolsProvider({ children }: { children: ReactNode }) {
     const sp = new URLSearchParams(window.location.search);
     const menu = sp.get("menu");
     if (menu === "v1" || menu === "v2") setVariant(menu);
+    if (sp.get("nb") === "dock") setNbDock(true);
     if (sp.has("stack")) {
       const on = new Set((sp.get("stack") ?? "").split(",").filter(Boolean));
       setV2State({
@@ -249,15 +256,27 @@ export default function ToolsProvider({ children }: { children: ReactNode }) {
     if (!urlSynced.current) return;
     let url = pathname || "/";
     if (dashboard === "main") {
-      url =
-        variant === "v2"
-          ? `/?menu=v2&stack=${V2_KEYS.filter((k) => v2State[k]).join(",")}`
-          : "/"; // v1 — чистая ссылка (дефолт)
+      if (variant === "v1") {
+        url = "/?menu=v1"; // v1 теперь НЕ дефолт — фиксируем в ссылке
+      } else {
+        // v2 — дефолт: чистый «/», параметры только для отступлений от него
+        const stack = V2_KEYS.filter((k) => v2State[k]).join(",");
+        const defStack = V2_KEYS.filter((k) => DEFAULT_V2[k]).join(",");
+        const parts: string[] = [];
+        if (stack !== defStack) parts.push(`menu=v2&stack=${stack}`);
+        if (nbDock) parts.push("nb=dock");
+        url = parts.length ? `/?${parts.join("&")}` : "/";
+      }
     } // current — путь /current без параметров
     if (url !== window.location.pathname + window.location.search) {
       window.history.replaceState(null, "", url);
     }
-  }, [dashboard, variant, v2State, pathname]);
+  }, [dashboard, variant, v2State, nbDock, pathname]);
+
+  // док-бар умного поиска: класс на body — фаб панели приподнимается над баром
+  useEffect(() => {
+    document.body.classList.toggle("nb-dock", dashboard === "main" && variant === "v2" && nbDock);
+  }, [dashboard, variant, nbDock]);
 
   // класс дашборда на body (скоуп для push/scale правил)
   useEffect(() => {
@@ -290,6 +309,8 @@ export default function ToolsProvider({ children }: { children: ReactNode }) {
         panelOpen,
         setPanelOpen,
         swapTo,
+        nbDock,
+        setNbDock,
         easter,
         easterTool,
         setEasterTool,

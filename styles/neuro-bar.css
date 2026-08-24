@@ -332,3 +332,135 @@ body.twk-open .nbar { right: 344px; }
 .rv-block.on { opacity: 1; filter: blur(0); transform: none; }
 .rv-word { opacity: 0; filter: blur(6px); transition: opacity 0.4s ease, filter 0.4s ease; }
 .rv-word.on { opacity: 1; filter: blur(0); }
+
+/* ═══════════ Док-бар умного поиска (макет 967:75048) ═══════════
+   Альтернативный вид строки на Главной v2 (тумблер «Строка-док снизу» в
+   панели tools): полоса 56px во всю ширину, прижатая к нижней кромке, со
+   скруглёнными верхними углами. Слева ячейка 248px с логотипом нейропомощника
+   и градиентным именем, дальше белое поле-инпут 48px со скруглением-пилюлей.
+   Режим включает класс .dock на корне NeuroBar (display:contents) — сам бар и
+   пилюля переключаются встречными транзишенами по канон-кривой. */
+.nbdock {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  background: #f2f3f5;
+  border-radius: 16px 16px 0 0;
+  z-index: 60;
+  transform: translateY(calc(100% + 8px)); /* спрятан за нижней кромкой */
+  pointer-events: none;
+  transition: transform 0.55s cubic-bezier(0.32, 0.72, 0, 1),
+              left 0.55s cubic-bezier(0.32, 0.72, 0, 1),
+              right 0.55s cubic-bezier(0.32, 0.72, 0, 1),
+              bottom 0.55s cubic-bezier(0.32, 0.72, 0, 1),
+              border-radius 0.55s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.nb-root.dock .nbdock {
+  transform: none;
+  pointer-events: auto;
+}
+/* встречное движение: пилюля ныряет за нижнюю кромку и глохнет для кликов */
+.nb-root.dock .nbar {
+  transform: translateY(calc(100% + 56px));
+  opacity: 0;
+  pointer-events: none;
+}
+.nbar {
+  transition: right 0.55s cubic-bezier(0.32, 0.72, 0, 1),
+              transform 0.55s cubic-bezier(0.32, 0.72, 0, 1),
+              opacity 0.4s ease;
+}
+/* открытая панель tools обрезает вьюпорт рамкой (инсет 12px, справа 332) —
+   док встаёт в её «дырку» и на время становится плавающей карточкой */
+body.twk-open .nbdock {
+  left: 12px;
+  right: 332px;
+  bottom: 12px;
+  border-radius: 16px;
+}
+
+/* ── ячейка логотипа: 248px, паддинги 14/12, лого 28 + имя с градиентом ── */
+.nbd-logo {
+  box-sizing: border-box;
+  width: 248px;
+  flex: 0 0 248px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px 8px 14px;
+}
+.nbd-logo span {
+  font-family: var(--font-sf);
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 700;
+  white-space: nowrap;
+  background: linear-gradient(90deg, #6868e9 0%, #904bff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+/* ── тело: белое поле-пилюля 48px по центру полосы ── */
+.nbd-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+}
+.nbd-field {
+  box-sizing: border-box;
+  flex: 1;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  background: #fff;
+  border-radius: 999px;
+  padding: 0 20px 0 8px;
+}
+.nbd-search {
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+}
+.nbd-input {
+  flex: 1;
+  min-width: 0;
+  margin-left: 8px;
+  border: 0;
+  outline: none;
+  background: transparent;
+  font-family: var(--font);
+  font-size: 16px;
+  line-height: 20px;
+  letter-spacing: -0.24px;
+  color: var(--text-primary);
+}
+.nbd-input::placeholder { color: rgba(4, 4, 19, 0.55); }
+.nbd-expand {
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+  margin-left: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+/* фаб панели tools в режиме дока приподнят над баром (48px круг, зазор 12) */
+body.nb-dock .twk-fab {
+  bottom: 68px;
+  transition: right 0.55s cubic-bezier(0.32, 0.72, 0, 1),
+              bottom 0.55s cubic-bezier(0.32, 0.72, 0, 1);
+}

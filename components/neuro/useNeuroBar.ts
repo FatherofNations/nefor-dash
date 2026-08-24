@@ -39,6 +39,9 @@ export function useNeuroBar(
     const chatScroll = q<HTMLElement>(".chat-scroll");
     const chatInput = q<HTMLInputElement>(".chat-input input");
     const chatClose = q<HTMLElement>(".chat-close");
+    // док-бар (вид 967:75048): свой инпут и кнопка «развернуть»
+    const dockInput = root.querySelector<HTMLInputElement>(".nbd-input");
+    const dockExpand = root.querySelector<HTMLButtonElement>(".nbd-expand");
 
     // ── позиция контентной колонки ──
     if (left) nbar.style.setProperty("--nbar-left", left);
@@ -363,6 +366,28 @@ export function useNeuroBar(
         openChat();
       }
     };
+    /* док-бар открывает тот же чат: openChat читает запрос из nbInput пилюли,
+       поэтому перед вызовом переносим туда текст из инпута дока */
+    const dockSubmit = () => {
+      if (!dockInput) return;
+      nbInput.value = dockInput.value;
+      openChat();
+      dockInput.value = "";
+      dockInput.blur();
+    };
+    const onDockKey = (e: KeyboardEvent) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        dockSubmit();
+      }
+    };
+    const onDockExpand = (e: MouseEvent) => {
+      e.stopPropagation();
+      dockSubmit();
+    };
+    dockInput?.addEventListener("keydown", onDockKey);
+    dockExpand?.addEventListener("click", onDockExpand);
+
     // клик мимо пилюли при пустом поле — сворачивает обратно
     const onDocClick = (e: MouseEvent) => {
       if (
@@ -400,6 +425,8 @@ export function useNeuroBar(
 
     // ── cleanup: снимаем глобальные слушатели, гасим таймеры/rAF (StrictMode/маршруты) ──
     return () => {
+      dockInput?.removeEventListener("keydown", onDockKey);
+      dockExpand?.removeEventListener("click", onDockExpand);
       nbPill.removeEventListener("click", onPillClick);
       nbGo.removeEventListener("click", onGoClick);
       nbInput.removeEventListener("keydown", onInputKey);

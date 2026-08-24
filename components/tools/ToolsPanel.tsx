@@ -38,6 +38,8 @@ export default function ToolsPanel() {
     setVariant,
     v2State,
     setV2,
+    nbDock,
+    setNbDock,
     panelOpen,
     setPanelOpen,
     swapTo,
@@ -161,6 +163,11 @@ export default function ToolsPanel() {
               <p className="twk-sec">Продукты</p>
               <Row label="Кредит наличными" k="credit" v2State={v2State} setV2={setV2} />
               <Row label="Баллы" k="points" v2State={v2State} setV2={setV2} />
+              <p className="twk-sec">Умный поиск</p>
+              <label className="twk-row">
+                <span className="lb">Строка-док снизу</span>
+                <Switch on={nbDock} onChange={setNbDock} />
+              </label>
             </>
           )}
 

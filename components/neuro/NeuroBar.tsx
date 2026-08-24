@@ -1,6 +1,7 @@
 "use client";
 import { useRef } from "react";
 import { useNeuroBar, NeuroBarOpts } from "./useNeuroBar";
+import { useTools } from "@/components/tools/ToolsProvider";
 import "@/styles/neuro-bar.css";
 
 /* Умная строка нейропомощника: строка (.nbar) + Spotlight (.spot) + фуллскрин-чат (.chat).
@@ -20,9 +21,39 @@ export default function NeuroBar({
   const rootRef = useRef<HTMLDivElement>(null);
   const b = assetBase;
   useNeuroBar(rootRef, { left, right, bottom });
+  /* Вид строки на Главной v2: пилюля или док-бар (макет 967:75048).
+     Тумблер живёт в панели tools; на /current всегда пилюля. Класс режима —
+     на корне (он display:contents, бокса не создаёт): дети переключаются CSS,
+     их runtime-классы (active и т.п.) React при этом не трогает. */
+  const { dashboard, nbDock } = useTools();
+  const dock = dashboard === "main" && nbDock;
 
   return (
-    <div ref={rootRef} style={{ display: "contents" }}>
+    <div ref={rootRef} style={{ display: "contents" }} className={dock ? "nb-root dock" : "nb-root"}>
+      {/* ── док-бар (вид из макета 967:75048): во всю ширину, прижат к низу ── */}
+      <div className="nbdock" aria-hidden={!dock}>
+        <div className="nbd-logo">
+          <img src={`${b}nbDockLogo.svg`} alt="" width="28" height="28" />
+          <span>Нейропомощник</span>
+        </div>
+        <div className="nbd-body">
+          <div className="nbd-field">
+            <span className="nbd-search">
+              <img src={`${b}nbDockSearch.svg`} alt="" width="24" height="24" />
+            </span>
+            <input
+              className="nbd-input"
+              type="text"
+              placeholder="Как открыть депозит"
+              aria-label="Спросите нейропомощника"
+              tabIndex={dock ? 0 : -1}
+            />
+            <button className="nbd-expand" aria-label="Развернуть нейропомощника" tabIndex={dock ? 0 : -1}>
+              <img src={`${b}nbDockExpand.svg`} alt="" width="20" height="20" />
+            </button>
+          </div>
+        </div>
+      </div>
       {/* ── строка ── */}
       <div className="nbar">
         <div className="nb-pill">
