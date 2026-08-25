@@ -1,0 +1,283 @@
+/* ═══ Пасхалка «Броневик»: танки поверх дашборда ═══
+   Как и у башенной, всё слоями на body (вне .board): фиксированный элемент
+   внутри трансформируемого предка поехал бы вместе с тряской. */
+
+:root {
+  --tk-green: #b6ff3d;
+  --tk-cyan: #35e0ff;
+  --tk-red: #ff5a4a;
+  --tk-panel: rgba(8, 11, 20, 0.84);
+  --tk-line: rgba(182, 255, 61, 0.24);
+  --tk-z: 240;
+}
+
+body.tk-armed .board-body { overflow: hidden; }
+body.tk-armed .board,
+body.tk-armed .board * { cursor: default; }
+body.tk-armed .nbar,
+body.tk-armed .spot,
+body.tk-armed .chat { display: none !important; }
+body.tk-armed .twk-fab { z-index: 320; }
+
+body.tk-hit .board { animation: tk-shake 0.34s cubic-bezier(0.36, 0.07, 0.19, 0.97); }
+@keyframes tk-shake {
+  15% { transform: translate(-7px, 3px); }
+  35% { transform: translate(6px, -4px); }
+  55% { transform: translate(-5px, -2px); }
+  75% { transform: translate(4px, 3px); }
+  100% { transform: translate(0, 0); }
+}
+
+/* ── вуаль: ночной полигон вместо дашборда ── */
+.tk-veil {
+  position: fixed;
+  inset: 0;
+  z-index: var(--tk-z);
+  pointer-events: none;
+  backdrop-filter: saturate(0.3) brightness(0.42) contrast(1.15);
+  -webkit-backdrop-filter: saturate(0.3) brightness(0.42) contrast(1.15);
+  background:
+    radial-gradient(900px 520px at 20% 18%, rgba(182, 255, 61, 0.12), transparent 70%),
+    radial-gradient(760px 520px at 82% 76%, rgba(53, 224, 255, 0.12), transparent 70%),
+    linear-gradient(180deg, rgba(3, 6, 10, 0.6), rgba(3, 6, 10, 0.72));
+  animation: tk-in 0.45s cubic-bezier(0.25, 0.1, 0.25, 1) both;
+}
+.tk-veil::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(180deg, rgba(0, 0, 0, 0.26) 0 1px, transparent 1px 3px);
+  mix-blend-mode: multiply;
+  opacity: 0.7;
+}
+@keyframes tk-in { from { opacity: 0; } to { opacity: 1; } }
+
+.tk-canvas {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: calc(var(--tk-z) + 1);
+  animation: tk-in 0.45s 0.08s cubic-bezier(0.25, 0.1, 0.25, 1) both;
+}
+
+.tk-hud,
+.tk-help,
+.tk-toast,
+.tk-over {
+  position: fixed;
+  z-index: calc(var(--tk-z) + 2);
+  font-family: "Alfa Interface Sans", system-ui, sans-serif;
+  color: #eaf4ff;
+}
+
+/* ── верхняя панель ── */
+.tk-hud {
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  background: var(--tk-panel);
+  border: 1px solid var(--tk-line);
+  border-radius: 4px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.55), 0 0 30px rgba(182, 255, 61, 0.1);
+  backdrop-filter: blur(6px);
+  animation: tk-hud-in 0.4s 0.12s cubic-bezier(0.25, 0.1, 0.25, 1) both;
+}
+@keyframes tk-hud-in {
+  from { opacity: 0; transform: translate(-50%, -14px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+.tk-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 88px;
+  padding: 7px 12px 8px;
+  background: rgba(182, 255, 61, 0.05);
+}
+.tk-cell span {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  color: rgba(190, 220, 160, 0.62);
+}
+.tk-cell b {
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.tk-cell-vault b { color: var(--tk-green); }
+.tk-cell-vault b.bad { color: var(--tk-red); }
+.tk-btn {
+  width: 34px;
+  border: 0;
+  background: rgba(53, 224, 255, 0.1);
+  color: var(--tk-cyan);
+  font: 700 12px/1 "Alfa Interface Sans", system-ui, sans-serif;
+  cursor: pointer;
+  transition: background 0.16s ease;
+}
+.tk-btn:hover { background: rgba(53, 224, 255, 0.22); }
+.tk-btn.on { background: rgba(182, 255, 61, 0.22); color: var(--tk-green); }
+.tk-btn.off { color: rgba(190, 214, 240, 0.4); }
+
+/* ── памятка по управлению ── */
+.tk-help {
+  left: 14px;
+  bottom: 14px;
+  width: 250px;
+  padding: 10px 12px 12px;
+  background: var(--tk-panel);
+  border: 1px solid rgba(53, 224, 255, 0.18);
+  border-left: 2px solid var(--tk-green);
+  border-radius: 3px;
+  backdrop-filter: blur(6px);
+  animation: tk-help-in 0.4s 0.2s cubic-bezier(0.25, 0.1, 0.25, 1) both;
+}
+@keyframes tk-help-in {
+  from { opacity: 0; transform: translateX(-16px); filter: blur(8px); }
+  to { opacity: 1; transform: translateX(0); filter: blur(0); }
+}
+.tk-help b {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: var(--tk-green);
+}
+.tk-help p {
+  margin: 3px 0 0;
+  font-size: 10px;
+  line-height: 15px;
+  color: rgba(200, 224, 248, 0.82);
+}
+.tk-help-note { color: rgba(168, 200, 236, 0.6) !important; margin-top: 7px !important; }
+.tk-help kbd {
+  display: inline-block;
+  min-width: 15px;
+  margin-right: 2px;
+  padding: 1px 4px;
+  border: 1px solid rgba(53, 224, 255, 0.3);
+  border-radius: 2px;
+  background: rgba(53, 224, 255, 0.08);
+  font: 700 9px/13px "Alfa Interface Sans", system-ui, sans-serif;
+  text-align: center;
+  color: var(--tk-cyan);
+}
+
+/* ── объявления по центру ── */
+.tk-toast {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.94);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 18px 48px;
+  background: rgba(5, 9, 14, 0.68);
+  border-top: 2px solid var(--tk-green);
+  border-bottom: 2px solid var(--tk-green);
+  backdrop-filter: blur(3px);
+  opacity: 0;
+  pointer-events: none;
+  text-align: center;
+  transition: opacity 0.26s ease, transform 0.26s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+.tk-toast.on { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+.tk-toast b {
+  font-size: 36px;
+  font-weight: 700;
+  letter-spacing: 5px;
+  text-shadow: 0 0 26px rgba(182, 255, 61, 0.75);
+}
+.tk-toast i {
+  font-style: normal;
+  font-size: 13px;
+  color: rgba(200, 224, 248, 0.8);
+}
+.tk-toast i:empty { display: none; }
+
+/* ── финальный экран ── */
+.tk-over {
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(3, 6, 10, 0.62);
+  backdrop-filter: blur(3px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+  z-index: calc(var(--tk-z) + 3);
+}
+.tk-over.on { opacity: 1; pointer-events: auto; }
+.tk-over-in {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 32px 52px;
+  background: var(--tk-panel);
+  border: 1px solid var(--tk-red);
+  border-radius: 4px;
+  box-shadow: 0 0 60px -10px rgba(255, 90, 74, 0.6);
+}
+.tk-over.win .tk-over-in {
+  border-color: var(--tk-green);
+  box-shadow: 0 0 60px -10px rgba(182, 255, 61, 0.6);
+}
+.tk-over-in b { font-size: 25px; letter-spacing: 4px; color: var(--tk-red); }
+.tk-over.win .tk-over-in b { color: var(--tk-green); }
+.tk-over-in i { font-style: normal; font-size: 12px; color: rgba(200, 224, 248, 0.72); }
+.tk-score { display: flex; gap: 2px; margin-top: 12px; }
+.tk-score > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 112px;
+  padding: 10px 14px;
+  background: rgba(182, 255, 61, 0.06);
+  text-align: center;
+}
+.tk-score span {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  color: rgba(190, 220, 160, 0.6);
+}
+.tk-score b { font-size: 20px; font-variant-numeric: tabular-nums; color: #eaf4ff; }
+.tk-again {
+  margin-top: 10px;
+  padding: 10px 26px;
+  border: 1px solid var(--tk-cyan);
+  background: rgba(53, 224, 255, 0.12);
+  color: #eaf4ff;
+  font: 700 11px/1 "Alfa Interface Sans", system-ui, sans-serif;
+  letter-spacing: 2px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.tk-again:hover { background: rgba(53, 224, 255, 0.26); }
+.tk-exit { font-size: 10px; color: rgba(150, 184, 220, 0.5); }
+
+/* ── слот в панели инструментов ── */
+.twk-slot img[src*="tank"] {
+  width: 40px;
+  height: 40px;
+  image-rendering: pixelated;
+}
+
+/* ── prefers-reduced-motion: гасим декоративное движение ── */
+@media (prefers-reduced-motion: reduce) {
+  .tk-veil, .tk-canvas, .tk-hud, .tk-help { animation: none; }
+  body.tk-hit .board { animation: none; }
+  .tk-toast, .tk-over, .tk-btn { transition: none; }
+}
+
+/* ── низкое окно: памятка ужимается ── */
+@media (max-height: 620px) {
+  .tk-help { width: 210px; padding: 8px 10px 10px; }
+  .tk-help-note { display: none; }
+}

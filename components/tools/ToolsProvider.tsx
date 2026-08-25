@@ -12,6 +12,7 @@ import { usePathname, useRouter } from "next/navigation";
 import ToolsPanel from "./ToolsPanel";
 import { useMiner, EasterTool } from "@/components/easter/useMiner";
 import { useTowers } from "@/components/easter/useTowers";
+import { useTanks } from "@/components/easter/useTanks";
 import "@/styles/easter.css";
 // styles/td.css НЕ здесь: он уехал в динамический чанк игры (td/index.ts),
 // иначе 20 КБ стилей качал бы каждый посетитель дашборда
@@ -217,6 +218,7 @@ export default function ToolsProvider({ children }: { children: ReactNode }) {
   const onMined = useCallback(() => setMinedCount((c) => c + 1), []);
   useMiner(easter && dashboard === "main", easterTool, onMined);
   useTowers(easter && dashboard === "main" && easterTool === "td");
+  useTanks(easter && dashboard === "main" && easterTool === "tanks");
 
   /* ── связь состояния панели с URL (deep-link, без перезагрузки) ──
      variant (v1/v2) и стек v2 живут в контексте → в ссылку их кладём сами:

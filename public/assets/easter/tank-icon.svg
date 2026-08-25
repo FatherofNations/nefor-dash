@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" shape-rendering="crispEdges">
+  <!-- Иконка слота «Броневик»: танк сверху, в палитре игрока. -->
+  <g fill="#04050b"><rect x="0" y="0" width="16" height="16"/></g>
+  <g>
+    <rect x="0" y="3" width="4" height="12" fill="#1a1f33"/>
+    <rect x="12" y="3" width="4" height="12" fill="#1a1f33"/>
+    <rect x="0" y="4" width="4" height="1" fill="#4a5578"/><rect x="12" y="4" width="4" height="1" fill="#4a5578"/>
+    <rect x="0" y="7" width="4" height="1" fill="#4a5578"/><rect x="12" y="7" width="4" height="1" fill="#4a5578"/>
+    <rect x="0" y="10" width="4" height="1" fill="#4a5578"/><rect x="12" y="10" width="4" height="1" fill="#4a5578"/>
+    <rect x="0" y="13" width="4" height="1" fill="#4a5578"/><rect x="12" y="13" width="4" height="1" fill="#4a5578"/>
+    <rect x="4" y="4" width="8" height="11" fill="#2e3652"/>
+    <rect x="4" y="4" width="8" height="1" fill="#4a5578"/>
+    <rect x="5" y="12" width="6" height="1" fill="#35e0ff"/>
+    <rect x="6" y="8" width="4" height="4" fill="#4a5578"/>
+    <rect x="7" y="9" width="2" height="2" fill="#0d6f9e"/>
+    <rect x="7" y="1" width="2" height="8" fill="#2e3652"/>
+    <rect x="7" y="1" width="2" height="1" fill="#6f7ca8"/>
+  </g>
+</svg>

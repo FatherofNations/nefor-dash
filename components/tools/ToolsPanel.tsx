@@ -92,6 +92,19 @@ export default function ToolsPanel() {
               ставятся на баннеры и чипсы над ними; чтобы продать за половину —
               перетащи башню обратно в колоду.
             </p>
+            <button
+              className={"twk-slot" + (easterTool === "tanks" ? " armed" : "")}
+              onClick={() => setEasterTool(easterTool === "tanks" ? null : "tanks")}
+              aria-label="Броневик"
+              title="Броневик"
+            >
+              <img src="/assets/easter/tank-icon.svg" alt="" width="40" height="40" />
+            </button>
+            <p className="twk-egg-hint">
+              Броневик: дашборд становится полигоном. Карточки — кирпич, его
+              простреливают; сайдбар и табы — сталь. Стрелки или WASD — ехать,
+              пробел — огонь. Не пустите их к хранилищу у баланса.
+            </p>
             <p className="twk-egg-count">Добыто: {minedCount}/4</p>
             <p className="twk-egg-hint">Выход — снова «6», затем «7», или перезагрузка.</p>
           </div>
