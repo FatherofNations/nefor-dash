@@ -31,16 +31,19 @@ export const FULL = TL | TR | BL | BR;
    одной бетонной плитой целиком: внутренние .sb-* нарочно не перечислены,
    иначе они разбили бы её на лоскуты. */
 const TERRAIN: [string, number][] = [
-  [".ob-card, .feed .filters", WATER],
-  [".sidebar", CONCRETE],
+  [".ob-card", WATER],
   [
-    ".banners > .banner, .chips .chip, .sec-head, .rail-pill, .ai-card, .widget, .wg2, .wg3, .m2-card, .ob-cell .ob-ico, .ob-cell .progress",
+    ".banners > .banner, .chips .chip, .sec-head, .rail-pill, .ai-card, .widget, .wg2, .wg3, .m2-card, .ob-cell .ob-ico, .ob-cell .progress, .feed .filters, .feed .table",
     BRICK,
   ],
-  [".hello, .chip.luck, .ob-cell .ob-txt, .feed .table", FOREST],
-  [".tabs, .tasks-row .tasks", CONCRETE],
+  [".hello, .chip.luck, .ob-cell .ob-txt", FOREST],
+  // строка задач вместе со звёздочкой и «Больше» — одна бетонная полоса
+  [".tabs, .tasks-row", CONCRETE],
   // вода внутри кирпичного баннера — окно в стене
   [".banner .b-sub", WATER],
+  /* Сайдбар кладём ПОСЛЕДНИМ, чтобы он перекрыл всё, что внутри него лежит:
+     иначе любая мелкая карточка в меню выступает кирпичом посреди бетона. */
+  [".sidebar", CONCRETE],
 ];
 
 /** Толщина кирпичного воротника базы в клетках. */
@@ -80,9 +83,6 @@ function collect(w: number, h: number): Box[] {
   return out;
 }
 
-const hits = (b: Box, x: number, y: number) =>
-  x > b.x - 2 && x < b.x + b.w + 2 && y > b.y - 2 && y < b.y + b.h + 2;
-
 export function buildArena(w: number, h: number, reserved: DOMRect[] = []): Arena {
   const cell = CELL;
   const cols = Math.floor(w / cell);
@@ -92,13 +92,25 @@ export function buildArena(w: number, h: number, reserved: DOMRect[] = []): Aren
   const mask = new Uint8Array(n);
   const boxes = collect(w, h);
 
-  for (let ry = 0; ry < rows; ry++) {
-    for (let rx = 0; rx < cols; rx++) {
-      const i = ry * cols + rx;
-      const cx = rx * cell + cell / 2;
-      const cy = ry * cell + cell / 2;
-      for (const b of boxes) if (hits(b, cx, cy)) kind[i] = b.kind;
-      if (kind[i] === BRICK) mask[i] = FULL;
+  /* Блок забирает только те клетки, что укладываются в него ЦЕЛИКОМ.
+     Раньше клетка красилась по своему центру, и зазор в 12 px между соседними
+     баннерами при клетке в 24 px центра не содержал — соседи сливались в одну
+     плиту, причём то сливались, то нет, в зависимости от того, куда попала
+     сетка. Так границы стоят ровно всегда. */
+  for (const b of boxes) {
+    let c0 = Math.ceil(b.x / cell);
+    let c1 = Math.floor((b.x + b.w) / cell) - 1;
+    let r0 = Math.ceil(b.y / cell);
+    let r1 = Math.floor((b.y + b.h) / cell) - 1;
+    // мелочь, в которую не влезает ни одной целой клетки, берёт свою серединную
+    if (c1 < c0) c0 = c1 = Math.floor((b.x + b.w / 2) / cell);
+    if (r1 < r0) r0 = r1 = Math.floor((b.y + b.h / 2) / cell);
+    for (let r = Math.max(0, r0); r <= Math.min(rows - 1, r1); r++) {
+      for (let c = Math.max(0, c0); c <= Math.min(cols - 1, c1); c++) {
+        const i = r * cols + c;
+        kind[i] = b.kind;
+        mask[i] = b.kind === BRICK ? FULL : 0;
+      }
     }
   }
 
@@ -151,34 +163,6 @@ export function buildArena(w: number, h: number, reserved: DOMRect[] = []): Aren
   if (sb && ct && ct.left - sb.right > cell * 2) {
     column(sb.right + 4, ct.left - 4, 0.02, 0.22);
     column(sb.right + 4, ct.left - 4, 0.26, 0.36);
-  }
-  if (ct && w - ct.right > cell * 2) {
-    column(ct.right + 4, w - 4, 0.02, 0.22);
-    column(ct.right + 4, w - 4, 0.26, 0.36);
-  }
-
-  /* Плюс немного случайных стенок по остаткам простора — они разрушаемы, так
-     что тупиков не создают, зато есть за чем прятаться. */
-  const freeAt = (c: number, r: number, wid: number, hei: number) => {
-    for (let y = r - 1; y <= r + hei; y++) {
-      for (let x = c - 1; x <= c + wid; x++) {
-        if (x < 0 || y < 0 || x >= cols || y >= rows) return false;
-        if (kind[y * cols + x] !== EMPTY) return false;
-      }
-    }
-    return true;
-  };
-  const clumps = Math.round((cols * rows) / 150);
-  for (let done = 0, tries = 0; done < clumps && tries < clumps * 40; tries++) {
-    const horiz = Math.random() < 0.5;
-    const long = 2 + ((Math.random() * 3) | 0) * 2;
-    const bw = horiz ? long : 2;
-    const bh = horiz ? 2 : long;
-    const c = 1 + ((Math.random() * (cols - bw - 2)) | 0);
-    const r = 1 + ((Math.random() * (rows - bh - 2)) | 0);
-    if (!freeAt(c, r, bw, bh)) continue;
-    for (let y = r; y < r + bh; y++) for (let x = c; x < c + bw; x++) set(y * cols + x, BRICK);
-    done++;
   }
 
   /* ── площадка базы ──

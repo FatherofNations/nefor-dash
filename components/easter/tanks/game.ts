@@ -88,6 +88,8 @@ const SPEC: Record<TankKind, {
 
 export const LEVELS = 8;
 const MAX_FIELD = 4;
+/** Во сколько шагов волны обходится кирпичная клетка: обойти дешевле, чем ломать. */
+const WALL_COST = 12;
 
 /** Состав волны: чем дальше, тем больше и тяжелее. */
 function wavePack(level: number): TankKind[] {
@@ -140,6 +142,9 @@ export class Game {
   private respawn = 0;
   private freezeT = 0;
   private shovelT = 0;
+  private flow: Int32Array | null = null;
+  private flowDirty = true;
+  private flowCd = 0;
   private powerCd = rnd(12, 20);
   private paused = false;
   private hidden = false;
@@ -202,7 +207,7 @@ export class Game {
     this.canopy = null;
   }
 
-  setArena(a: Arena) { this.a = a; this.resize(); }
+  setArena(a: Arena) { this.a = a; this.resize(); this.buildFlow(); this.flowDirty = false; }
   setHidden(v: boolean) {
     if (this.hidden === v) return;
     this.hidden = v;
@@ -221,6 +226,7 @@ export class Game {
     this.over = null; this.freezeT = 0; this.shovelT = 0;
     this.a.baseAlive = true;
     setBaseWall(this.a, BRICK);
+    this.flowDirty = true;
     this.startLevel(1);
     this.pushStats();
   }
@@ -266,6 +272,10 @@ export class Game {
   private update(dt: number) {
     this.time += dt;
     if (this.freezeT > 0) this.freezeT -= dt;
+    if (this.flowDirty) {
+      this.flowCd -= dt;
+      if (this.flowCd <= 0) { this.buildFlow(); this.flowDirty = false; this.flowCd = 0.3; }
+    }
     if (this.shovelT > 0) {
       this.shovelT -= dt;
       if (this.shovelT <= 0) { setBaseWall(this.a, BRICK); this.repaintCollar(); }
@@ -424,6 +434,103 @@ export class Game {
     }
   }
 
+  /* ── волна до базы ──
+     Раньше враг выбирал сторону жадно: «к базе, если пускают». На карте со
+     стенами это и выглядит как бессмысленное катание — упёрся, отскочил,
+     поехал вбок. Теперь один раз на всех считаем расстояние до базы по сетке
+     стоянок 2×2. Кирпич в волне проходим, но дорогой: обойти дешевле, а если
+     обхода нет — танк идёт напролом и прострелит стену. Вода и бетон
+     непроходимы совсем. */
+  private buildFlow() {
+    const a = this.a;
+    const { cols, rows } = a;
+    const n = cols * rows;
+    const dist = new Int32Array(n).fill(-1);
+    const costAt = (c: number, r: number) => {
+      if (c < 0 || r < 0 || c + 1 >= cols || r + 1 >= rows) return -1;
+      let cost = 1;
+      for (let dy = 0; dy < 2; dy++) {
+        for (let dx = 0; dx < 2; dx++) {
+          const i = (r + dy) * cols + c + dx;
+          const k = a.kind[i];
+          if (k === CONCRETE || k === WATER) return -1;
+          if (k === BRICK && a.mask[i]) cost = WALL_COST;
+        }
+      }
+      return cost;
+    };
+
+    // двоичная куча: узлов пара тысяч, этого с запасом
+    const heapI: number[] = [];
+    const heapD: number[] = [];
+    const push = (i: number, d: number) => {
+      heapI.push(i); heapD.push(d);
+      let c = heapI.length - 1;
+      while (c > 0) {
+        const p = (c - 1) >> 1;
+        if (heapD[p] <= heapD[c]) break;
+        [heapI[p], heapI[c]] = [heapI[c], heapI[p]];
+        [heapD[p], heapD[c]] = [heapD[c], heapD[p]];
+        c = p;
+      }
+    };
+    const pop = () => {
+      const top = heapI[0];
+      const lastI = heapI.pop()!;
+      const lastD = heapD.pop()!;
+      if (heapI.length) {
+        heapI[0] = lastI; heapD[0] = lastD;
+        let p = 0;
+        for (;;) {
+          const l = p * 2 + 1;
+          const r = l + 1;
+          let m = p;
+          if (l < heapD.length && heapD[l] < heapD[m]) m = l;
+          if (r < heapD.length && heapD[r] < heapD[m]) m = r;
+          if (m === p) break;
+          [heapI[p], heapI[m]] = [heapI[m], heapI[p]];
+          [heapD[p], heapD[m]] = [heapD[m], heapD[p]];
+          p = m;
+        }
+      }
+      return top;
+    };
+
+    dist[a.base] = 0;
+    push(a.base, 0);
+    while (heapI.length) {
+      const i = pop();
+      const d = dist[i];
+      const c = i % cols;
+      const r = (i / cols) | 0;
+      for (let k = 0; k < 4; k++) {
+        const nc = c + DX[k];
+        const nr = r + DY[k];
+        const w = costAt(nc, nr);
+        if (w < 0) continue;
+        const j = nr * cols + nc;
+        const nd = d + w;
+        if (dist[j] >= 0 && dist[j] <= nd) continue;
+        dist[j] = nd;
+        push(j, nd);
+      }
+    }
+    this.flow = dist;
+  }
+
+  /** Прямо по курсу целый кирпич — значит, дорогу надо прострелить. */
+  private brickAhead(t: Tank): boolean {
+    const a = this.a;
+    const c = a.cell;
+    const nx = t.x + DX[t.dir] * (TANK / 2 + c * 0.6) + TANK / 2;
+    const ny = t.y + DY[t.dir] * (TANK / 2 + c * 0.6) + TANK / 2;
+    const col = Math.floor(nx / c);
+    const row = Math.floor(ny / c);
+    if (col < 0 || row < 0 || col >= a.cols || row >= a.rows) return false;
+    const i = row * a.cols + col;
+    return a.kind[i] === BRICK && a.mask[i] !== 0;
+  }
+
   private moveEnemy(e: Tank, dt: number) {
     if (this.freezeT > 0) return; // часы: враги стоят
     e.cd -= dt;
@@ -434,7 +541,8 @@ export class Game {
       e.dir = this.pickDir(e);
     }
     const moved = this.step(e, dt);
-    if (!moved) { e.think = 0; e.dir = this.pickDir(e); }
+    // упёрлись в кирпич — не мечемся, а сносим стену: курс держим
+    if (!moved && !this.brickAhead(e)) { e.think = 0; e.dir = this.pickDir(e); }
     if (this.onIce(e) && !moved) e.slide = 0;
     if (e.cd <= 0 && this.wantsShot(e)) {
       e.cd = SPEC[e.kind].cd * rnd(0.75, 1.35);
@@ -443,13 +551,25 @@ export class Game {
   }
 
   private pickDir(e: Tank): number {
-    const bx = (this.a.base % this.a.cols) * this.a.cell;
-    const by = ((this.a.base / this.a.cols) | 0) * this.a.cell;
+    const a = this.a;
     const opts: number[] = [];
-    // к базе тянет, но не всегда — иначе маршрут один и тот же
-    if (Math.random() < 0.62) {
-      if (Math.abs(bx - e.x) > Math.abs(by - e.y)) opts.push(bx < e.x ? 3 : 1, by < e.y ? 0 : 2);
-      else opts.push(by < e.y ? 0 : 2, bx < e.x ? 3 : 1);
+    /* Идём вниз по волне. Небольшая доля случайных поворотов оставлена нарочно:
+       без неё вся волна выстраивается в одну нитку по кратчайшему пути. */
+    if (this.flow && Math.random() > 0.12) {
+      const col = Math.round(e.x / a.cell);
+      const row = Math.round(e.y / a.cell);
+      const here = this.flow[Math.min(a.cols * a.rows - 1, Math.max(0, row * a.cols + col))];
+      let best = -1;
+      let bd = here >= 0 ? here : Infinity;
+      for (const d of [0, 1, 2, 3].sort(() => Math.random() - 0.5)) {
+        const nc = col + DX[d];
+        const nr = row + DY[d];
+        if (nc < 0 || nr < 0 || nc + 1 >= a.cols || nr + 1 >= a.rows) continue;
+        const v = this.flow[nr * a.cols + nc];
+        if (v < 0 || v >= bd) continue;
+        bd = v; best = d;
+      }
+      if (best >= 0) opts.push(best);
     }
     const shuffled = [0, 1, 2, 3].sort(() => Math.random() - 0.5);
     opts.push(...shuffled);
@@ -462,7 +582,8 @@ export class Game {
   }
 
   private wantsShot(e: Tank): boolean {
-    if (Math.random() < 0.22) return true;
+    if (this.brickAhead(e)) return true; // расчищаем себе дорогу к базе
+    if (Math.random() < 0.18) return true;
     const bx = (this.a.base % this.a.cols) * this.a.cell;
     const by = ((this.a.base / this.a.cols) | 0) * this.a.cell;
     const inLine = (tx: number, ty: number) =>
@@ -538,6 +659,7 @@ export class Game {
     if (!shootable(a, c, r)) {
       const res = damage(a, c, r, DX[b.dir], DY[b.dir], b.power);
       this.repaint(r * a.cols + c);
+      this.flowDirty = true; // стена изменилась — волну пересчитать
       if (res === "brick") {
         this.hooks.sfx("brick");
         for (let i = 0; i < 5; i++) {

@@ -264,7 +264,9 @@ export function mount(): () => void {
     elMute.textContent = muted ? "✕" : "♪";
   };
   elMute.addEventListener("click", onMute);
-  const onAgain = () => { over.classList.remove("on"); game?.restart(); };
+  /* «Заново» пересобирает арену целиком, а не только счётчики: игрок вправе
+     ждать, что простреленные стены вернутся на место. */
+  const onAgain = () => { over.classList.remove("on"); build(); };
   over.querySelector(".tk-again")!.addEventListener("click", onAgain);
 
   const onVisibility = () => game?.setHidden(document.hidden);
