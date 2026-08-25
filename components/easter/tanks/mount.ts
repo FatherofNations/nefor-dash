@@ -1,12 +1,14 @@
 "use client";
 /* ═══ Тело пасхалки «Броневик» ═══
-   Как и у башен, подключается ТОЛЬКО динамическим import() — весь движок и
-   стили лежат за ним и обычному посетителю дашборда не достаются. */
+   Подключается только динамическим import() — движок и стили не достаются
+   тем, кто просто открыл дашборд.
+
+   Панель справа собрана по канону: сетка иконок оставшихся врагов, запас
+   машин, флаг волны и счёт. */
 import "@/styles/tanks.css";
 import { buildArena } from "./arena";
-import { Game, Hooks, Stats } from "./game";
+import { Game, Hooks, LEVELS, Stats } from "./game";
 
-/* ── звук: тот же приём, что и в башнях, — короткий синтез без единого файла ── */
 function makeSfx() {
   let ac: AudioContext | null = null;
   let master: GainNode | null = null;
@@ -24,7 +26,7 @@ function makeSfx() {
     master = ac.createGain();
     master.gain.value = 0.1;
     master.connect(ac.destination);
-    const len = ac.sampleRate * 0.4;
+    const len = ac.sampleRate * 0.5;
     noise = ac.createBuffer(1, len, ac.sampleRate);
     const d = noise.getChannelData(0);
     for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
@@ -65,16 +67,20 @@ function makeSfx() {
     play(n: string) {
       if (muted) return;
       const now = performance.now();
-      if (now - (lastAt.get(n) ?? -1e9) < 45) return;
+      if (now - (lastAt.get(n) ?? -1e9) < 40) return;
       lastAt.set(n, now);
       switch (n) {
-        case "shot": tone(660, 240, 0.06, "square", 0.09); break;
-        case "brick": hiss(0.1, 2600, 0.16); break;
-        case "steel": tone(1500, 700, 0.05, "square", 0.07); break;
-        case "boom": hiss(0.26, 1200, 0.3); tone(140, 42, 0.28, "triangle", 0.15); break;
-        case "spawn": tone(300, 900, 0.16, "sawtooth", 0.07); break;
-        case "hurt": hiss(0.34, 900, 0.28); tone(320, 60, 0.36, "sine", 0.18); break;
-        case "vault": tone(200, 40, 0.7, "sawtooth", 0.26); hiss(0.6, 700, 0.24); break;
+        case "shot": tone(620, 220, 0.06, "square", 0.08); break;
+        case "brick": hiss(0.09, 2400, 0.14); break;
+        case "clink": tone(1700, 900, 0.04, "square", 0.06); break;
+        case "boom": hiss(0.24, 1100, 0.26); tone(150, 45, 0.26, "triangle", 0.14); break;
+        case "bigboom": hiss(0.45, 900, 0.34); tone(110, 32, 0.5, "triangle", 0.2); break;
+        case "spawn": tone(280, 820, 0.14, "sawtooth", 0.06); break;
+        case "warn": tone(880, 880, 0.07, "square", 0.05); break;
+        case "bonus": tone(520, 1040, 0.12, "square", 0.07); break;
+        case "pickup": tone(700, 1400, 0.1, "square", 0.09);
+          window.setTimeout(() => !muted && tone(1040, 1560, 0.12, "square", 0.08), 90); break;
+        case "base": tone(180, 36, 0.8, "sawtooth", 0.26); hiss(0.7, 640, 0.24); break;
       }
     },
     resume() { ensure()?.resume?.(); },
@@ -92,23 +98,26 @@ export function mount(): () => void {
   const canvas = document.createElement("canvas");
   canvas.className = "tk-canvas";
 
+  /* Правый борт — как в оригинале: враги, машины, флаг, очки. */
   const hud = document.createElement("div");
   hud.className = "tk-hud";
   hud.innerHTML =
-    `<div class="tk-cell"><span>УРОВЕНЬ</span><b data-f="level">1</b></div>` +
-    `<div class="tk-cell"><span>БРОНЕВИКИ</span><b data-f="lives">3</b></div>` +
-    `<div class="tk-cell"><span>ОСТАЛОСЬ</span><b data-f="left">0</b></div>` +
-    `<div class="tk-cell tk-cell-vault"><span>ХРАНИЛИЩЕ</span><b data-f="vault">цело</b></div>` +
+    `<div class="tk-foes" data-f="foes"></div>` +
+    `<div class="tk-block"><span>IP</span><b data-f="lives">3</b></div>` +
+    `<div class="tk-block tk-flag"><i></i><b data-f="level">1</b></div>` +
+    `<div class="tk-block tk-wide"><span>ОЧКИ</span><b data-f="score">0</b></div>` +
+    `<div class="tk-block tk-wide"><span>ОРУЖИЕ</span><b data-f="weapon">★</b></div>` +
+    `<div class="tk-buttons">` +
     `<button class="tk-btn" data-f="pause" type="button" aria-label="Пауза (P)">❚❚</button>` +
-    `<button class="tk-btn" data-f="mute" type="button" aria-label="Звук">♪</button>`;
+    `<button class="tk-btn" data-f="mute" type="button" aria-label="Звук">♪</button></div>` +
+    `<div class="tk-status" data-f="status"></div>`;
 
   const help = document.createElement("div");
   help.className = "tk-help";
   help.innerHTML =
     `<b>Броневик</b>` +
-    `<p><kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> или <kbd>WASD</kbd> — ехать</p>` +
-    `<p><kbd>Пробел</kbd> — выстрел · <kbd>P</kbd> — пауза</p>` +
-    `<p class="tk-help-note">Кирпич простреливается, сталь — нет. В кустах вас не видно. Не пустите их к хранилищу.</p>`;
+    `<p><kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> / <kbd>WASD</kbd> — ехать · <kbd>Пробел</kbd> — огонь</p>` +
+    `<p class="tk-help-note">Кирпич простреливается, бетон — только со звездой. Вода не пускает танк, лёд заносит, в лесу вас не видно. База внизу — по ней бьют и свои снаряды.</p>`;
 
   const toast = document.createElement("div");
   toast.className = "tk-toast";
@@ -118,18 +127,20 @@ export function mount(): () => void {
   over.className = "tk-over";
   over.innerHTML =
     `<div class="tk-over-in"><b data-f="ot"></b><i data-f="os"></i>` +
-    `<div class="tk-score"><div><span>УРОВЕНЬ</span><b data-f="sl">1</b></div>` +
-    `<div><span>ПОДБИТО</span><b data-f="sk">0</b></div></div>` +
+    `<div class="tk-score"><div><span>ВОЛНА</span><b data-f="sl">1</b></div>` +
+    `<div><span>ОЧКИ</span><b data-f="ss">0</b></div></div>` +
     `<button class="tk-again" type="button">ЗАНОВО</button>` +
-    `<span class="tk-exit">выход — «6», затем «7»</span></div>`;
+    `<span class="tk-exit">выход — Esc или «6», затем «7»</span></div>`;
 
   document.body.append(veil, canvas, hud, help, toast, over);
 
-  const f = (name: string) => document.querySelector<HTMLElement>(`[data-f="${name}"]`)!;
-  const elLevel = f("level");
+  const f = (n: string) => hud.querySelector<HTMLElement>(`[data-f="${n}"]`) ?? over.querySelector<HTMLElement>(`[data-f="${n}"]`)!;
+  const elFoes = f("foes");
   const elLives = f("lives");
-  const elLeft = f("left");
-  const elVault = f("vault");
+  const elLevel = f("level");
+  const elScore = f("score");
+  const elWeapon = f("weapon");
+  const elStatus = f("status");
   const elPause = f("pause") as HTMLButtonElement;
   const elMute = f("mute") as HTMLButtonElement;
 
@@ -144,22 +155,32 @@ export function mount(): () => void {
     void toast.offsetWidth;
     toast.classList.add("on");
     clearTimeout(toastTimer);
-    toastTimer = window.setTimeout(() => toast.classList.remove("on"), 2400);
+    toastTimer = window.setTimeout(() => toast.classList.remove("on"), 2000);
   };
 
+  let lastFoes = -1;
   const onStats = (s: Stats) => {
-    elLevel.textContent = `${s.level} / 10`;
+    if (s.left !== lastFoes) {
+      lastFoes = s.left;
+      // сетка иконок: сколько танков ещё придёт
+      elFoes.innerHTML = Array.from({ length: Math.min(s.left, 24) }, () => `<i></i>`).join("");
+    }
     elLives.textContent = String(Math.max(0, s.lives));
-    elLeft.textContent = String(s.left);
-    elVault.textContent = s.vault ? "цело" : "вскрыто";
-    elVault.classList.toggle("bad", !s.vault);
+    elLevel.textContent = `${s.level}/${s.levels}`;
+    elScore.textContent = String(s.score);
+    elWeapon.textContent = "★".repeat(s.weapon);
     elPause.textContent = s.paused ? "▶" : "❚❚";
     elPause.classList.toggle("on", s.paused);
+    const marks: string[] = [];
+    if (s.shield) marks.push("щит");
+    if (s.freeze) marks.push("стоп");
+    if (!s.base) marks.push("база пала");
+    elStatus.textContent = marks.join(" · ");
     if (s.over && !over.classList.contains("on")) {
       f("ot").textContent = lastToast[0];
       f("os").textContent = lastToast[1];
       f("sl").textContent = String(s.level);
-      f("sk").textContent = String(s.kills);
+      f("ss").textContent = String(s.score);
       over.classList.add("on");
       over.classList.toggle("win", s.over === "win");
     }
@@ -171,12 +192,11 @@ export function mount(): () => void {
     onShake: () => {
       document.body.classList.add("tk-hit");
       clearTimeout(shakeTimer);
-      shakeTimer = window.setTimeout(() => document.body.classList.remove("tk-hit"), 340);
+      shakeTimer = window.setTimeout(() => document.body.classList.remove("tk-hit"), 320);
     },
     sfx: (n) => sfx.play(n),
   };
 
-  /* Панели вырезаем из арены: под ними всё равно ничего не видно. */
   const uiRects = () => [hud.getBoundingClientRect(), help.getBoundingClientRect()];
 
   let game: Game | null = null;
@@ -188,8 +208,9 @@ export function mount(): () => void {
     game.start();
   };
 
-  /* Арену снимаем, когда раскладка встала: закрытие панели инструментов двигает
-     контент своей анимацией, и снимок в следующем кадре был бы кривым. */
+  /* Ждём, пока раскладка встанет: закрытие панели игр двигает контент своей
+     анимацией. Плюс подстраховка таймером — в скрытой вкладке rAF не
+     вызывается вообще, и без неё игрок вернулся бы к пустому экрану. */
   let settleRaf = 0;
   const probe = () => {
     const el = document.querySelector(".content") ?? document.body;
@@ -204,22 +225,12 @@ export function mount(): () => void {
     const now = probe();
     steady = now === lastProbe ? steady + 1 : 0;
     lastProbe = now;
-    if (steady >= 4 || ++frames > 90) {
-      build();
-      return;
-    }
+    if (steady >= 4 || ++frames > 90) return void build();
     settleRaf = requestAnimationFrame(settle);
   };
   settleRaf = requestAnimationFrame(settle);
-  /* Подстраховка по таймеру. В скрытой вкладке requestAnimationFrame не
-     вызывается ВООБЩЕ (не «реже», а ноль раз), и цепочка ожидания раскладки
-     повисает навсегда: игрок вернулся бы к пустому экрану. Таймеры в фоне
-     работают, поэтому через 700 мс собираем арену независимо от кадров. */
-  const safety = window.setTimeout(() => {
-    if (!built) build();
-  }, 700);
+  const safety = window.setTimeout(() => { if (!built) build(); }, 700);
 
-  /* ── ввод ── */
   const MOVE = new Set([
     "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight",
     "KeyW", "KeyA", "KeyS", "KeyD", "Space", "KeyJ",
@@ -229,22 +240,17 @@ export function mount(): () => void {
     if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     if (MOVE.has(e.code)) {
-      // иначе стрелки и пробел прокручивают страницу под игрой
-      e.preventDefault();
+      e.preventDefault(); // иначе стрелки и пробел скроллят страницу под игрой
       sfx.resume();
       game?.key(e.code, true);
       return;
     }
     if (e.code === "KeyP") game?.togglePause();
   };
-  const onUp = (e: KeyboardEvent) => {
-    if (MOVE.has(e.code)) game?.key(e.code, false);
-  };
-  // клавиши слушаем на window: фокус может быть на кнопке HUD
+  const onUp = (e: KeyboardEvent) => { if (MOVE.has(e.code)) game?.key(e.code, false); };
+  const onBlur = () => MOVE.forEach((c) => game?.key(c, false));
   window.addEventListener("keydown", onDown, { passive: false });
   window.addEventListener("keyup", onUp);
-  // потеря фокуса окна оставила бы клавишу «зажатой» навсегда
-  const onBlur = () => MOVE.forEach((c) => game?.key(c, false));
   window.addEventListener("blur", onBlur);
 
   const onPause = () => game?.togglePause();
@@ -257,10 +263,7 @@ export function mount(): () => void {
     elMute.textContent = muted ? "✕" : "♪";
   };
   elMute.addEventListener("click", onMute);
-  const onAgain = () => {
-    over.classList.remove("on");
-    game?.restart();
-  };
+  const onAgain = () => { over.classList.remove("on"); game?.restart(); };
   over.querySelector(".tk-again")!.addEventListener("click", onAgain);
 
   const onVisibility = () => game?.setHidden(document.hidden);
@@ -269,7 +272,6 @@ export function mount(): () => void {
   let resizeTimer = 0;
   const onResize = () => {
     clearTimeout(resizeTimer);
-    // арена печётся из DOM, поэтому при смене размера её проще собрать заново
     resizeTimer = window.setTimeout(build, 200);
   };
   window.addEventListener("resize", onResize);
@@ -290,12 +292,10 @@ export function mount(): () => void {
     game?.destroy();
     game = null;
     sfx.close();
-    veil.remove();
-    canvas.remove();
-    hud.remove();
-    help.remove();
-    toast.remove();
-    over.remove();
+    veil.remove(); canvas.remove(); hud.remove();
+    help.remove(); toast.remove(); over.remove();
     document.body.classList.remove("tk-armed", "tk-hit");
   };
 }
+
+export { LEVELS };

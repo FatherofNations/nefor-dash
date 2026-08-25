@@ -1,99 +1,103 @@
 /* ═══ Движок «Броневика» ═══
-   Местность печётся в два offscreen-слоя: земля (кирпич и сталь) под танками и
-   кроны (кусты) поверх них — из-за этого танк в зарослях видно лишь по стволу.
-   Перерисовывается не весь слой, а одна клетка, в которую попали. */
+   Классический цикл: спавн → движение → стрельба → разрушение карты → бонусы →
+   защита базы → зачистка волны → следующая. Ничего сверх этого: игра должна
+   оставаться быстрой и читаемой, а не превращаться в стратегию.
+
+   Местность печётся в два offscreen-слоя — земля под танками и кроны леса над
+   ними; при попадании перерисовывается одна клетка, а не весь слой. */
 
 import { Baked, bake, pxDot } from "../td/pixel";
-import { TANK_ART, TANK_NEON, TankKind, VAULT_ART, VAULT_DEAD_ART } from "./art";
 import {
-  Arena,
-  BRICK,
-  BL,
-  BR,
-  STEEL,
-  TL,
-  TR,
-  TREES,
-  drivable,
-  hitBrick,
-  shootable,
+  BASE_ART, BASE_DEAD_ART, POWER_ART, PLAYER_UPGRADE, POWER_SCORE,
+  PowerKind, TANK_ART, TankKind,
+} from "./art";
+import {
+  Arena, BRICK, CONCRETE, EMPTY, FOREST, ICE, WATER, TL, TR, BL, BR,
+  damage, drivable, isForest, setBaseWall, shootable, slippery,
 } from "./arena";
 
 const PX = 2;
-const S = 2; // 1 арт-пиксель = 2 CSS-px, танк выходит 32×32
+const S = 2;
 const TANK = 32;
 const TAU = Math.PI * 2;
 const rnd = (a: number, b: number) => a + Math.random() * (b - a);
-
-/** 0 — вверх, 1 — вправо, 2 — вниз, 3 — влево */
 const DX = [0, 1, 0, -1];
 const DY = [-1, 0, 1, 0];
 
 export interface Stats {
   lives: number;
   level: number;
+  levels: number;
   left: number;
-  onField: number;
-  vault: boolean;
+  score: number;
+  weapon: number;
+  shield: boolean;
+  freeze: boolean;
+  base: boolean;
   paused: boolean;
   over: null | "win" | "lose";
-  kills: number;
 }
 
 export interface Hooks {
   onStats: (s: Stats) => void;
   onToast: (title: string, sub?: string) => void;
   onShake: () => void;
-  sfx: (n: "shot" | "brick" | "steel" | "boom" | "spawn" | "hurt" | "vault") => void;
+  sfx: (n: string) => void;
 }
 
 interface Tank {
   kind: TankKind;
-  x: number;
-  y: number;
-  dir: number;
-  speed: number;
-  cd: number;
-  hp: number;
-  think: number;
+  x: number; y: number; dir: number;
+  speed: number; cd: number; hp: number; maxHp: number;
   enemy: boolean;
-  /** неуязвимость после появления, сек */
+  /** сек неуязвимости (шлем или появление) */
   shield: number;
-  frozen: number;
+  /** сек заморозки (часы) */
+  freeze: number;
+  /** остаток инерции на льду */
+  slide: number;
+  think: number;
+  power: number;
+  /** мигает бонусом — с него падает приз */
+  bonus: boolean;
 }
 
 interface Bullet {
-  x: number;
-  y: number;
-  dir: number;
-  enemy: boolean;
-  speed: number;
+  x: number; y: number; dir: number; enemy: boolean;
+  speed: number; power: number; dead: boolean;
 }
+interface Power { kind: PowerKind; x: number; y: number; t: number; life: number }
+interface Boom { x: number; y: number; t: number; kind: "hit" | "tank" | "heavy" }
+interface Mark { x: number; y: number; t: number }
+/** Точка спавна отмигала — через `t` секунд оттуда выедет танк. */
+interface Hatch { x: number; y: number; t: number }
+interface Crumb { x: number; y: number; vx: number; vy: number; t: number }
 
-interface Boom {
-  x: number;
-  y: number;
-  t: number;
-  big: boolean;
-}
-
-const SPEC: Record<TankKind, { speed: number; hp: number; cd: number; bullet: number }> = {
-  player: { speed: 108, hp: 1, cd: 0.42, bullet: 400 },
-  grunt: { speed: 56, hp: 1, cd: 1.5, bullet: 300 },
-  swift: { speed: 104, hp: 1, cd: 1.2, bullet: 380 },
-  armor: { speed: 42, hp: 4, cd: 1.3, bullet: 320 },
+const SPEC: Record<TankKind, {
+  speed: number; hp: number; cd: number; bullet: number; power: number; score: number;
+}> = {
+  player: { speed: 104, hp: 1, cd: 0.40, bullet: 400, power: 1, score: 0 },
+  grunt:  { speed: 52,  hp: 1, cd: 1.5,  bullet: 290, power: 1, score: 100 },
+  swift:  { speed: 108, hp: 1, cd: 1.3,  bullet: 340, power: 1, score: 200 },
+  armor:  { speed: 38,  hp: 4, cd: 1.4,  bullet: 300, power: 1, score: 300 },
+  heavy:  { speed: 44,  hp: 2, cd: 0.9,  bullet: 360, power: 2, score: 400 },
 };
 
-/** Сколько танков и какой смеси приносит уровень. */
-function levelPack(level: number): TankKind[] {
+export const LEVELS = 8;
+const MAX_FIELD = 4;
+
+/** Состав волны: чем дальше, тем больше и тяжелее. */
+function wavePack(level: number): TankKind[] {
   const out: TankKind[] = [];
-  const n = 8 + level * 2;
-  for (let i = 0; i < n; i++) {
+  const total = 8 + level * 2;
+  for (let i = 0; i < total; i++) {
     const r = Math.random();
-    if (level >= 3 && r < 0.18 + level * 0.02) out.push("armor");
-    else if (level >= 2 && r < 0.45) out.push("swift");
+    if (level >= 4 && r < 0.10 + level * 0.02) out.push("heavy");
+    else if (level >= 3 && r < 0.32) out.push("armor");
+    else if (level >= 2 && r < 0.55) out.push("swift");
     else out.push("grunt");
   }
+  // ровно три носителя бонуса на волну — классическая раскладка
   return out;
 }
 
@@ -107,28 +111,38 @@ export class Game {
   private hooks: Hooks;
   private canvas: HTMLCanvasElement;
 
-  private tankArt = new Map<TankKind, Baked>();
-  private vaultArt!: Baked;
-  private vaultDead!: Baked;
+  private tankArt = new Map<string, Baked>();
+  private powerArt = new Map<PowerKind, Baked>();
+  private baseArt!: Baked;
+  private baseDead!: Baked;
   private ground: HTMLCanvasElement | null = null;
   private canopy: HTMLCanvasElement | null = null;
 
   private player: Tank | null = null;
   private enemies: Tank[] = [];
   private bullets: Bullet[] = [];
+  private powers: Power[] = [];
   private booms: Boom[] = [];
+  private marks: Mark[] = [];
+  private hatching: Hatch[] = [];
+  private crumbs: Crumb[] = [];
 
   private queue: TankKind[] = [];
+  private bonusIdx = new Set<number>();
   private level = 1;
   private lives = 3;
-  private kills = 0;
+  private score = 0;
+  private weapon = 1;
   private spawnCd = 0;
   private respawn = 0;
+  private freezeT = 0;
+  private shovelT = 0;
+  private powerCd = rnd(12, 20);
   private paused = false;
   private hidden = false;
   private over: null | "win" | "lose" = null;
   private time = 0;
-  private statTick = 0;
+  private tick = 0;
   private keys = new Set<string>();
 
   constructor(canvas: HTMLCanvasElement, arena: Arena, hooks: Hooks) {
@@ -139,13 +153,23 @@ export class Game {
     for (const k of Object.keys(TANK_ART) as TankKind[]) {
       this.tankArt.set(k, bake(TANK_ART[k], S));
     }
-    this.vaultArt = bake(VAULT_ART, S);
-    this.vaultDead = bake(VAULT_DEAD_ART, S);
+    // ствол игрока крепнет со звёздами — печём четыре варианта
+    for (let lv = 0; lv < PLAYER_UPGRADE.length; lv++) {
+      const base = TANK_ART.player;
+      this.tankArt.set(
+        `player${lv}`,
+        bake({ ...base, ops: [...base.ops, ...PLAYER_UPGRADE[lv]] }, S)
+      );
+    }
+    for (const k of Object.keys(POWER_ART) as PowerKind[]) {
+      this.powerArt.set(k, bake(POWER_ART[k], S));
+    }
+    this.baseArt = bake(BASE_ART, S);
+    this.baseDead = bake(BASE_DEAD_ART, S);
     this.resize();
     this.startLevel(1);
   }
 
-  /* ── жизненный цикл ── */
   start() {
     this.last = performance.now();
     this.pushStats();
@@ -160,10 +184,7 @@ export class Game {
     this.raf = requestAnimationFrame(frame);
   }
 
-  destroy() {
-    this.dead = true;
-    cancelAnimationFrame(this.raf);
-  }
+  destroy() { this.dead = true; cancelAnimationFrame(this.raf); }
 
   resize() {
     const dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -177,47 +198,40 @@ export class Game {
     this.canopy = null;
   }
 
-  setArena(a: Arena) {
-    this.a = a;
-    this.resize();
-  }
-
+  setArena(a: Arena) { this.a = a; this.resize(); }
   setHidden(v: boolean) {
     if (this.hidden === v) return;
     this.hidden = v;
     if (!v) this.last = performance.now();
-    this.pushStats();
   }
-
-  togglePause() {
-    if (this.over) return;
-    this.paused = !this.paused;
-    this.pushStats();
-  }
-
+  togglePause() { if (!this.over) { this.paused = !this.paused; this.pushStats(); } }
   key(code: string, down: boolean) {
     if (down) this.keys.add(code);
     else this.keys.delete(code);
   }
 
   restart() {
-    this.enemies = [];
-    this.bullets = [];
-    this.booms = [];
-    this.lives = 3;
-    this.kills = 0;
-    this.over = null;
-    this.a.vaultAlive = true;
+    this.enemies = []; this.bullets = []; this.powers = [];
+    this.booms = []; this.marks = []; this.crumbs = []; this.hatching = [];
+    this.lives = 3; this.score = 0; this.weapon = 1;
+    this.over = null; this.freezeT = 0; this.shovelT = 0;
+    this.a.baseAlive = true;
+    setBaseWall(this.a, BRICK);
     this.startLevel(1);
     this.pushStats();
   }
 
   private startLevel(n: number) {
     this.level = n;
-    this.queue = levelPack(n);
-    this.spawnCd = 0.6;
+    this.queue = wavePack(n);
+    // трое случайных из волны приносят бонус
+    this.bonusIdx = new Set<number>();
+    while (this.bonusIdx.size < Math.min(3, this.queue.length)) {
+      this.bonusIdx.add((Math.random() * this.queue.length) | 0);
+    }
+    this.spawnCd = 1;
     this.spawnPlayer();
-    this.hooks.onToast(`УРОВЕНЬ ${n}`, `Противников: ${this.queue.length}`);
+    this.hooks.onToast(`ВОЛНА ${n}`, `Танков: ${this.queue.length}`);
   }
 
   private spawnPlayer() {
@@ -226,113 +240,125 @@ export class Game {
       kind: "player",
       x: (i % this.a.cols) * this.a.cell,
       y: ((i / this.a.cols) | 0) * this.a.cell,
-      dir: 0,
-      speed: SPEC.player.speed,
-      cd: 0,
-      hp: 1,
-      think: 0,
-      enemy: false,
-      shield: 2.2,
-      frozen: 0,
+      dir: 0, speed: SPEC.player.speed, cd: 0, hp: 1, maxHp: 1,
+      enemy: false, shield: 2.4, freeze: 0, slide: 0, think: 0,
+      power: this.weapon, bonus: false,
     };
   }
 
   private pushStats() {
     this.hooks.onStats({
-      lives: this.lives,
-      level: this.level,
+      lives: this.lives, level: this.level, levels: LEVELS,
       left: this.queue.length + this.enemies.length,
-      onField: this.enemies.length,
-      vault: this.a.vaultAlive,
-      paused: this.paused,
-      over: this.over,
-      kills: this.kills,
+      score: this.score, weapon: this.weapon,
+      shield: !!this.player && this.player.shield > 0,
+      freeze: this.freezeT > 0,
+      base: this.a.baseAlive,
+      paused: this.paused, over: this.over,
     });
   }
 
   /* ═══ симуляция ═══ */
   private update(dt: number) {
     this.time += dt;
-
-    // подвоз противника: больше четырёх на поле не выпускаем
-    if (this.queue.length && this.enemies.length < 4) {
-      this.spawnCd -= dt;
-      if (this.spawnCd <= 0) {
-        this.spawnCd = 2.2;
-        this.spawnEnemy();
-      }
+    if (this.freezeT > 0) this.freezeT -= dt;
+    if (this.shovelT > 0) {
+      this.shovelT -= dt;
+      if (this.shovelT <= 0) setBaseWall(this.a, BRICK);
     }
 
+    this.updateSpawns(dt);
+    this.updateHatching(dt);
     if (!this.player && this.respawn > 0) {
       this.respawn -= dt;
       if (this.respawn <= 0) this.spawnPlayer();
     }
-
     this.movePlayer(dt);
     for (const e of this.enemies) this.moveEnemy(e, dt);
     this.moveBullets(dt);
-    this.booms = this.booms.filter((b) => (b.t += dt) < (b.big ? 0.55 : 0.3));
+    this.updatePowers(dt);
 
-    if (!this.queue.length && !this.enemies.length && this.over === null) {
-      if (this.level >= 10) {
+    this.booms = this.booms.filter((b) => (b.t += dt) < (b.kind === "hit" ? 0.22 : 0.6));
+    this.marks = this.marks.filter((m) => (m.t += dt) < 1);
+    this.crumbs = this.crumbs.filter((c) => {
+      c.t += dt; c.x += c.vx * dt; c.y += c.vy * dt; c.vy += 260 * dt;
+      return c.t < 0.5;
+    });
+
+    if (!this.queue.length && !this.enemies.length && !this.over) {
+      if (this.level >= LEVELS) {
         this.over = "win";
-        this.hooks.onToast("ХРАНИЛИЩЕ ЦЕЛО", `Десять уровней. Подбито: ${this.kills}`);
-      } else {
-        this.startLevel(this.level + 1);
-      }
+        this.hooks.onToast("БАЗА УДЕРЖАНА", `Все волны отбиты. Очки: ${this.score}`);
+      } else this.startLevel(this.level + 1);
       this.pushStats();
     }
 
-    this.statTick += dt;
-    if (this.statTick > 0.2) {
-      this.statTick = 0;
-      this.pushStats();
-    }
+    this.tick += dt;
+    if (this.tick > 0.2) { this.tick = 0; this.pushStats(); }
   }
 
-  private spawnEnemy() {
-    const kind = this.queue.shift()!;
+  /** Точка спавна сначала мигает, и только потом из неё выезжает танк. */
+  private updateSpawns(dt: number) {
+    if (!this.queue.length || this.enemies.length >= MAX_FIELD) return;
+    this.spawnCd -= dt;
+    if (this.spawnCd > 0) return;
+    // интервал сокращается с волнами — давление на базу растёт
+    this.spawnCd = Math.max(1.1, 3 - this.level * 0.2);
     const spots = this.a.enemySpawns;
     const i = spots[(Math.random() * spots.length) | 0];
     const x = (i % this.a.cols) * this.a.cell;
     const y = ((i / this.a.cols) | 0) * this.a.cell;
-    // не высаживаем прямо в чужую корму
-    for (const o of this.enemies) if (Math.abs(o.x - x) < TANK && Math.abs(o.y - y) < TANK) return;
+    this.marks.push({ x, y, t: 0 });
+    /* Отложенный выезд считаем в игровом времени, а НЕ setTimeout: таймер
+       тикал бы и на паузе, и в свёрнутой вкладке — танк вылезал бы, пока игра
+       стоит. */
+    this.hatching.push({ x, y, t: 0.9 });
+    this.hooks.sfx("warn");
+  }
+
+  private updateHatching(dt: number) {
+    const wait: Hatch[] = [];
+    for (const h of this.hatching) {
+      h.t -= dt;
+      if (h.t > 0) { wait.push(h); continue; }
+      this.hatch(h.x, h.y);
+    }
+    this.hatching = wait;
+  }
+
+  private hatch(x: number, y: number) {
+    if (!this.queue.length) return;
+    const idx = this.queue.length - 1;
+    const kind = this.queue.pop()!;
     const sp = SPEC[kind];
     this.enemies.push({
-      kind,
-      x,
-      y,
-      dir: 2,
-      speed: sp.speed,
-      cd: rnd(0.4, 1.2),
-      hp: sp.hp,
-      think: 0,
-      enemy: true,
-      shield: 0,
-      frozen: 0,
+      kind, x, y, dir: 2, speed: sp.speed, cd: rnd(0.5, 1.4),
+      hp: sp.hp, maxHp: sp.hp, enemy: true, shield: 0, freeze: 0,
+      slide: 0, think: 0, power: sp.power, bonus: this.bonusIdx.has(idx),
     });
-    this.booms.push({ x: x + TANK / 2, y: y + TANK / 2, t: 0, big: false });
     this.hooks.sfx("spawn");
     this.pushStats();
   }
 
-  /** Помещается ли танк левым верхним углом в (x, y). */
   private fits(x: number, y: number): boolean {
     const c = this.a.cell;
-    const c0 = Math.floor(x / c);
-    const c1 = Math.floor((x + TANK - 1) / c);
-    const r0 = Math.floor(y / c);
-    const r1 = Math.floor((y + TANK - 1) / c);
     if (x < 0 || y < 0 || x + TANK > this.a.w || y + TANK > this.a.h) return false;
+    const c0 = Math.floor(x / c), c1 = Math.floor((x + TANK - 1) / c);
+    const r0 = Math.floor(y / c), r1 = Math.floor((y + TANK - 1) / c);
     for (let r = r0; r <= r1; r++) {
       for (let cc = c0; cc <= c1; cc++) if (!drivable(this.a, cc, r)) return false;
+    }
+    // база — тоже препятствие
+    if (this.a.baseAlive) {
+      const bc = this.a.base % this.a.cols, br = (this.a.base / this.a.cols) | 0;
+      const bx = bc * c, by = br * c;
+      if (x < bx + c * 2 && x + TANK > bx && y < by + c * 2 && y + TANK > by) return false;
     }
     return true;
   }
 
-  private blockedByTank(t: Tank, x: number, y: number): boolean {
-    const all: Tank[] = this.player ? [this.player, ...this.enemies] : [...this.enemies];
+  private busy(t: Tank, x: number, y: number): boolean {
+    const all = this.player ? [this.player, ...this.enemies] : this.enemies;
     for (const o of all) {
       if (o === t) continue;
       if (Math.abs(o.x - x) < TANK - 2 && Math.abs(o.y - y) < TANK - 2) return true;
@@ -340,19 +366,9 @@ export class Game {
     return false;
   }
 
-  /** Шаг танка вперёд с прилипанием к половине клетки поперёк движения. */
-  private step(t: Tank, dt: number): boolean {
-    const dist = t.speed * dt;
-    let nx = t.x + DX[t.dir] * dist;
-    let ny = t.y + DY[t.dir] * dist;
-    // подтягиваем поперечную ось к сетке — иначе в проём не попасть никогда
-    const half = this.a.cell / 2;
-    if (DX[t.dir]) ny = this.glide(t.y, half, dist);
-    else nx = this.glide(t.x, half, dist);
-    if (!this.fits(nx, ny) || this.blockedByTank(t, nx, ny)) return false;
-    t.x = nx;
-    t.y = ny;
-    return true;
+  private onIce(t: Tank) {
+    const c = this.a.cell;
+    return slippery(this.a, Math.floor((t.x + TANK / 2) / c), Math.floor((t.y + TANK / 2) / c));
   }
 
   private glide(v: number, grid: number, dist: number) {
@@ -361,179 +377,296 @@ export class Game {
     return v + Math.sign(target - v) * Math.min(Math.abs(target - v), dist);
   }
 
+  /** Шаг вперёд с прилипанием поперечной оси к半-клетке. */
+  private step(t: Tank, dt: number): boolean {
+    const dist = t.speed * dt;
+    let nx = t.x + DX[t.dir] * dist;
+    let ny = t.y + DY[t.dir] * dist;
+    const half = this.a.cell / 2;
+    if (DX[t.dir]) ny = this.glide(t.y, half, dist);
+    else nx = this.glide(t.x, half, dist);
+    if (!this.fits(nx, ny) || this.busy(t, nx, ny)) return false;
+    t.x = nx; t.y = ny;
+    return true;
+  }
+
   private movePlayer(dt: number) {
     const p = this.player;
     if (!p) return;
     if (p.shield > 0) p.shield -= dt;
     p.cd -= dt;
+    p.power = this.weapon;
     const k = this.keys;
     let dir = -1;
     if (k.has("ArrowUp") || k.has("KeyW")) dir = 0;
     else if (k.has("ArrowRight") || k.has("KeyD")) dir = 1;
     else if (k.has("ArrowDown") || k.has("KeyS")) dir = 2;
     else if (k.has("ArrowLeft") || k.has("KeyA")) dir = 3;
+
+    const ice = this.onIce(p);
     if (dir >= 0) {
       p.dir = dir;
       this.step(p, dt);
+      if (ice) p.slide = 0.45; // на льду занос продолжается после отпускания
+    } else if (ice && p.slide > 0) {
+      p.slide -= dt;
+      if (!this.step(p, dt)) p.slide = 0;
+    } else {
+      p.slide = 0;
     }
     if ((k.has("Space") || k.has("KeyJ")) && p.cd <= 0) {
-      p.cd = SPEC.player.cd;
+      p.cd = SPEC.player.cd / (this.weapon >= 2 ? 1.35 : 1);
       this.fire(p);
     }
   }
 
   private moveEnemy(e: Tank, dt: number) {
+    if (this.freezeT > 0) return; // часы: враги стоят
     e.cd -= dt;
     e.think -= dt;
     if (e.think <= 0) {
-      e.think = rnd(0.5, 1.6);
-      e.dir = this.chooseDir(e);
+      // случайность в поведении: иначе все идут одной тропой
+      e.think = rnd(0.4, 1.7);
+      e.dir = this.pickDir(e);
     }
-    if (!this.step(e, dt)) {
-      // упёрлись — думаем раньше срока, иначе танк вязнет в стене
-      e.think = 0;
-      e.dir = this.chooseDir(e);
-    }
+    const moved = this.step(e, dt);
+    if (!moved) { e.think = 0; e.dir = this.pickDir(e); }
+    if (this.onIce(e) && !moved) e.slide = 0;
     if (e.cd <= 0 && this.wantsShot(e)) {
-      e.cd = SPEC[e.kind].cd * rnd(0.8, 1.3);
+      e.cd = SPEC[e.kind].cd * rnd(0.75, 1.35);
       this.fire(e);
     }
   }
 
-  /** Курс: чаще к хранилищу, иногда наугад — иначе все идут гуськом. */
-  private chooseDir(e: Tank): number {
-    const vx = (this.a.vault % this.a.cols) * this.a.cell;
-    const vy = ((this.a.vault / this.a.cols) | 0) * this.a.cell;
+  private pickDir(e: Tank): number {
+    const bx = (this.a.base % this.a.cols) * this.a.cell;
+    const by = ((this.a.base / this.a.cols) | 0) * this.a.cell;
     const opts: number[] = [];
-    if (Math.random() < 0.72) {
-      if (Math.abs(vx - e.x) > Math.abs(vy - e.y)) opts.push(vx < e.x ? 3 : 1, vy < e.y ? 0 : 2);
-      else opts.push(vy < e.y ? 0 : 2, vx < e.x ? 3 : 1);
+    // к базе тянет, но не всегда — иначе маршрут один и тот же
+    if (Math.random() < 0.62) {
+      if (Math.abs(bx - e.x) > Math.abs(by - e.y)) opts.push(bx < e.x ? 3 : 1, by < e.y ? 0 : 2);
+      else opts.push(by < e.y ? 0 : 2, bx < e.x ? 3 : 1);
     }
-    opts.push(0, 1, 2, 3);
+    const shuffled = [0, 1, 2, 3].sort(() => Math.random() - 0.5);
+    opts.push(...shuffled);
     for (const d of opts) {
       const nx = e.x + DX[d] * 3;
       const ny = e.y + DY[d] * 3;
-      if (this.fits(nx, ny) && !this.blockedByTank(e, nx, ny)) return d;
+      if (this.fits(nx, ny) && !this.busy(e, nx, ny)) return d;
     }
-    return (e.dir + 1) % 4;
+    return (e.dir + 2) % 4;
   }
 
-  /** Стреляем, если по курсу игрок, хранилище или просто стена — прогрызём. */
   private wantsShot(e: Tank): boolean {
-    if (Math.random() < 0.25) return true;
-    const p = this.player;
-    const vx = (this.a.vault % this.a.cols) * this.a.cell;
-    const vy = ((this.a.vault / this.a.cols) | 0) * this.a.cell;
-    const aligned = (tx: number, ty: number) => {
-      if (DX[e.dir]) return Math.abs(ty - e.y) < TANK && Math.sign(tx - e.x) === DX[e.dir];
-      return Math.abs(tx - e.x) < TANK && Math.sign(ty - e.y) === DY[e.dir];
-    };
-    if (p && aligned(p.x, p.y)) return true;
-    return aligned(vx, vy);
+    if (Math.random() < 0.22) return true;
+    const bx = (this.a.base % this.a.cols) * this.a.cell;
+    const by = ((this.a.base / this.a.cols) | 0) * this.a.cell;
+    const inLine = (tx: number, ty: number) =>
+      DX[e.dir]
+        ? Math.abs(ty - e.y) < TANK && Math.sign(tx - e.x) === DX[e.dir]
+        : Math.abs(tx - e.x) < TANK && Math.sign(ty - e.y) === DY[e.dir];
+    if (this.player && inLine(this.player.x, this.player.y)) return true;
+    return inLine(bx, by);
   }
 
   private fire(t: Tank) {
     const sp = SPEC[t.kind];
+    const power = t.enemy ? sp.power : this.weapon;
     this.bullets.push({
       x: t.x + TANK / 2 + DX[t.dir] * (TANK / 2),
       y: t.y + TANK / 2 + DY[t.dir] * (TANK / 2),
-      dir: t.dir,
-      enemy: t.enemy,
-      speed: sp.bullet,
+      dir: t.dir, enemy: t.enemy,
+      speed: sp.bullet + (t.enemy ? 0 : (this.weapon - 1) * 40),
+      power, dead: false,
     });
     this.hooks.sfx("shot");
   }
 
   private moveBullets(dt: number) {
-    const live: Bullet[] = [];
     for (const b of this.bullets) {
-      let alive = true;
-      // шагаем мелко, чтобы на скорости не проскочить сквозь стену
-      const steps = Math.max(1, Math.ceil((b.speed * dt) / 6));
-      for (let s = 0; s < steps && alive; s++) {
+      if (b.dead) continue;
+      const steps = Math.max(1, Math.ceil((b.speed * dt) / 5));
+      for (let s = 0; s < steps && !b.dead; s++) {
         b.x += (DX[b.dir] * b.speed * dt) / steps;
         b.y += (DY[b.dir] * b.speed * dt) / steps;
-        alive = this.bulletHit(b);
+        if (!this.bulletAlive(b)) b.dead = true;
       }
-      if (alive) live.push(b);
     }
-    this.bullets = live;
+    // встречные снаряды гасят друг друга
+    for (let i = 0; i < this.bullets.length; i++) {
+      const a = this.bullets[i];
+      if (a.dead) continue;
+      for (let j = i + 1; j < this.bullets.length; j++) {
+        const c = this.bullets[j];
+        if (c.dead || Math.abs(a.x - c.x) > 7 || Math.abs(a.y - c.y) > 7) continue;
+        a.dead = c.dead = true;
+        this.booms.push({ x: (a.x + c.x) / 2, y: (a.y + c.y) / 2, t: 0, kind: "hit" });
+        this.hooks.sfx("clink");
+        break;
+      }
+    }
+    this.bullets = this.bullets.filter((b) => !b.dead);
   }
 
-  /** @returns остался ли снаряд в живых */
-  private bulletHit(b: Bullet): boolean {
+  private bulletAlive(b: Bullet): boolean {
     const a = this.a;
     if (b.x < 0 || b.y < 0 || b.x > a.w || b.y > a.h) return false;
     const c = Math.floor(b.x / a.cell);
     const r = Math.floor(b.y / a.cell);
 
-    // хранилище
-    const vc = a.vault % a.cols;
-    const vr = (a.vault / a.cols) | 0;
-    if (a.vaultAlive && c >= vc && c <= vc + 1 && r >= vr && r <= vr + 1) {
-      a.vaultAlive = false;
-      this.over = "lose";
-      this.booms.push({ x: b.x, y: b.y, t: 0, big: true });
-      this.hooks.sfx("vault");
-      this.hooks.onShake();
-      this.hooks.onToast("ХРАНИЛИЩЕ ВСКРЫТО", `Продержались до уровня ${this.level}.`);
-      this.pushStats();
-      return false;
+    // база бьётся и своим снарядом — как в классике
+    if (a.baseAlive) {
+      const bc = a.base % a.cols, br = (a.base / a.cols) | 0;
+      if (c >= bc && c <= bc + 1 && r >= br && r <= br + 1) {
+        a.baseAlive = false;
+        this.over = "lose";
+        this.booms.push({ x: b.x, y: b.y, t: 0, kind: "heavy" });
+        this.hooks.sfx("base");
+        this.hooks.onShake();
+        this.hooks.onToast("БАЗА УНИЧТОЖЕНА", `Волна ${this.level}. Очки: ${this.score}`);
+        this.pushStats();
+        return false;
+      }
     }
 
     if (!shootable(a, c, r)) {
-      const i = r * a.cols + c;
-      if (a.kind[i] === BRICK) {
-        hitBrick(a, c, r, DX[b.dir], DY[b.dir]);
-        this.repaintCell(i);
+      const res = damage(a, c, r, DX[b.dir], DY[b.dir], b.power);
+      this.repaint(r * a.cols + c);
+      if (res === "brick") {
         this.hooks.sfx("brick");
+        for (let i = 0; i < 5; i++) {
+          this.crumbs.push({
+            x: b.x, y: b.y, vx: rnd(-70, 70), vy: rnd(-110, -30), t: 0,
+          });
+        }
+      } else if (res === "concrete") {
+        this.hooks.sfx("boom");
       } else {
-        this.hooks.sfx("steel");
+        this.hooks.sfx("clink");
       }
-      this.booms.push({ x: b.x, y: b.y, t: 0, big: false });
+      this.booms.push({ x: b.x, y: b.y, t: 0, kind: "hit" });
       return false;
     }
 
-    // танки
-    const hitBox = (t: Tank) =>
+    const box = (t: Tank) =>
       b.x > t.x + 3 && b.x < t.x + TANK - 3 && b.y > t.y + 3 && b.y < t.y + TANK - 3;
     if (!b.enemy) {
       for (const e of this.enemies) {
-        if (!hitBox(e)) continue;
-        e.hp--;
-        this.booms.push({ x: b.x, y: b.y, t: 0, big: e.hp <= 0 });
-        if (e.hp <= 0) {
-          this.enemies = this.enemies.filter((o) => o !== e);
-          this.kills++;
-          this.hooks.sfx("boom");
-          this.pushStats();
-        } else {
-          this.hooks.sfx("steel");
-        }
+        if (!box(e)) continue;
+        e.hp -= b.power >= 2 ? 2 : 1;
+        if (e.hp > 0) { this.hooks.sfx("clink"); this.booms.push({ x: b.x, y: b.y, t: 0, kind: "hit" }); return false; }
+        this.killEnemy(e);
         return false;
       }
     } else {
       const p = this.player;
-      if (p && hitBox(p)) {
+      if (p && box(p)) {
         if (p.shield > 0) return false;
-        this.player = null;
-        this.lives--;
-        this.booms.push({ x: p.x + TANK / 2, y: p.y + TANK / 2, t: 0, big: true });
-        this.hooks.sfx("hurt");
-        this.hooks.onShake();
-        if (this.lives <= 0) {
-          this.over = "lose";
-          this.hooks.onToast("БРОНЕВИК ПОТЕРЯН", `Продержались до уровня ${this.level}.`);
-        } else {
-          this.respawn = 1.4;
-        }
-        this.pushStats();
+        this.hitPlayer();
         return false;
       }
-      // свой своего не бьёт, но снаряд гасится
-      for (const e of this.enemies) if (hitBox(e)) return false;
+      for (const e of this.enemies) if (box(e)) return false;
     }
     return true;
+  }
+
+  private killEnemy(e: Tank) {
+    this.enemies = this.enemies.filter((o) => o !== e);
+    this.score += SPEC[e.kind].score;
+    this.booms.push({
+      x: e.x + TANK / 2, y: e.y + TANK / 2, t: 0,
+      kind: e.kind === "heavy" || e.kind === "armor" ? "heavy" : "tank",
+    });
+    this.hooks.sfx(e.kind === "heavy" ? "bigboom" : "boom");
+    if (e.bonus) this.dropPower();
+    this.pushStats();
+  }
+
+  private hitPlayer() {
+    const p = this.player!;
+    this.player = null;
+    this.lives--;
+    this.weapon = 1; // усиление теряется вместе с машиной
+    this.booms.push({ x: p.x + TANK / 2, y: p.y + TANK / 2, t: 0, kind: "heavy" });
+    this.hooks.sfx("bigboom");
+    this.hooks.onShake();
+    if (this.lives <= 0) {
+      this.over = "lose";
+      this.hooks.onToast("БРОНЕВИКИ КОНЧИЛИСЬ", `Волна ${this.level}. Очки: ${this.score}`);
+    } else this.respawn = 1.5;
+    this.pushStats();
+  }
+
+  /* ── бонусы ── */
+  private updatePowers(dt: number) {
+    this.powerCd -= dt;
+    if (this.powerCd <= 0) { this.powerCd = rnd(14, 26); this.dropPower(); }
+    const live: Power[] = [];
+    for (const p of this.powers) {
+      p.t += dt;
+      if (p.t >= p.life) continue;
+      const pl = this.player;
+      if (pl && Math.abs(pl.x + TANK / 2 - p.x) < 26 && Math.abs(pl.y + TANK / 2 - p.y) < 26) {
+        this.takePower(p.kind);
+        continue;
+      }
+      live.push(p);
+    }
+    this.powers = live;
+  }
+
+  /** Бонус кладём на свободную клетку — никогда внутрь стены. */
+  private dropPower() {
+    const a = this.a;
+    const kinds: PowerKind[] = ["star", "grenade", "helmet", "clock", "shovel", "armor"];
+    for (let tries = 0; tries < 200; tries++) {
+      const c = 1 + ((Math.random() * (a.cols - 3)) | 0);
+      const r = 1 + ((Math.random() * (a.rows - 3)) | 0);
+      if (!drivable(a, c, r) || !drivable(a, c + 1, r) || !drivable(a, c, r + 1)) continue;
+      this.powers.push({
+        kind: kinds[(Math.random() * kinds.length) | 0],
+        x: c * a.cell + a.cell, y: r * a.cell + a.cell,
+        t: 0, life: 12,
+      });
+      this.hooks.sfx("bonus");
+      return;
+    }
+  }
+
+  private takePower(k: PowerKind) {
+    this.score += POWER_SCORE;
+    this.hooks.sfx("pickup");
+    const p = this.player;
+    switch (k) {
+      case "star":
+        this.weapon = Math.min(4, this.weapon + 1);
+        this.hooks.onToast("ЗВЕЗДА", this.weapon >= 4 ? "Максимум: бетон пробивается" : `Оружие ${this.weapon}`);
+        break;
+      case "grenade": {
+        const all = [...this.enemies];
+        for (const e of all) this.killEnemy(e);
+        this.hooks.onToast("ГРАНАТА", "Поле зачищено");
+        break;
+      }
+      case "helmet":
+        if (p) p.shield = 12;
+        this.hooks.onToast("ШЛЕМ", "Неуязвимость 12 с");
+        break;
+      case "clock":
+        this.freezeT = 10;
+        this.hooks.onToast("ЧАСЫ", "Враги замерли");
+        break;
+      case "shovel":
+        setBaseWall(this.a, CONCRETE);
+        this.shovelT = 20;
+        this.hooks.onToast("ЛОПАТА", "Бетон вокруг базы");
+        break;
+      case "armor":
+        if (p) { p.maxHp = 3; p.hp = 3; p.shield = Math.max(p.shield, 3); }
+        this.hooks.onToast("БРОНЯ", "Держит больше попаданий");
+        break;
+    }
+    this.pushStats();
   }
 
   /* ═══ отрисовка ═══ */
@@ -542,12 +675,15 @@ export class Game {
     ctx.clearRect(0, 0, this.a.w, this.a.h);
     if (!this.ground) this.bakeTerrain();
     ctx.drawImage(this.ground!, 0, 0, this.a.w, this.a.h);
-    this.drawVault();
+    this.drawWater();
+    this.drawBase();
+    this.drawPowers();
+    this.drawMarks();
     for (const e of this.enemies) this.drawTank(e);
     if (this.player) this.drawTank(this.player);
     this.drawBullets();
     ctx.drawImage(this.canopy!, 0, 0, this.a.w, this.a.h);
-    this.drawBooms();
+    this.drawFx();
   }
 
   private layer(): [HTMLCanvasElement, CanvasRenderingContext2D] {
@@ -562,14 +698,14 @@ export class Game {
   }
 
   private bakeTerrain() {
-    const [gcv, gg] = this.layer();
-    this.ground = gcv;
+    const [gc, gg] = this.layer();
     const [cc, cg] = this.layer();
+    this.ground = gc;
     this.canopy = cc;
     for (let i = 0; i < this.a.kind.length; i++) this.paint(gg, cg, i);
   }
 
-  private repaintCell(i: number) {
+  private repaint(i: number) {
     if (!this.ground || !this.canopy) return;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     const gg = this.ground.getContext("2d")!;
@@ -584,9 +720,7 @@ export class Game {
     this.paint(gg, cg, i);
   }
 
-  /* Плитка кладётся полупрозрачной: под кирпичом должно просвечивать, что это
-     баннер, а под сталью — сайдбар. Иначе от «полигона на дашборде» остаётся
-     просто полигон, и связь с интерфейсом теряется. */
+  /* Плитка полупрозрачная: под ней должен читаться дашборд — он и есть арена. */
   private paint(g: CanvasRenderingContext2D, cg: CanvasRenderingContext2D, i: number) {
     const a = this.a;
     const c = a.cell;
@@ -597,100 +731,168 @@ export class Game {
       const q = c / 2;
       const put = (bit: number, qx: number, qy: number) => {
         if (!(a.mask[i] & bit)) return;
-        g.fillStyle = "rgba(138, 74, 38, 0.84)";
+        g.fillStyle = "rgba(150, 72, 34, 0.88)";
         g.fillRect(qx, qy, q, q);
-        g.fillStyle = "rgba(181, 106, 60, 0.8)";
-        for (let ry = 0; ry < q; ry += 4) g.fillRect(qx, qy + ry, q, 3);
-        g.fillStyle = "rgba(74, 36, 16, 0.9)";
+        g.fillStyle = "rgba(198, 110, 62, 0.9)";
+        for (let ry = 0; ry < q; ry += 4) g.fillRect(qx + (ry % 8 ? 0 : 1), qy + ry, q - 1, 3);
+        g.fillStyle = "rgba(70, 32, 14, 0.9)";
         g.fillRect(qx, qy + q - 1, q, 1);
         g.fillRect(qx + q - 1, qy, 1, q);
       };
-      put(TL, x, y);
-      put(TR, x + q, y);
-      put(BL, x, y + q);
-      put(BR, x + q, y + q);
-    } else if (k === STEEL) {
-      g.fillStyle = "rgba(90, 103, 136, 0.72)";
+      put(TL, x, y); put(TR, x + q, y); put(BL, x, y + q); put(BR, x + q, y + q);
+    } else if (k === CONCRETE) {
+      g.fillStyle = "rgba(150, 156, 164, 0.9)";
       g.fillRect(x, y, c, c);
-      g.fillStyle = "rgba(139, 154, 196, 0.8)";
-      g.fillRect(x + 1, y + 1, c - 2, 2);
-      g.fillRect(x + 1, y + 1, 2, c - 2);
-      g.fillStyle = "rgba(45, 54, 78, 0.8)";
-      g.fillRect(x + c - 3, y + 2, 2, c - 4);
-      g.fillRect(x + 2, y + c - 3, c - 4, 2);
-    } else if (k === TREES) {
-      cg.fillStyle = "rgba(28, 74, 24, 0.7)";
+      g.fillStyle = "rgba(220, 224, 230, 0.95)";
+      g.fillRect(x + 1, y + 1, c - 3, 2);
+      g.fillRect(x + 1, y + 1, 2, c - 3);
+      g.fillStyle = "rgba(88, 94, 102, 0.95)";
+      g.fillRect(x + c - 3, y + 2, 2, c - 3);
+      g.fillRect(x + 2, y + c - 3, c - 3, 2);
+    } else if (k === ICE) {
+      g.fillStyle = "rgba(196, 226, 240, 0.62)";
+      g.fillRect(x, y, c, c);
+      g.fillStyle = "rgba(255, 255, 255, 0.75)";
+      g.fillRect(x + 2, y + 2, 4, 1);
+      g.fillRect(x + c - 7, y + c - 5, 5, 1);
+      g.fillRect(x + 3, y + c - 6, 1, 3);
+    } else if (k === FOREST) {
+      cg.fillStyle = "rgba(28, 84, 26, 0.72)";
       cg.fillRect(x, y, c, c);
-      cg.fillStyle = "rgba(63, 138, 48, 0.78)";
+      cg.fillStyle = "rgba(58, 140, 44, 0.8)";
       for (let ry = 0; ry < c; ry += 4) {
         for (let rx = (ry / 4) % 2 ? 0 : 2; rx < c; rx += 4) cg.fillRect(x + rx, y + ry, 3, 3);
       }
     }
   }
 
-  private drawVault() {
+  /** Вода живёт волной, поэтому рисуется в кадре, а не печётся. */
+  private drawWater() {
     const a = this.a;
-    const x = (a.vault % a.cols) * a.cell;
-    const y = ((a.vault / a.cols) | 0) * a.cell;
-    const art = a.vaultAlive ? this.vaultArt : this.vaultDead;
-    this.ctx.drawImage(art.c, Math.round(x), Math.round(y));
-    if (a.vaultAlive) {
-      const p = 0.4 + Math.sin(this.time * 3) * 0.3;
-      this.ctx.strokeStyle = `rgba(182, 255, 61, ${p})`;
-      this.ctx.lineWidth = 1;
-      this.ctx.strokeRect(x - 1.5, y - 1.5, TANK + 3, TANK + 3);
+    const ctx = this.ctx;
+    const c = a.cell;
+    for (let i = 0; i < a.kind.length; i++) {
+      if (a.kind[i] !== WATER) continue;
+      const x = (i % a.cols) * c;
+      const y = ((i / a.cols) | 0) * c;
+      ctx.fillStyle = "rgba(24, 68, 150, 0.72)";
+      ctx.fillRect(x, y, c, c);
+      ctx.fillStyle = "rgba(90, 160, 230, 0.85)";
+      const ph = Math.sin(this.time * 2.2 + (x + y) * 0.05) * 2;
+      ctx.fillRect(x + 2, y + 4 + ph, c - 6, 1);
+      ctx.fillRect(x + 4, y + 10 - ph, c - 8, 1);
+    }
+  }
+
+  private drawBase() {
+    const a = this.a;
+    const x = (a.base % a.cols) * a.cell;
+    const y = ((a.base / a.cols) | 0) * a.cell;
+    this.ctx.drawImage((a.baseAlive ? this.baseArt : this.baseDead).c, Math.round(x), Math.round(y));
+  }
+
+  private drawMarks() {
+    for (const m of this.marks) {
+      // предупреждение: точка спавна мигает звездой перед выездом
+      const k = m.t / 1;
+      const r = 8 + Math.sin(this.time * 30) * 4;
+      this.ctx.save();
+      this.ctx.globalAlpha = 1 - k * 0.4;
+      this.ctx.strokeStyle = "#f0c419";
+      this.ctx.lineWidth = 2;
+      this.ctx.beginPath();
+      for (let s = 0; s < 4; s++) {
+        const ang = (s / 4) * TAU + this.time * 6;
+        this.ctx.moveTo(m.x + 16, m.y + 16);
+        this.ctx.lineTo(m.x + 16 + Math.cos(ang) * r, m.y + 16 + Math.sin(ang) * r);
+      }
+      this.ctx.stroke();
+      this.ctx.restore();
+    }
+  }
+
+  private drawPowers() {
+    for (const p of this.powers) {
+      const left = p.life - p.t;
+      // перед исчезновением бонус мигает
+      if (left < 3 && Math.floor(left * 8) % 2 === 0) continue;
+      const art = this.powerArt.get(p.kind)!;
+      const pop = p.t < 0.3 ? 0.4 + (p.t / 0.3) * 0.6 : 1;
+      this.ctx.save();
+      this.ctx.translate(p.x, p.y);
+      this.ctx.scale(pop, pop);
+      this.ctx.drawImage(art.c, -art.w / 2, -art.h / 2);
+      this.ctx.restore();
     }
   }
 
   private drawTank(t: Tank) {
     const ctx = this.ctx;
-    const baked = this.tankArt.get(t.kind)!;
-    // мигание неуязвимости после появления
-    if (t.shield > 0 && Math.floor(t.shield * 12) % 2 === 0) return;
+    if (t.shield > 0 && Math.floor(t.shield * 12) % 2 === 0 && t.shield < 2.4) return;
+    const key = t.enemy ? t.kind : `player${Math.min(3, this.weapon - 1)}`;
+    const baked = this.tankArt.get(key) ?? this.tankArt.get(t.kind)!;
     ctx.save();
     ctx.translate(Math.round(t.x) + TANK / 2, Math.round(t.y) + TANK / 2);
     ctx.rotate((t.dir * Math.PI) / 2);
+    // в лесу танк почти не виден — только силуэт
+    const c = this.a.cell;
+    const hidden = isForest(this.a, Math.floor((t.x + TANK / 2) / c), Math.floor((t.y + TANK / 2) / c));
+    ctx.globalAlpha = hidden ? 0.25 : 1;
     ctx.drawImage(baked.c, -baked.w / 2, -baked.h / 2);
+    ctx.globalAlpha = 1;
     ctx.restore();
     if (t.shield > 0) {
-      ctx.strokeStyle = "rgba(165, 247, 255, 0.9)";
-      ctx.lineWidth = 1;
-      ctx.strokeRect(t.x - 1.5, t.y - 1.5, TANK + 3, TANK + 3);
+      ctx.strokeStyle = "rgba(189, 234, 255, 0.9)";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(t.x - 2, t.y - 2, TANK + 4, TANK + 4);
+    }
+    if (t.enemy && t.bonus && Math.floor(this.time * 6) % 2 === 0) {
+      ctx.strokeStyle = "#e04b3a";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(t.x - 2, t.y - 2, TANK + 4, TANK + 4);
+    }
+    if (t.enemy && t.maxHp > 1) {
+      // сколько брони осталось — полоска над корпусом
+      const wdt = TANK * (t.hp / t.maxHp);
+      ctx.fillStyle = "rgba(0,0,0,0.6)";
+      ctx.fillRect(t.x, t.y - 5, TANK, 3);
+      ctx.fillStyle = "#59b04a";
+      ctx.fillRect(t.x, t.y - 5, wdt, 3);
     }
   }
 
   private drawBullets() {
     for (const b of this.bullets) {
-      pxDot(this.ctx, b.x, b.y, 2, b.enemy ? "#ffb3a6" : "#ffffff", PX);
-      pxDot(this.ctx, b.x, b.y, 1, b.enemy ? "#ff5a4a" : "#a5f7ff", PX);
+      pxDot(this.ctx, b.x, b.y, b.power >= 2 ? 3 : 2, "#ffffff", PX);
+      pxDot(this.ctx, b.x, b.y, 1, b.enemy ? "#ffc0b0" : "#f0c419", PX);
     }
   }
 
-  private drawBooms() {
+  private drawFx() {
     const ctx = this.ctx;
+    for (const c of this.crumbs) {
+      ctx.globalAlpha = 1 - c.t / 0.5;
+      pxDot(ctx, c.x, c.y, 1, "#c66e3e", PX);
+      ctx.globalAlpha = 1;
+    }
     for (const b of this.booms) {
-      const dur = b.big ? 0.55 : 0.3;
+      const dur = b.kind === "hit" ? 0.22 : 0.6;
       const k = b.t / dur;
-      const r = (b.big ? 26 : 11) * (0.35 + k);
+      const big = b.kind === "heavy";
+      const r = (b.kind === "hit" ? 8 : big ? 30 : 18) * (0.35 + k);
       ctx.save();
       ctx.globalAlpha = 1 - k;
       ctx.globalCompositeOperation = "lighter";
-      const n = b.big ? 10 : 5;
+      const n = b.kind === "hit" ? 4 : big ? 12 : 8;
       for (let i = 0; i < n; i++) {
-        const ang = (i / n) * TAU + k * 2;
-        pxDot(
-          ctx,
-          b.x + Math.cos(ang) * r,
-          b.y + Math.sin(ang) * r,
-          k < 0.4 ? 3 : 2,
-          k < 0.35 ? "#fff3c4" : k < 0.7 ? "#ffb03a" : "#a8360f",
-          PX
-        );
+        const ang = (i / n) * TAU + k * 1.6;
+        pxDot(ctx, b.x + Math.cos(ang) * r, b.y + Math.sin(ang) * r,
+          k < 0.4 ? 3 : 2, k < 0.3 ? "#fff6cf" : k < 0.65 ? "#f0a23c" : "#a8360f", PX);
       }
-      pxDot(ctx, b.x, b.y, b.big ? 4 : 3, k < 0.5 ? "#ffffff" : "#ffd23d", PX);
+      pxDot(ctx, b.x, b.y, big ? 5 : 3, k < 0.5 ? "#ffffff" : "#f0c419", PX);
       ctx.restore();
     }
   }
 }
 
-export { TANK_NEON };
+export { EMPTY };
