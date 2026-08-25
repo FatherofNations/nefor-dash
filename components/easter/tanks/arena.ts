@@ -40,7 +40,7 @@ const TERRAIN: [string, number, number?, number?][] = [
   [".ob-cell .ob-ico, .ob-cell .progress", BRICK, 12, 12],
   // трава должна закрывать подпись целиком, а не половину строки
   [".hello, .chip.luck", FOREST],
-  [".ob-cell .ob-txt", FOREST, 10, 10],
+  [".ob-cell .ob-txt", FOREST, 10, 0],
   [".tabs", CONCRETE],
   // бетонная полоса задач укорочена с торцов на четыре клетки
   [".tasks-row", CONCRETE, -4 * CELL, 0],
@@ -71,7 +71,7 @@ export interface Arena {
   seams: Seam[];
 }
 
-export interface Seam { x: number; y0: number; y1: number }
+export interface Seam { x0: number; x1: number; y0: number; y1: number }
 
 interface Box { x: number; y: number; w: number; h: number; kind: number }
 
@@ -91,17 +91,6 @@ function collect(w: number, h: number): Box[] {
       out.push({ x: r.left - ax, y: r.top - ay, w: r.width + ax * 2, h: r.height + ay * 2, kind });
     });
   }
-
-  /* Средний баннер при зазоре в пол-клетки не дотягивается до собственных
-     краёв, и сквозь кирпич проглядывает карточка. Даём ему по клетке с каждой
-     стороны: соседей он при этом касается, пустой колонки между ними не будет. */
-  const banners = [...document.querySelectorAll<HTMLElement>(".banners > .banner")];
-  banners.forEach((el, i) => {
-    if (i === 0 || i === banners.length - 1 || !visible(el)) return;
-    const r = el.getBoundingClientRect();
-    if (r.right <= 0 || r.bottom <= 0 || r.left >= w || r.top >= h) return;
-    out.push({ x: r.left - CELL, y: r.top, w: r.width + CELL * 2, h: r.height, kind: BRICK });
-  });
 
   /* Вода в баннере — окном РОВНО ПО ЦЕНТРУ. Раньше она бралась по подписи
      .b-sub, а та прижата влево, и окно съезжало к краю вместо того, чтобы
@@ -144,31 +133,6 @@ export function buildArena(w: number, h: number, reserved: DOMRect[] = []): Aren
     const r1 = Math.max(r0, Math.ceil((b.y + b.h) / cell) - 1);
     return { b, c0, c1, r0, r1 };
   });
-
-  const GAP = 4; // с какого зазора в вёрстке считаем, что блоки надо разделить
-  for (const A of gb) {
-    for (const B of gb) {
-      /* Разделяем однотипные блоки и вдобавок кирпич с травой: обе фактуры
-         плотные и вплотную читаются как одна плита. Бетон и вода в разделении
-         не участвуют — они и так отличаются, а полоса пустоты только
-         обгрызала бы край соседа. */
-      if (A === B) continue;
-      const solid = (k: number) => k === BRICK || k === FOREST;
-      if (A.b.kind !== B.b.kind && !(solid(A.b.kind) && solid(B.b.kind))) continue;
-      const ar = A.b.x + A.b.w;
-      if (ar + GAP <= B.b.x && A.r1 >= B.r0 && B.r1 >= A.r0) {
-        const sep = Math.floor((ar + B.b.x) / 2 / cell);
-        if (A.c1 >= sep) A.c1 = sep - 1;
-        if (B.c0 <= sep) B.c0 = sep + 1;
-      }
-      const ab = A.b.y + A.b.h;
-      if (ab + GAP <= B.b.y && A.c1 >= B.c0 && B.c1 >= A.c0) {
-        const sep = Math.floor((ab + B.b.y) / 2 / cell);
-        if (A.r1 >= sep) A.r1 = sep - 1;
-        if (B.r0 <= sep) B.r0 = sep + 1;
-      }
-    }
-  }
 
   for (const g of gb) {
     for (let r = Math.max(0, g.r0); r <= Math.min(rows - 1, g.r1); r++) {
@@ -422,19 +386,52 @@ export function buildArena(w: number, h: number, reserved: DOMRect[] = []): Aren
     }
   }
 
-  /* Швы между баннерами. Средний баннер занимает и зазорные клетки — иначе его
-     края остаются голыми и сквозь кирпич проглядывает карточка. Но тогда три
-     баннера сливаются в одну плиту, поэтому границу рисуем отдельной линией
-     ровно по месту зазора в вёрстке: покрытие полное, а деление видно. */
+  /* ── швы ──
+     Зазор между соседними блоками в вёрстке — 12 px, а клетка 24. Пустой
+     колонкой такое не выразить: она либо съедает край соседа (у зелёного чипа
+     так и оставалась голая полоска), либо не помещается вовсе. Поэтому блоки
+     кроются целиком, а зазор ПРОРЕЗАЕТСЯ в плитке по своей настоящей ширине.
+     Режем только между плотными фактурами — кирпичом и травой: бетон с водой
+     и так различимы. */
   const seams: Seam[] = [];
-  const bn = [...document.querySelectorAll<HTMLElement>(".banners > .banner")].filter((el) =>
-    el.checkVisibility({ opacityProperty: true, visibilityProperty: true })
-  );
-  for (let i = 0; i + 1 < bn.length; i++) {
-    const l = bn[i].getBoundingClientRect();
-    const r = bn[i + 1].getBoundingClientRect();
-    if (r.left - l.right < 1 || r.left - l.right > cell) continue;
-    seams.push({ x: (l.right + r.left) / 2, y0: Math.min(l.top, r.top), y1: Math.max(l.bottom, r.bottom) });
+  const dense = (k: number) => k === BRICK || k === FOREST;
+  /* Режем не всякий зазор, а только тот, что иначе затянется. Если в клетке
+     посередине зазора лежит третья местность — скажем, травяные островки на
+     карточке разделены водой, — блоки и так не слипаются, и шрам там лишний. */
+  const merges = (px: number, py: number, ka: number, kb: number) => {
+    const c = Math.floor(px / cell);
+    const r = Math.floor(py / cell);
+    if (c < 0 || r < 0 || c >= cols || r >= rows) return false;
+    /* Внутри крупной плиты — воды или льда — не режем вовсе: прорезь показала
+       бы сам дашборд, и вместо зазора получается светлый шрам поперёк воды. */
+    for (const b of boxes) {
+      if (b.kind !== WATER && b.kind !== ICE) continue;
+      if (px > b.x && px < b.x + b.w && py > b.y && py < b.y + b.h) return false;
+    }
+    const k = kind[r * cols + c];
+    return k === ka || k === kb;
+  };
+  for (const A of boxes) {
+    if (!dense(A.kind)) continue;
+    for (const B of boxes) {
+      if (A === B || !dense(B.kind)) continue;
+      const gapX = B.x - (A.x + A.w);
+      if (gapX > 0 && gapX <= cell) {
+        const y0 = Math.max(A.y, B.y);
+        const y1 = Math.min(A.y + A.h, B.y + B.h);
+        if (y1 - y0 > cell / 2 && merges(A.x + A.w + gapX / 2, (y0 + y1) / 2, A.kind, B.kind)) {
+          seams.push({ x0: A.x + A.w, x1: B.x, y0, y1 });
+        }
+      }
+      const gapY = B.y - (A.y + A.h);
+      if (gapY > 0 && gapY <= cell) {
+        const x0 = Math.max(A.x, B.x);
+        const x1 = Math.min(A.x + A.w, B.x + B.w);
+        if (x1 - x0 > cell / 2 && merges((x0 + x1) / 2, A.y + A.h + gapY / 2, A.kind, B.kind)) {
+          seams.push({ x0, x1, y0: A.y + A.h, y1: B.y });
+        }
+      }
+    }
   }
 
   return {
