@@ -294,21 +294,39 @@ export function mount(): () => void {
       b.c.style.height = `${b.c.height / 2}px`;
       host.appendChild(b.c);
     });
-    /* Бестиарий стоит колонкой над колодой: высота колоды известна только
+    /* Бестиарий стоит колонкой над колодой. Высота колоды известна только
        после вёрстки, поэтому отступ снизу проставляем здесь. Габарит берём
        через offsetWidth/Height — getBoundingClientRect в этот момент вернул бы
        смещение от ещё идущей анимации появления. */
-    const deckH = build.offsetHeight;
-    bestiary.style.bottom = `${deckH + 20}px`;
-    const bestiaryBox = {
-      x: 14,
-      y: window.innerHeight - (deckH + 20) - bestiary.offsetHeight,
-      width: bestiary.offsetWidth,
-      height: bestiary.offsetHeight,
-    };
-    // габарит развёрнутого снят — сворачиваем; из поля вырезан всё равно он
     bestiary.classList.remove("open");
     bestiary.querySelector(".td-best-head")!.setAttribute("aria-expanded", "false");
+    const bestiaryW = bestiary.offsetWidth;
+
+    /* Позиция пересчитывается и при ресайзе: на невысоком окне колода занимает
+       почти всю высоту, и «над колодой» оказывается ЗА верхней кромкой экрана.
+       Так бестиарий и пропадал — уезжал в минус по top. Поэтому отступ снизу
+       зажимаем так, чтобы шапка всегда осталась в кадре; если места нет, панель
+       ложится поверх верхних карточек — это заметно хуже, чем исчезнуть. */
+    const GAP = 20;
+    const EDGE = 10;
+    let bestiaryBox = { x: 14, y: 0, width: bestiaryW, height: 0 };
+    const placeBestiary = () => {
+      const headH = bestiary.offsetHeight; // свёрнутый: только шапка
+      const want = build.offsetHeight + GAP;
+      const room = window.innerHeight - headH - EDGE;
+      const bottom = Math.max(EDGE, Math.min(want, room));
+      bestiary.style.bottom = `${bottom}px`;
+      /* Из поля вырезаем СВЁРНУТЫЙ габарит, а не развёрнутый: на коротком окне
+         развёрнутый съел бы половину игровой зоны. Раскрытую панель игрок
+         открывает сам и сам закрывает — недолгое перекрытие поля переживём. */
+      bestiaryBox = {
+        x: 14,
+        y: window.innerHeight - bottom - headH,
+        width: bestiaryW,
+        height: headH,
+      };
+    };
+    placeBestiary();
 
     /* ── игра ── */
     let game: Game | null = null;
@@ -677,6 +695,7 @@ export function mount(): () => void {
     };
     let anchor = anchorOf();
     const resnap = () => {
+      placeBestiary(); // окно изменилось — панель могла уехать за кромку
       game?.setField(buildField(window.innerWidth, window.innerHeight, uiRects()));
       anchor = anchorOf();
     };
