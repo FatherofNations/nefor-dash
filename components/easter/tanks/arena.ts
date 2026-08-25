@@ -67,11 +67,7 @@ export interface Arena {
   baseWall: number;
   playerSpawn: number;
   enemySpawns: number[];
-  /** тонкие швы поверх плитки — там, где в вёрстке зазор, а в сетке его нет */
-  seams: Seam[];
 }
-
-export interface Seam { x0: number; x1: number; y0: number; y1: number }
 
 interface Box { x: number; y: number; w: number; h: number; kind: number }
 
@@ -386,56 +382,8 @@ export function buildArena(w: number, h: number, reserved: DOMRect[] = []): Aren
     }
   }
 
-  /* ── швы ──
-     Зазор между соседними блоками в вёрстке — 12 px, а клетка 24. Пустой
-     колонкой такое не выразить: она либо съедает край соседа (у зелёного чипа
-     так и оставалась голая полоска), либо не помещается вовсе. Поэтому блоки
-     кроются целиком, а зазор ПРОРЕЗАЕТСЯ в плитке по своей настоящей ширине.
-     Режем только между плотными фактурами — кирпичом и травой: бетон с водой
-     и так различимы. */
-  const seams: Seam[] = [];
-  const dense = (k: number) => k === BRICK || k === FOREST;
-  /* Режем не всякий зазор, а только тот, что иначе затянется. Если в клетке
-     посередине зазора лежит третья местность — скажем, травяные островки на
-     карточке разделены водой, — блоки и так не слипаются, и шрам там лишний. */
-  const merges = (px: number, py: number, ka: number, kb: number) => {
-    const c = Math.floor(px / cell);
-    const r = Math.floor(py / cell);
-    if (c < 0 || r < 0 || c >= cols || r >= rows) return false;
-    /* Внутри крупной плиты — воды или льда — не режем вовсе: прорезь показала
-       бы сам дашборд, и вместо зазора получается светлый шрам поперёк воды. */
-    for (const b of boxes) {
-      if (b.kind !== WATER && b.kind !== ICE) continue;
-      if (px > b.x && px < b.x + b.w && py > b.y && py < b.y + b.h) return false;
-    }
-    const k = kind[r * cols + c];
-    return k === ka || k === kb;
-  };
-  for (const A of boxes) {
-    if (!dense(A.kind)) continue;
-    for (const B of boxes) {
-      if (A === B || !dense(B.kind)) continue;
-      const gapX = B.x - (A.x + A.w);
-      if (gapX > 0 && gapX <= cell) {
-        const y0 = Math.max(A.y, B.y);
-        const y1 = Math.min(A.y + A.h, B.y + B.h);
-        if (y1 - y0 > cell / 2 && merges(A.x + A.w + gapX / 2, (y0 + y1) / 2, A.kind, B.kind)) {
-          seams.push({ x0: A.x + A.w, x1: B.x, y0, y1 });
-        }
-      }
-      const gapY = B.y - (A.y + A.h);
-      if (gapY > 0 && gapY <= cell) {
-        const x0 = Math.max(A.x, B.x);
-        const x1 = Math.min(A.x + A.w, B.x + B.w);
-        if (x1 - x0 > cell / 2 && merges((x0 + x1) / 2, A.y + A.h + gapY / 2, A.kind, B.kind)) {
-          seams.push({ x0, x1, y0: A.y + A.h, y1: B.y });
-        }
-      }
-    }
-  }
-
   return {
-    cell, cols, rows, w, h, kind, mask, seams,
+    cell, cols, rows, w, h, kind, mask,
     base, baseAlive: true, baseWall: BRICK,
     playerSpawn, enemySpawns,
   };

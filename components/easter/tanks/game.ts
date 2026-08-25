@@ -849,16 +849,6 @@ export class Game {
     this.ground = gc;
     this.canopy = cc;
     for (let i = 0; i < this.a.kind.length; i++) this.paint(gg, cg, i);
-    /* Швы прорезаем насквозь — и в земле, и в кроне: сквозь них виден сам
-       дашборд, и зазор читается ровно такой, какой он в вёрстке. */
-    for (const s of this.a.seams) {
-      const x = Math.round(s.x0);
-      const wid = Math.max(2, Math.round(s.x1) - x);
-      const y = Math.round(s.y0);
-      const hei = Math.max(2, Math.round(s.y1) - y);
-      gg.clearRect(x, y, wid, hei);
-      cg.clearRect(x, y, wid, hei);
-    }
   }
 
   private repaint(i: number) {
@@ -874,16 +864,6 @@ export class Game {
     gg.clearRect(x, y, c, c);
     cg.clearRect(x, y, c, c);
     this.paint(gg, cg, i);
-    // клетка перерисована — шов, проходящий по ней, надо прорезать заново
-    for (const s of this.a.seams) {
-      if (s.x1 <= x || s.x0 >= x + c || s.y1 <= y || s.y0 >= y + c) continue;
-      const sx = Math.round(s.x0);
-      const sw = Math.max(2, Math.round(s.x1) - sx);
-      const sy = Math.round(s.y0);
-      const sh = Math.max(2, Math.round(s.y1) - sy);
-      gg.clearRect(sx, sy, sw, sh);
-      cg.clearRect(sx, sy, sw, sh);
-    }
   }
 
   /* Плитка полупрозрачная: под ней должен читаться дашборд — он и есть арена. */
