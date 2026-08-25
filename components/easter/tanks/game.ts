@@ -74,6 +74,7 @@ interface Boom { x: number; y: number; t: number; kind: "hit" | "tank" | "heavy"
 interface Mark { x: number; y: number; t: number }
 /** Точка спавна отмигала — через `t` секунд оттуда выедет танк. */
 interface Hatch { x: number; y: number; t: number }
+interface DOMRectLike { x: number; y: number; w: number; h: number }
 interface Crumb { x: number; y: number; vx: number; vy: number; t: number }
 
 const SPEC: Record<TankKind, {
@@ -849,6 +850,21 @@ export class Game {
     this.ground = gc;
     this.canopy = cc;
     for (let i = 0; i < this.a.kind.length; i++) this.paint(gg, cg, i);
+    this.cutSeams(gg, cg);
+  }
+
+  /** Прорези режем насквозь — и в земле, и в кроне: сквозь них виден дашборд. */
+  private cutSeams(gg: CanvasRenderingContext2D, cg: CanvasRenderingContext2D, only?: DOMRectLike) {
+    for (const s of this.a.seams) {
+      if (only && (s.x1 <= only.x || s.x0 >= only.x + only.w
+        || s.y1 <= only.y || s.y0 >= only.y + only.h)) continue;
+      const x = Math.round(s.x0);
+      const wid = Math.max(2, Math.round(s.x1) - x);
+      const y = Math.round(s.y0);
+      const hei = Math.max(2, Math.round(s.y1) - y);
+      gg.clearRect(x, y, wid, hei);
+      cg.clearRect(x, y, wid, hei);
+    }
   }
 
   private repaint(i: number) {
@@ -864,6 +880,8 @@ export class Game {
     gg.clearRect(x, y, c, c);
     cg.clearRect(x, y, c, c);
     this.paint(gg, cg, i);
+    // клетку перерисовали — проходящую по ней прорезь надо восстановить
+    this.cutSeams(gg, cg, { x, y, w: c, h: c });
   }
 
   /* Плитка полупрозрачная: под ней должен читаться дашборд — он и есть арена. */

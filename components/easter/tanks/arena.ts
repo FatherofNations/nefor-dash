@@ -67,7 +67,11 @@ export interface Arena {
   baseWall: number;
   playerSpawn: number;
   enemySpawns: number[];
+  /** прорези в плитке по зазорам вёрстки — насквозь, до самого дашборда */
+  seams: Seam[];
 }
+
+export interface Seam { x0: number; x1: number; y0: number; y1: number }
 
 interface Box { x: number; y: number; w: number; h: number; kind: number }
 
@@ -382,8 +386,49 @@ export function buildArena(w: number, h: number, reserved: DOMRect[] = []): Aren
     }
   }
 
+  /* ── прорези ──
+     Зазор между соседними блоками в вёрстке — 12 px, а клетка карты 24: пустой
+     колонкой его не выразить. Поэтому блоки кроются целиком, а зазор режется
+     прямо в плитке насквозь, по своей настоящей ширине.
+
+     Длина прорези считается по СЕТКЕ, а не по прямоугольникам из вёрстки.
+     Плитка выходит за края блока на пол-клетки, и прорезь по краям блоков
+     оказывалась короче кирпича — сверху и снизу оставались перемычки, и
+     баннеры всё равно висели сцепленными. */
+  const seams: Seam[] = [];
+  const dense = (k: number) => k === BRICK || k === FOREST;
+  const merges = (px: number, py: number, ka: number, kb: number) => {
+    const c = Math.floor(px / cell);
+    const r = Math.floor(py / cell);
+    if (c < 0 || r < 0 || c >= cols || r >= rows) return false;
+    const k = kind[r * cols + c];
+    return k === ka || k === kb;
+  };
+  for (const A of gb) {
+    if (!dense(A.b.kind)) continue;
+    for (const B of gb) {
+      if (A === B || !dense(B.b.kind)) continue;
+      const gapX = B.b.x - (A.b.x + A.b.w);
+      if (gapX > 0 && gapX <= cell && A.r1 >= B.r0 && B.r1 >= A.r0) {
+        const y0 = Math.min(A.r0, B.r0) * cell;
+        const y1 = (Math.max(A.r1, B.r1) + 1) * cell;
+        if (merges(A.b.x + A.b.w + gapX / 2, (y0 + y1) / 2, A.b.kind, B.b.kind)) {
+          seams.push({ x0: A.b.x + A.b.w, x1: B.b.x, y0, y1 });
+        }
+      }
+      const gapY = B.b.y - (A.b.y + A.b.h);
+      if (gapY > 0 && gapY <= cell && A.c1 >= B.c0 && B.c1 >= A.c0) {
+        const x0 = Math.min(A.c0, B.c0) * cell;
+        const x1 = (Math.max(A.c1, B.c1) + 1) * cell;
+        if (merges((x0 + x1) / 2, A.b.y + A.b.h + gapY / 2, A.b.kind, B.b.kind)) {
+          seams.push({ x0, x1, y0: A.b.y + A.b.h, y1: B.b.y });
+        }
+      }
+    }
+  }
+
   return {
-    cell, cols, rows, w, h, kind, mask,
+    cell, cols, rows, w, h, kind, mask, seams,
     base, baseAlive: true, baseWall: BRICK,
     playerSpawn, enemySpawns,
   };
