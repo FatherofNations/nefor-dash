@@ -101,6 +101,19 @@ export default function ToolsPanel() {
               Защита счёта: дашборд становится ночным кварталом — зазоры между
               блоками это улицы, по ним к балансу бегут списания.
             </p>
+            <button
+              className={"twk-slot" + (easterTool === "tanks" ? " armed" : "")}
+              onClick={() => setEasterTool(easterTool === "tanks" ? null : "tanks")}
+              aria-label="Броневик"
+              title="Броневик"
+            >
+              <img src="/assets/easter/tank-icon.svg" alt="" width="40" height="40" />
+            </button>
+            <p className="twk-egg-hint">
+              Броневик: дашборд становится полигоном. Карточки — кирпич, его
+              простреливают; сайдбар и табы — сталь. Стрелки или WASD — ехать,
+              пробел — огонь. Не пустите их к хранилищу у баланса.
+            </p>
             {SHOW_PICKAXE && <p className="twk-egg-count">Добыто: {minedCount}/4</p>}
           </div>
         </aside>
