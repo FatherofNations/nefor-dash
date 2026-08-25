@@ -71,11 +71,7 @@ export interface Arena {
   seams: Seam[];
 }
 
-export interface Seam {
-  x0: number; x1: number; y0: number; y1: number;
-  /** прорезь лежит на водяной плите — её заливаем водой, а не оставляем дыркой */
-  water: boolean;
-}
+export interface Seam { x0: number; x1: number; y0: number; y1: number }
 
 interface Box { x: number; y: number; w: number; h: number; kind: number }
 
@@ -406,6 +402,19 @@ export function buildArena(w: number, h: number, reserved: DOMRect[] = []): Aren
   /** Прорезь посреди водяной плиты должна остаться водой, а не дыркой в карте. */
   const onWater = (px: number, py: number) =>
     boxes.some((b) => b.kind === WATER && px > b.x && px < b.x + b.w && py > b.y && py < b.y + b.h);
+  /* На воде не режем пиксели, а заливаем КЛЕТКИ целиком. Прорезь шла по зазору
+     из вёрстки, а плитка выходит за габарит блока на пол-клетки — по краям
+     оставались кирпичные огрызки. Клетками выходит ровно, и танк сквозь такую
+     воду не проедет, как и положено. */
+  const floodWater = (px0: number, px1: number, py0: number, py1: number) => {
+    const c0 = Math.floor(px0 / cell);
+    const c1 = Math.ceil(px1 / cell) - 1;
+    const r0 = Math.floor(py0 / cell);
+    const r1 = Math.ceil(py1 / cell) - 1;
+    for (let r = Math.max(0, r0); r <= Math.min(rows - 1, r1); r++) {
+      for (let c = Math.max(0, c0); c <= Math.min(cols - 1, c1); c++) set(r * cols + c, WATER);
+    }
+  };
   const merges = (px: number, py: number, ka: number, kb: number) => {
     const c = Math.floor(px / cell);
     const r = Math.floor(py / cell);
@@ -423,7 +432,8 @@ export function buildArena(w: number, h: number, reserved: DOMRect[] = []): Aren
         const y1 = (Math.max(A.r1, B.r1) + 1) * cell;
         const mx = A.b.x + A.b.w + gapX / 2;
         if (merges(mx, (y0 + y1) / 2, A.b.kind, B.b.kind)) {
-          seams.push({ x0: A.b.x + A.b.w, x1: B.b.x, y0, y1, water: onWater(mx, (y0 + y1) / 2) });
+          if (onWater(mx, (y0 + y1) / 2)) floodWater(A.b.x + A.b.w, B.b.x, y0, y1);
+          else seams.push({ x0: A.b.x + A.b.w, x1: B.b.x, y0, y1 });
         }
       }
       const gapY = B.b.y - (A.b.y + A.b.h);
@@ -432,7 +442,8 @@ export function buildArena(w: number, h: number, reserved: DOMRect[] = []): Aren
         const x1 = (Math.max(A.c1, B.c1) + 1) * cell;
         const my = A.b.y + A.b.h + gapY / 2;
         if (merges((x0 + x1) / 2, my, A.b.kind, B.b.kind)) {
-          seams.push({ x0, x1, y0: A.b.y + A.b.h, y1: B.b.y, water: onWater((x0 + x1) / 2, my) });
+          if (onWater((x0 + x1) / 2, my)) floodWater(x0, x1, A.b.y + A.b.h, B.b.y);
+          else seams.push({ x0, x1, y0: A.b.y + A.b.h, y1: B.b.y });
         }
       }
     }
