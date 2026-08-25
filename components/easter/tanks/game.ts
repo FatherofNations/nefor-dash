@@ -733,13 +733,28 @@ export class Game {
     const live: Power[] = [];
     for (const p of this.powers) {
       p.t += dt;
-      if (p.t >= p.life) continue;
-      const pl = this.player;
-      if (pl && Math.abs(pl.x + TANK / 2 - p.x) < 38 && Math.abs(pl.y + TANK / 2 - p.y) < 38) {
-        this.takePower(p.kind);
-        continue;
+      if (p.t < p.life) live.push(p);
+    }
+    /* Берём БЛИЖАЙШИЙ бонус, а не первый попавшийся в списке. Радиус подбора
+       шире танка, и когда рядом лежали два приза, срабатывал тот, что старше:
+       наезжаешь на гранату, а применяется лопата. */
+    const pl = this.player;
+    if (pl) {
+      const cx = pl.x + TANK / 2;
+      const cy = pl.y + TANK / 2;
+      let take = -1;
+      let bd = Infinity;
+      for (let i = 0; i < live.length; i++) {
+        const dx = Math.abs(live[i].x - cx);
+        const dy = Math.abs(live[i].y - cy);
+        if (dx > 32 || dy > 32) continue;
+        const d = dx * dx + dy * dy;
+        if (d < bd) { bd = d; take = i; }
       }
-      live.push(p);
+      if (take >= 0) {
+        const [got] = live.splice(take, 1);
+        this.takePower(got.kind);
+      }
     }
     this.powers = live;
   }
@@ -975,9 +990,12 @@ export class Game {
 
   private drawBase() {
     const a = this.a;
-    const x = (a.base % a.cols) * a.cell;
-    const y = ((a.base / a.cols) | 0) * a.cell;
-    this.ctx.drawImage((a.baseAlive ? this.baseArt : this.baseDead).c, Math.round(x), Math.round(y));
+    const art = a.baseAlive ? this.baseArt : this.baseDead;
+    /* Спрайт шире клеток на обводку, поэтому кладём его ПО ЦЕНТРУ блока 2×2, а
+       не от угла: иначе логотип сидит со сдвигом вправо-вниз и выглядит криво. */
+    const cx = (a.base % a.cols) * a.cell + a.cell;
+    const cy = ((a.base / a.cols) | 0) * a.cell + a.cell;
+    this.ctx.drawImage(art.c, Math.round(cx - art.w / 2), Math.round(cy - art.h / 2));
   }
 
   private drawMarks() {

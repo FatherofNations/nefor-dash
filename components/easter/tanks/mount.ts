@@ -109,6 +109,7 @@ export function mount(): () => void {
     `<div class="tk-block tk-wide"><span>ОЧКИ</span><b data-f="score">0</b></div>` +
     `<div class="tk-block tk-wide"><span>ОРУЖИЕ</span><b data-f="weapon">★</b></div>` +
     `<div class="tk-buttons">` +
+    `<button class="tk-btn" data-f="again" type="button" aria-label="Начать заново">⟲</button>` +
     `<button class="tk-btn" data-f="pause" type="button" aria-label="Пауза (P)">❚❚</button>` +
     `<button class="tk-btn" data-f="mute" type="button" aria-label="Звук">♪</button></div>` +
     `<div class="tk-status" data-f="status"></div>`;
@@ -143,6 +144,7 @@ export function mount(): () => void {
   const elWeapon = f("weapon");
   const elStatus = f("status");
   const elPause = f("pause") as HTMLButtonElement;
+  const elAgain = f("again") as HTMLButtonElement;
   const elMute = f("mute") as HTMLButtonElement;
 
   let toastTimer = 0;
@@ -232,6 +234,23 @@ export function mount(): () => void {
   settleRaf = requestAnimationFrame(settle);
   const safety = window.setTimeout(() => { if (!built) build(); }, 700);
 
+  /* Подстраховка от поздней вёрстки: картинки и шрифты догружаются уже после
+     того, как раскладка «устоялась», и карта оказывается снята с прежних
+     координат — блоки уезжают на клетку-другую. Первые секунды после запуска
+     следим за контентом и пересобираем арену. Дальше не трогаем: пересборка
+     начинает партию заново, и посреди игры это было бы хуже смещения. */
+  const startedAt = performance.now();
+  let settleTimer = 0;
+  const content = document.querySelector(".content");
+  const ro = content
+    ? new ResizeObserver(() => {
+        if (!built || performance.now() - startedAt > 3000) return;
+        clearTimeout(settleTimer);
+        settleTimer = window.setTimeout(build, 120);
+      })
+    : null;
+  ro?.observe(content!);
+
   const MOVE = new Set([
     "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight",
     "KeyW", "KeyA", "KeyS", "KeyD", "Space", "KeyJ",
@@ -268,6 +287,7 @@ export function mount(): () => void {
      ждать, что простреленные стены вернутся на место. */
   const onAgain = () => { over.classList.remove("on"); build(); };
   over.querySelector(".tk-again")!.addEventListener("click", onAgain);
+  elAgain.addEventListener("click", onAgain);
 
   const onVisibility = () => game?.setHidden(document.hidden);
   document.addEventListener("visibilitychange", onVisibility);
@@ -282,6 +302,8 @@ export function mount(): () => void {
   return () => {
     cancelAnimationFrame(settleRaf);
     clearTimeout(safety);
+    clearTimeout(settleTimer);
+    ro?.disconnect();
     clearTimeout(toastTimer);
     clearTimeout(shakeTimer);
     clearTimeout(resizeTimer);
@@ -291,6 +313,7 @@ export function mount(): () => void {
     window.removeEventListener("resize", onResize);
     document.removeEventListener("visibilitychange", onVisibility);
     elPause.removeEventListener("click", onPause);
+    elAgain.removeEventListener("click", onAgain);
     elMute.removeEventListener("click", onMute);
     game?.destroy();
     game = null;

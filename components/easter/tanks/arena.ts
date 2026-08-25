@@ -30,13 +30,17 @@ export const FULL = TL | TR | BL | BR;
    иконки и подписи на ней остаются островками кирпича и травы. Сайдбар взят
    одной бетонной плитой целиком: внутренние .sb-* нарочно не перечислены,
    иначе они разбили бы её на лоскуты. */
-const TERRAIN: [string, number][] = [
+const TERRAIN: [string, number, number?][] = [
   [".ob-card", WATER],
   [
-    ".banners > .banner, .chips .chip, .sec-head, .rail-pill, .ai-card, .widget, .wg2, .wg3, .m2-card, .ob-cell .ob-ico, .ob-cell .progress, .feed .filters, .feed .table",
+    ".banners > .banner, .chips .chip, .sec-head, .rail-pill, .ai-card, .widget, .wg2, .wg3, .m2-card, .feed .filters, .feed .table, .spot, .nb-ico",
     BRICK,
   ],
-  [".hello, .chip.luck, .ob-cell .ob-txt", FOREST],
+  // островки на воде: иконка мелкая, поэтому раздуваем её до трёх клеток
+  [".ob-cell .ob-ico, .ob-cell .progress", BRICK, 12],
+  // трава должна закрывать подпись целиком, а не половину строки
+  [".hello, .chip.luck", FOREST],
+  [".ob-cell .ob-txt", FOREST, 10],
   // строка задач вместе со звёздочкой и «Больше» — одна бетонная полоса
   [".tabs, .tasks-row", CONCRETE],
   // вода внутри кирпичного баннера — окно в стене
@@ -70,14 +74,15 @@ interface Box { x: number; y: number; w: number; h: number; kind: number }
 
 function collect(w: number, h: number): Box[] {
   const out: Box[] = [];
-  for (const [sel, kind] of TERRAIN) {
+  for (const [sel, kind, grow] of TERRAIN) {
     document.querySelectorAll<HTMLElement>(sel).forEach((el) => {
       // скрытые пейны лежат в DOM поверх активного — иначе замуруют пол-карты
       if (!el.checkVisibility({ opacityProperty: true, visibilityProperty: true })) return;
       const r = el.getBoundingClientRect();
       if (r.width < 10 || r.height < 8) return;
       if (r.right <= 0 || r.bottom <= 0 || r.left >= w || r.top >= h) return;
-      out.push({ x: r.left, y: r.top, w: r.width, h: r.height, kind });
+      const g = grow ?? 0;
+      out.push({ x: r.left - g, y: r.top - g, w: r.width + g * 2, h: r.height + g * 2, kind });
     });
   }
   return out;
@@ -92,24 +97,49 @@ export function buildArena(w: number, h: number, reserved: DOMRect[] = []): Aren
   const mask = new Uint8Array(n);
   const boxes = collect(w, h);
 
-  /* Блок забирает только те клетки, что укладываются в него ЦЕЛИКОМ.
-     Раньше клетка красилась по своему центру, и зазор в 12 px между соседними
-     баннерами при клетке в 24 px центра не содержал — соседи сливались в одну
-     плиту, причём то сливались, то нет, в зависимости от того, куда попала
-     сетка. Так границы стоят ровно всегда. */
-  for (const b of boxes) {
-    let c0 = Math.ceil(b.x / cell);
-    let c1 = Math.floor((b.x + b.w) / cell) - 1;
-    let r0 = Math.ceil(b.y / cell);
-    let r1 = Math.floor((b.y + b.h) / cell) - 1;
-    // мелочь, в которую не влезает ни одной целой клетки, берёт свою серединную
-    if (c1 < c0) c0 = c1 = Math.floor((b.x + b.w / 2) / cell);
-    if (r1 < r0) r0 = r1 = Math.floor((b.y + b.h / 2) / cell);
-    for (let r = Math.max(0, r0); r <= Math.min(rows - 1, r1); r++) {
-      for (let c = Math.max(0, c0); c <= Math.min(cols - 1, c1); c++) {
+  /* Растеризация в два прохода.
+     Первый: границы округляются до ближайшей клетки, поэтому блок покрывается
+     целиком — раньше края обгрызались и в баннерах зияли проплешины.
+     Второй: там, где в вёрстке между блоками есть зазор, между их клетками
+     принудительно оставляем пустую полосу. Без этого соседние баннеры слились
+     бы в одну плиту — зазор в 12 px меньше клетки в 24. */
+  const gb = boxes.map((b) => {
+    // округляем НАРУЖУ: блок должен закрываться целиком, без полоски по краю
+    const c0 = Math.floor(b.x / cell);
+    const c1 = Math.max(c0, Math.ceil((b.x + b.w) / cell) - 1);
+    const r0 = Math.floor(b.y / cell);
+    const r1 = Math.max(r0, Math.ceil((b.y + b.h) / cell) - 1);
+    return { b, c0, c1, r0, r1 };
+  });
+
+  const GAP = 4; // с какого зазора в вёрстке считаем, что блоки надо разделить
+  for (const A of gb) {
+    for (const B of gb) {
+      /* Разделяем только ОДНОТИПНЫЕ блоки: два кирпичных баннера рядом слились
+         бы в одну плиту, а кирпич с бетоном и так различимы — там полоса
+         пустоты только обгрызала бы край. */
+      if (A === B || A.b.kind !== B.b.kind) continue;
+      const ar = A.b.x + A.b.w;
+      if (ar + GAP <= B.b.x && A.r1 >= B.r0 && B.r1 >= A.r0) {
+        const sep = Math.floor((ar + B.b.x) / 2 / cell);
+        if (A.c1 >= sep) A.c1 = sep - 1;
+        if (B.c0 <= sep) B.c0 = sep + 1;
+      }
+      const ab = A.b.y + A.b.h;
+      if (ab + GAP <= B.b.y && A.c1 >= B.c0 && B.c1 >= A.c0) {
+        const sep = Math.floor((ab + B.b.y) / 2 / cell);
+        if (A.r1 >= sep) A.r1 = sep - 1;
+        if (B.r0 <= sep) B.r0 = sep + 1;
+      }
+    }
+  }
+
+  for (const g of gb) {
+    for (let r = Math.max(0, g.r0); r <= Math.min(rows - 1, g.r1); r++) {
+      for (let c = Math.max(0, g.c0); c <= Math.min(cols - 1, g.c1); c++) {
         const i = r * cols + c;
-        kind[i] = b.kind;
-        mask[i] = b.kind === BRICK ? FULL : 0;
+        kind[i] = g.b.kind;
+        mask[i] = g.b.kind === BRICK ? FULL : 0;
       }
     }
   }
@@ -164,6 +194,10 @@ export function buildArena(w: number, h: number, reserved: DOMRect[] = []): Aren
     column(sb.right + 4, ct.left - 4, 0.02, 0.22);
     column(sb.right + 4, ct.left - 4, 0.26, 0.36);
   }
+  if (ct && w - ct.right > cell * 2) {
+    column(ct.right + 4, w - 4, 0.02, 0.22);
+    column(ct.right + 4, w - 4, 0.26, 0.36);
+  }
 
   /* ── площадка базы ──
      На схеме под базой лёд, и он выходит из-под кирпичного квадрата по бокам.
@@ -172,13 +206,40 @@ export function buildArena(w: number, h: number, reserved: DOMRect[] = []): Aren
   const obc = rectOf(".ob-card");
   const wishCol = obc ? Math.round((obc.left + obc.width / 2) / cell) : (cols / 2) | 0;
   const wishRow = obc ? Math.round((obc.top + obc.height / 2) / cell) : (rows / 2) | 0;
-  for (let dy = -COLLAR - 4; dy <= COLLAR + 3; dy++) {
-    for (let dx = -COLLAR - 7; dx <= COLLAR + 8; dx++) {
-      const x = wishCol + dx;
-      const y = wishRow + dy;
-      if (x < 1 || y < 1 || x >= cols - 1 || y >= rows - 1) continue;
-      // стелем поверх всего, кроме бетона: на схеме середина нижней полосы —
-      // чистый лёд, островки остались только в боковых водяных третях
+
+  /* Лёд держим строго в границах карточки, отступы слева и справа делаем
+     одинаковыми до клетки: раньше он вылезал на кирпичную стену сверху, а вода
+     по бокам выходила разной ширины. Ширина — треть карточки, как на схеме.
+     Границы берём внутрь (ceil сверху, floor снизу), чтобы не задеть стену. */
+  let iceC0 = wishCol - 6;
+  let iceC1 = wishCol + 6;
+  let iceR0 = wishRow - 4;
+  let iceR1 = wishRow + 4;
+  if (obc) {
+    const cardC0 = Math.ceil(obc.left / cell);
+    const cardC1 = Math.floor(obc.right / cell) - 1;
+    const cardW = cardC1 - cardC0 + 1;
+    const want = Math.max(COLLAR * 2 + 7, Math.round(cardW / 3));
+    const pad = Math.max(0, Math.floor((cardW - want) / 2));
+    iceC0 = cardC0 + pad;
+    iceC1 = cardC1 - pad;
+    /* По вертикали лёд идёт во всю высоту карточки — ровно так на схеме.
+       Зажимать его внутрь нельзя: вокруг двора остаётся водяной ободок, двор
+       отрезается от остальной карты, и ни база туда не сядет, ни танк оттуда
+       не выедет. Сверху двор упирается в кирпичную стену, а её простреливают. */
+    iceR0 = Math.floor(obc.top / cell);
+    iceR1 = Math.ceil(obc.bottom / cell) - 1;
+  }
+  /* База по центру двора, но не выше, чем нужно: над её воротником должно
+     остаться два ряда под пятачок игрока, иначе он оказывается замурован в
+     собственной стене. Снизу воротник тоже держим внутри двора. */
+  const baseWishCol = (iceC0 + iceC1 - 1) >> 1;
+  const baseWishRow = Math.min(
+    Math.max(iceR1 - COLLAR - 1, iceR0),
+    Math.max((iceR0 + iceR1 - 1) >> 1, iceR0 + COLLAR + 2)
+  );
+  for (let y = Math.max(1, iceR0); y <= Math.min(rows - 2, iceR1); y++) {
+    for (let x = Math.max(1, iceC0); x <= Math.min(cols - 2, iceC1); x++) {
       if (kind[y * cols + x] === CONCRETE) continue;
       set(y * cols + x, ICE);
     }
@@ -234,18 +295,31 @@ export function buildArena(w: number, h: number, reserved: DOMRect[] = []): Aren
   for (let i = 1; i < sizes.length; i++) if (sizes[i] > sizes[field]) field = i;
 
   /** Ближайшая к желаемому месту стоянка на главном поле, мимо запретной зоны. */
-  const spotNear = (col: number, row: number, skip?: (c: number, r: number) => boolean) => {
+  const noBrick = (c: number, r: number) => {
+    for (let dy = 0; dy < 2; dy++) {
+      for (let dx = 0; dx < 2; dx++) if (kind[(r + dy) * cols + c + dx] === BRICK) return false;
+    }
+    return true;
+  };
+  /* Сначала ищем место на чистой земле и только потом — где придётся. Иначе
+     выезд врага мог попасть в середину баннера и выгрызть в нём дыру. */
+  const spotNear = (
+    col: number, row: number,
+    skip?: (c: number, r: number) => boolean, clean = true
+  ): number => {
     let best = -1;
     let bd = Infinity;
     for (let i = 0; i < n; i++) {
       if (comp[i] !== field) continue;
       if (skip && skip(i % cols, (i / cols) | 0)) continue;
+      if (clean && !noBrick(i % cols, (i / cols) | 0)) continue;
       const dc = (i % cols) - col;
       const dr = ((i / cols) | 0) - row;
       const d = dc * dc + dr * dr;
       if (d < bd) { bd = d; best = i; }
     }
     if (best >= 0) return best;
+    if (clean) return spotNear(col, row, skip, false);
     // вырожденный случай: свободных стоянок нет вовсе — расчищаем принудительно
     const c = Math.max(1, Math.min(cols - 3, col));
     const r = Math.max(1, Math.min(rows - 3, row));
@@ -256,7 +330,11 @@ export function buildArena(w: number, h: number, reserved: DOMRect[] = []): Aren
      База стоит в середине карточки онбординга — как нарисовано: по центру
      контента и в нижней трети. Если карточки нет (узкое окно, другой таб),
      падаем на центр экрана. */
-  const base = spotNear(wishCol, wishRow);
+  /* Двор гарантированно проезжий, поэтому базу ставим прямо в вычисленную
+     точку. spotNear нужен только когда карточки онбординга нет вовсе. */
+  const base = obc
+    ? Math.max(0, Math.min(n - 1, baseWishRow * cols + baseWishCol))
+    : spotNear(baseWishCol, baseWishRow);
   const baseCol = base % cols;
   const baseRow = (base / cols) | 0;
 
@@ -266,7 +344,9 @@ export function buildArena(w: number, h: number, reserved: DOMRect[] = []): Aren
     c + 1 >= baseCol - COLLAR && c <= baseCol + COLLAR + 1 &&
     r + 1 >= baseRow - COLLAR && r <= baseRow + COLLAR + 1;
 
-  const playerSpawn = spotNear(baseCol, baseRow - COLLAR - 3, inCollar);
+  // игрок встаёт на лёд внутри двора, а не в стене: стена должна быть сплошной
+  const playerSpawn = Math.max(0, Math.min(n - 1,
+    Math.max(iceR0, baseRow - COLLAR - 2) * cols + baseCol));
   // семь точек выезда, доли взяты со схемы: верх, оба поля и середина
   const enemySpawns = ([
     [0.32, 0.07], [0.89, 0.07], [0.39, 0.19], [0.82, 0.19],
@@ -288,16 +368,21 @@ export function buildArena(w: number, h: number, reserved: DOMRect[] = []): Aren
     }
   }
 
-  /* Бетонная затычка над пятачком игрока — на схеме серый кусок в кирпичной
-     стене ровно над жёлтым квадратом: укрытие на старте. */
-  {
-    const pc = playerSpawn % cols;
-    const pr = (playerSpawn / cols) | 0;
-    for (let x = pc; x <= pc + 1; x++) {
-      const y = pr - 1;
-      if (y < 0 || x >= cols) continue;
-      if (kind[y * cols + x] === BRICK) set(y * cols + x, CONCRETE);
+  // игрок стоит на льду, а не на голой земле
+  for (let dy = 0; dy < 2; dy++) {
+    for (let dx = 0; dx < 2; dx++) {
+      const x = (playerSpawn % cols) + dx;
+      const y = ((playerSpawn / cols) | 0) + dy;
+      if (x < cols && y < rows) set(y * cols + x, ICE);
     }
+  }
+
+  /* Бетонная затычка в кирпичной стене ровно над базой — как на схеме.
+     Ищем ближайший кирпичный ряд выше двора и врезаем в него две клетки. */
+  for (let y = iceR0 - 1; y >= Math.max(0, iceR0 - 4); y--) {
+    if (kind[y * cols + baseCol] !== BRICK) continue;
+    for (let x = baseCol; x <= baseCol + 1 && x < cols; x++) set(y * cols + x, CONCRETE);
+    break;
   }
 
   return {
