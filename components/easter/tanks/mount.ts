@@ -98,7 +98,8 @@ export function mount(): () => void {
   const canvas = document.createElement("canvas");
   canvas.className = "tk-canvas";
 
-  /* Правый борт — как в оригинале: враги, машины, флаг, очки. */
+  /* Панель сверху по центру: там же, где в обороне счёта, и садится она на
+     бетон над заголовком — карта под ней всё равно вырезана. */
   const hud = document.createElement("div");
   hud.className = "tk-hud";
   hud.innerHTML =
@@ -117,7 +118,7 @@ export function mount(): () => void {
   help.innerHTML =
     `<b>Броневик</b>` +
     `<p><kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> / <kbd>WASD</kbd> — ехать · <kbd>Пробел</kbd> — огонь</p>` +
-    `<p class="tk-help-note">Кирпич простреливается, бетон — только со звездой. Вода не пускает танк, лёд заносит, в лесу вас не видно. База внизу — по ней бьют и свои снаряды.</p>`;
+    `<p class="tk-help-note">Кирпич простреливается, бетон — только со звездой. Вода не пускает танк, лёд заносит, в лесу вас почти не видно. База в середине карты — по ней бьют и свои снаряды.</p>`;
 
   const toast = document.createElement("div");
   toast.className = "tk-toast";

@@ -23,16 +23,18 @@ export const BR = 8;
 export const FULL = TL | TR | BL | BR;
 
 /* Раскладка дашборда → местность. Порядок важен: что ниже, то и побеждает при
-   наложении, поэтому бетон объявлен последним. */
+   наложении. Поэтому крупный блок объявляется раньше своей начинки — карточка
+   онбординга разливается водой, а плитки на ней остаются островками. Бетона
+   намеренно мало: он неразрушим и быстро превращает карту в коридоры. */
 const TERRAIN: [string, number][] = [
-  [".ob-card", ICE],
-  [".feed .table, .tasks-row .tasks-line, .hello", FOREST],
-  [".feed .filters, .sb-search, .sec-head, .sb2-promo", WATER],
+  [".ob-card, .feed .filters, .sb-search, .sb2-promo", WATER],
+  [".hello, .sb2-card", ICE],
+  [".feed .table, .tasks-row .tasks, .ob-cell .ob-txt", FOREST],
   [
-    ".banners > .banner, .chips .chip, .sb2-card, .ai-card, .sb-mi, .sb-ico, .widget, .wg2, .wg3, .m2-card",
+    ".banners > .banner, .chips .chip, .ai-card, .sb-mi, .sb-ico, .widget, .wg2, .wg3, .m2-card, .sec-head, .ob-cell .ob-ico, .ob-cell .progress",
     BRICK,
   ],
-  [".tabs, .rail-pill, .sb-logo, .sb-burger, .sb-toggle, .m2-stack", CONCRETE],
+  [".tabs, .sb-logo, .sb-burger, .rail-pill", CONCRETE],
 ];
 
 export interface Arena {
@@ -116,6 +118,32 @@ export function buildArena(w: number, h: number, reserved: DOMRect[] = []): Aren
     for (let dy = 0; dy < 2; dy++) for (let dx = 0; dx < 2; dx++) set((r + dy) * cols + c + dx, EMPTY);
   };
 
+  /* ── случайные кладки ──
+     Одной вёрстки мало: между блоками остаются широкие пустые проспекты, по
+     которым нечего обходить. Раскидываем короткие кирпичные стенки — они
+     разрушаемы, так что тупиков не создают, зато дают за чем прятаться. */
+  const freeAt = (c: number, r: number, wid: number, hei: number) => {
+    for (let y = r - 1; y <= r + hei; y++) {
+      for (let x = c - 1; x <= c + wid; x++) {
+        if (x < 0 || y < 0 || x >= cols || y >= rows) return false;
+        if (kind[y * cols + x] !== EMPTY) return false;
+      }
+    }
+    return true;
+  };
+  const clumps = Math.round((cols * rows) / 190);
+  for (let done = 0, tries = 0; done < clumps && tries < clumps * 40; tries++) {
+    const horiz = Math.random() < 0.5;
+    const long = 2 + ((Math.random() * 3) | 0) * 2;
+    const bw = horiz ? long : 2;
+    const bh = horiz ? 2 : long;
+    const c = 1 + ((Math.random() * (cols - bw - 2)) | 0);
+    const r = 1 + ((Math.random() * (rows - bh - 2)) | 0);
+    if (!freeAt(c, r, bw, bh)) continue;
+    for (let y = r; y < r + bh; y++) for (let x = c; x < c + bw; x++) set(y * cols + x, BRICK);
+    done++;
+  }
+
   /* ── связность ──
      Танк занимает 2×2 клетки, поэтому считаем не проходимость клеток, а
      «стоянки»: позиция годна, если свободны все четыре клетки под корпусом.
@@ -164,12 +192,13 @@ export function buildArena(w: number, h: number, reserved: DOMRect[] = []): Aren
   let field = 0;
   for (let i = 1; i < sizes.length; i++) if (sizes[i] > sizes[field]) field = i;
 
-  /** Ближайшая к желаемому месту стоянка на главном поле. */
-  const spotNear = (col: number, row: number) => {
+  /** Ближайшая к желаемому месту стоянка на главном поле, мимо запретной зоны. */
+  const spotNear = (col: number, row: number, skip?: (c: number, r: number) => boolean) => {
     let best = -1;
     let bd = Infinity;
     for (let i = 0; i < n; i++) {
       if (comp[i] !== field) continue;
+      if (skip && skip(i % cols, (i / cols) | 0)) continue;
       const dc = (i % cols) - col;
       const dr = ((i / cols) | 0) - row;
       const d = dc * dc + dr * dr;
@@ -182,29 +211,36 @@ export function buildArena(w: number, h: number, reserved: DOMRect[] = []): Aren
     return r * cols + c;
   };
 
-  /* ── база внизу по центру, игрок слева от неё, враги приходят сверху ── */
-  const base = spotNear(Math.floor(cols / 2) - 1, rows - 4);
+  /* ── база в середине дашборда, игрок под ней, враги с трёх сторон ──
+     База стоит по центру, поэтому и заходить к ней должны с разных краёв:
+     два выезда сверху по углам и один снизу по центру. Иначе половина карты
+     не участвовала бы в игре вовсе. */
+  const base = spotNear((cols / 2) | 0, (rows / 2) | 0);
   const baseCol = base % cols;
   const baseRow = (base / cols) | 0;
-  const playerSpawn = spotNear(baseCol - 4, baseRow);
+
+  /* Пятачок выезда не должен задевать воротник базы. Воротник кладётся заново
+     при рестарте и от лопаты — и тогда он замуровал бы стоящего вплотную. */
+  const inCollar = (c: number, r: number) =>
+    c + 1 >= baseCol - 1 && c <= baseCol + 2 && r + 1 >= baseRow - 1 && r <= baseRow + 2;
+
+  const playerSpawn = spotNear(baseCol, baseRow + 5, inCollar);
   const enemySpawns = [
-    spotNear(2, 1),
-    spotNear(Math.floor(cols / 2) - 1, 1),
-    spotNear(cols - 4, 1),
+    spotNear(2, 1, inCollar),
+    spotNear(cols - 4, 1, inCollar),
+    spotNear((cols / 2) | 0, rows - 3, inCollar),
   ];
 
   for (const i of [base, playerSpawn, ...enemySpawns]) clear2x2(i);
 
-  /* Кирпичный воротник базы — его же лопата превращает в бетон. Кладём его
-     последним и не трогаем пятачки выезда, иначе можно замуровать спавн. */
-  const pads = [playerSpawn, ...enemySpawns].map((i) => [i % cols, (i / cols) | 0]);
+  /* Кирпичный воротник базы — его же лопата превращает в бетон. Пятачки выезда
+     сюда не заходят по построению, так что класть можно без оглядки. */
   for (let dy = -1; dy <= 2; dy++) {
     for (let dx = -1; dx <= 2; dx++) {
       if (dx >= 0 && dx <= 1 && dy >= 0 && dy <= 1) continue;
       const x = baseCol + dx;
       const y = baseRow + dy;
       if (x < 0 || y < 0 || x >= cols || y >= rows) continue;
-      if (pads.some(([pc, pr]) => x >= pc && x <= pc + 1 && y >= pr && y <= pr + 1)) continue;
       set(y * cols + x, BRICK);
     }
   }

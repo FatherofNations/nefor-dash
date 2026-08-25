@@ -9,11 +9,11 @@
 import { Baked, bake, pxDot } from "../td/pixel";
 import {
   BASE_ART, BASE_DEAD_ART, POWER_ART, PLAYER_UPGRADE, POWER_SCORE,
-  PowerKind, TANK_ART, TankKind,
+  PowerKind, TANK_ART, TANK_FLASH, TankKind,
 } from "./art";
 import {
-  Arena, BRICK, CONCRETE, EMPTY, FOREST, ICE, WATER, TL, TR, BL, BR,
-  damage, drivable, isForest, setBaseWall, shootable, slippery,
+  Arena, BRICK, CONCRETE, EMPTY, FOREST, FULL, ICE, WATER, TL, TR, BL, BR,
+  damage, drivable, setBaseWall, shootable, slippery,
 } from "./arena";
 
 const PX = 2;
@@ -152,6 +152,7 @@ export class Game {
     this.hooks = hooks;
     for (const k of Object.keys(TANK_ART) as TankKind[]) {
       this.tankArt.set(k, bake(TANK_ART[k], S));
+      this.tankArt.set(`${k}!`, bake(TANK_FLASH[k], S));
     }
     // ствол игрока крепнет со звёздами — печём четыре варианта
     for (let lv = 0; lv < PLAYER_UPGRADE.length; lv++) {
@@ -264,7 +265,7 @@ export class Game {
     if (this.freezeT > 0) this.freezeT -= dt;
     if (this.shovelT > 0) {
       this.shovelT -= dt;
-      if (this.shovelT <= 0) setBaseWall(this.a, BRICK);
+      if (this.shovelT <= 0) { setBaseWall(this.a, BRICK); this.repaintCollar(); }
     }
 
     this.updateSpawns(dt);
@@ -498,7 +499,9 @@ export class Game {
       if (a.dead) continue;
       for (let j = i + 1; j < this.bullets.length; j++) {
         const c = this.bullets[j];
-        if (c.dead || Math.abs(a.x - c.x) > 7 || Math.abs(a.y - c.y) > 7) continue;
+        // гасят друг друга только встречные — два вражеских летят каждый своим
+        if (c.dead || c.enemy === a.enemy) continue;
+        if (Math.abs(a.x - c.x) > 7 || Math.abs(a.y - c.y) > 7) continue;
         a.dead = c.dead = true;
         this.booms.push({ x: (a.x + c.x) / 2, y: (a.y + c.y) / 2, t: 0, kind: "hit" });
         this.hooks.sfx("clink");
@@ -565,7 +568,8 @@ export class Game {
         this.hitPlayer();
         return false;
       }
-      for (const e of this.enemies) if (box(e)) return false;
+      // сквозь своих снаряд пролетает: враги не воюют между собой и не глушат
+      // выстрелы друг другу, иначе строй сам себя разбирает
     }
     return true;
   }
@@ -658,6 +662,7 @@ export class Game {
         break;
       case "shovel":
         setBaseWall(this.a, CONCRETE);
+        this.repaintCollar();
         this.shovelT = 20;
         this.hooks.onToast("ЛОПАТА", "Бетон вокруг базы");
         break;
@@ -675,6 +680,7 @@ export class Game {
     ctx.clearRect(0, 0, this.a.w, this.a.h);
     if (!this.ground) this.bakeTerrain();
     ctx.drawImage(this.ground!, 0, 0, this.a.w, this.a.h);
+    this.drawShovelWarn();
     this.drawWater();
     this.drawBase();
     this.drawPowers();
@@ -728,27 +734,9 @@ export class Game {
     const y = ((i / a.cols) | 0) * c;
     const k = a.kind[i];
     if (k === BRICK && a.mask[i]) {
-      const q = c / 2;
-      const put = (bit: number, qx: number, qy: number) => {
-        if (!(a.mask[i] & bit)) return;
-        g.fillStyle = "rgba(150, 72, 34, 0.88)";
-        g.fillRect(qx, qy, q, q);
-        g.fillStyle = "rgba(198, 110, 62, 0.9)";
-        for (let ry = 0; ry < q; ry += 4) g.fillRect(qx + (ry % 8 ? 0 : 1), qy + ry, q - 1, 3);
-        g.fillStyle = "rgba(70, 32, 14, 0.9)";
-        g.fillRect(qx, qy + q - 1, q, 1);
-        g.fillRect(qx + q - 1, qy, 1, q);
-      };
-      put(TL, x, y); put(TR, x + q, y); put(BL, x, y + q); put(BR, x + q, y + q);
+      this.brickCell(g, x, y, c, a.mask[i]);
     } else if (k === CONCRETE) {
-      g.fillStyle = "rgba(150, 156, 164, 0.9)";
-      g.fillRect(x, y, c, c);
-      g.fillStyle = "rgba(220, 224, 230, 0.95)";
-      g.fillRect(x + 1, y + 1, c - 3, 2);
-      g.fillRect(x + 1, y + 1, 2, c - 3);
-      g.fillStyle = "rgba(88, 94, 102, 0.95)";
-      g.fillRect(x + c - 3, y + 2, 2, c - 3);
-      g.fillRect(x + 2, y + c - 3, c - 3, 2);
+      this.concreteCell(g, x, y, c);
     } else if (k === ICE) {
       g.fillStyle = "rgba(196, 226, 240, 0.62)";
       g.fillRect(x, y, c, c);
@@ -757,13 +745,89 @@ export class Game {
       g.fillRect(x + c - 7, y + c - 5, 5, 1);
       g.fillRect(x + 3, y + c - 6, 1, 3);
     } else if (k === FOREST) {
-      cg.fillStyle = "rgba(28, 84, 26, 0.72)";
+      /* Крона кроет почти наглухо — прячется в ней и игрок, и враг. Видно
+         только то, что попало в прорехи: их около десятой части клетки.
+         Дырки считаются от номера клетки, а не случайно, иначе листва
+         перемигивала бы при каждой перерисовке. */
+      cg.fillStyle = "rgba(22, 72, 20, 0.97)";
       cg.fillRect(x, y, c, c);
-      cg.fillStyle = "rgba(58, 140, 44, 0.8)";
+      cg.fillStyle = "rgba(50, 126, 38, 0.97)";
       for (let ry = 0; ry < c; ry += 4) {
         for (let rx = (ry / 4) % 2 ? 0 : 2; rx < c; rx += 4) cg.fillRect(x + rx, y + ry, 3, 3);
       }
+      let seed = (i * 2654435761) >>> 0;
+      const gap = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+      for (let g = 0; g < 3; g++) {
+        cg.clearRect(x + ((gap() * (c - 3)) | 0), y + ((gap() * (c - 3)) | 0), 3, 3);
+      }
     }
+  }
+
+  private concreteCell(g: CanvasRenderingContext2D, x: number, y: number, c: number) {
+    g.fillStyle = "rgba(150, 156, 164, 0.9)";
+    g.fillRect(x, y, c, c);
+    g.fillStyle = "rgba(220, 224, 230, 0.95)";
+    g.fillRect(x + 1, y + 1, c - 3, 2);
+    g.fillRect(x + 1, y + 1, 2, c - 3);
+    g.fillStyle = "rgba(88, 94, 102, 0.95)";
+    g.fillRect(x + c - 3, y + 2, 2, c - 3);
+    g.fillRect(x + 2, y + c - 3, c - 3, 2);
+  }
+
+  /** Двенадцать клеток воротника вокруг базы. */
+  private collar(): number[] {
+    const a = this.a;
+    const bc = a.base % a.cols;
+    const br = (a.base / a.cols) | 0;
+    const out: number[] = [];
+    for (let dy = -1; dy <= 2; dy++) {
+      for (let dx = -1; dx <= 2; dx++) {
+        if (dx >= 0 && dx <= 1 && dy >= 0 && dy <= 1) continue;
+        const x = bc + dx;
+        const y = br + dy;
+        if (x < 0 || y < 0 || x >= a.cols || y >= a.rows) continue;
+        out.push(y * a.cols + x);
+      }
+    }
+    return out;
+  }
+
+  /* Лопата меняет вид стены, а не только её прочность: без перерисовки
+     испечённого слоя бетон появлялся в модели и не появлялся на экране. */
+  private repaintCollar() {
+    for (const i of this.collar()) this.repaint(i);
+  }
+
+  /** Бетон под лопатой мигает последние секунды — предупреждение. */
+  private drawShovelWarn() {
+    if (this.shovelT <= 0 || this.shovelT > 4) return;
+    if (Math.floor(this.shovelT * 6) % 2 === 0) return;
+    const a = this.a;
+    const c = a.cell;
+    for (const i of this.collar()) {
+      if (a.kind[i] !== CONCRETE) continue;
+      const x = (i % a.cols) * c;
+      const y = ((i / a.cols) | 0) * c;
+      this.ctx.clearRect(x, y, c, c);
+      this.brickCell(this.ctx, x, y, c, FULL);
+    }
+  }
+
+  private brickCell(
+    g: CanvasRenderingContext2D, x: number, y: number, c: number, m: number
+  ) {
+    const q = c / 2;
+    const put = (bit: number, qx: number, qy: number) => {
+      if (!(m & bit)) return;
+      g.fillStyle = "rgba(150, 72, 34, 0.88)";
+      g.fillRect(qx, qy, q, q);
+      g.fillStyle = "rgba(198, 110, 62, 0.9)";
+      for (let ry = 0; ry < q; ry += 4) g.fillRect(qx + (ry % 8 ? 0 : 1), qy + ry, q - 1, 3);
+      g.fillStyle = "rgba(70, 32, 14, 0.9)";
+      g.fillRect(qx, qy + q - 1, q, 1);
+      g.fillRect(qx + q - 1, qy, 1, q);
+    };
+    put(TL, x, y); put(TR, x + q, y); put(BL, x, y + q); put(BR, x + q, y + q);
   }
 
   /** Вода живёт волной, поэтому рисуется в кадре, а не печётся. */
@@ -829,25 +893,19 @@ export class Game {
   private drawTank(t: Tank) {
     const ctx = this.ctx;
     if (t.shield > 0 && Math.floor(t.shield * 12) % 2 === 0 && t.shield < 2.4) return;
-    const key = t.enemy ? t.kind : `player${Math.min(3, this.weapon - 1)}`;
+    const flash = t.enemy && t.bonus && Math.floor(this.time * 5) % 2 === 0;
+    const key = t.enemy
+      ? (flash ? `${t.kind}!` : t.kind)
+      : `player${Math.min(3, this.weapon - 1)}`;
     const baked = this.tankArt.get(key) ?? this.tankArt.get(t.kind)!;
     ctx.save();
     ctx.translate(Math.round(t.x) + TANK / 2, Math.round(t.y) + TANK / 2);
     ctx.rotate((t.dir * Math.PI) / 2);
-    // в лесу танк почти не виден — только силуэт
-    const c = this.a.cell;
-    const hidden = isForest(this.a, Math.floor((t.x + TANK / 2) / c), Math.floor((t.y + TANK / 2) / c));
-    ctx.globalAlpha = hidden ? 0.25 : 1;
+    // прятать танк в лесу — забота кроны: она глухая, но дырявая
     ctx.drawImage(baked.c, -baked.w / 2, -baked.h / 2);
-    ctx.globalAlpha = 1;
     ctx.restore();
     if (t.shield > 0) {
       ctx.strokeStyle = "rgba(189, 234, 255, 0.9)";
-      ctx.lineWidth = 2;
-      ctx.strokeRect(t.x - 2, t.y - 2, TANK + 4, TANK + 4);
-    }
-    if (t.enemy && t.bonus && Math.floor(this.time * 6) % 2 === 0) {
-      ctx.strokeStyle = "#e04b3a";
       ctx.lineWidth = 2;
       ctx.strokeRect(t.x - 2, t.y - 2, TANK + 4, TANK + 4);
     }

@@ -58,35 +58,39 @@ body.tk-hit .board { animation: tk-shake 0.32s cubic-bezier(0.36, 0.07, 0.19, 0.
   color: #f4f4f4;
 }
 
-/* ── правый борт: враги, машины, флаг, очки ── */
+/* ── верхняя панель: враги, машины, флаг, очки ──
+   Сверху по центру, как в обороне счёта: снизу мешала бы смотреть под танк,
+   а по центру она садится на бетонную полосу над заголовком. */
 .tk-hud {
-  top: 50%;
-  right: 12px;
-  transform: translateY(-50%);
-  width: 92px;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 10px 9px;
+  align-items: stretch;
+  gap: 6px;
+  padding: 6px 8px;
+  max-width: calc(100vw - 24px);
   background: var(--tk-panel);
   border: 3px solid var(--tk-ink);
   box-shadow: inset 0 0 0 2px var(--tk-panel-2);
   animation: tk-hud-in 0.35s 0.1s ease both;
 }
 @keyframes tk-hud-in {
-  from { opacity: 0; transform: translate(14px, -50%); }
-  to { opacity: 1; transform: translate(0, -50%); }
+  from { opacity: 0; transform: translate(-50%, -14px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
 }
-/* сетка иконок оставшихся врагов */
+/* сетка иконок оставшихся врагов — в две строки, чтобы не растягивать панель */
 .tk-foes {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 3px;
-  min-height: 14px;
+  grid-template-rows: repeat(2, 1fr);
+  grid-auto-flow: column;
+  gap: 2px;
+  min-width: 14px;
+  align-content: center;
 }
 .tk-foes i {
-  width: 100%;
-  aspect-ratio: 1;
+  width: 9px;
+  height: 9px;
   background: var(--tk-ink);
   clip-path: polygon(15% 0, 85% 0, 85% 30%, 100% 30%, 100% 100%, 68% 100%, 68% 78%, 32% 78%, 32% 100%, 0 100%, 0 30%, 15% 30%);
 }
@@ -94,8 +98,9 @@ body.tk-hit .board { animation: tk-shake 0.32s cubic-bezier(0.36, 0.07, 0.19, 0.
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 5px;
+  padding: 4px 8px;
   background: var(--tk-panel-2);
+  white-space: nowrap;
 }
 .tk-block span {
   font-size: 9px;
@@ -109,8 +114,7 @@ body.tk-hit .board { animation: tk-shake 0.32s cubic-bezier(0.36, 0.07, 0.19, 0.
   font-variant-numeric: tabular-nums;
   color: #fff;
 }
-.tk-wide { flex-direction: column; align-items: flex-start; gap: 1px; }
-.tk-wide b { font-size: 13px; color: var(--tk-sand); }
+.tk-wide b { color: var(--tk-sand); }
 /* флаг волны */
 .tk-flag i {
   width: 14px;
@@ -121,8 +125,8 @@ body.tk-hit .board { animation: tk-shake 0.32s cubic-bezier(0.36, 0.07, 0.19, 0.
 }
 .tk-buttons { display: flex; gap: 4px; }
 .tk-btn {
-  flex: 1;
-  padding: 5px 0;
+  min-width: 30px;
+  padding: 0 8px;
   border: 2px solid var(--tk-ink);
   background: var(--tk-panel-2);
   color: #fff;
@@ -133,13 +137,15 @@ body.tk-hit .board { animation: tk-shake 0.32s cubic-bezier(0.36, 0.07, 0.19, 0.
 .tk-btn.on { background: var(--tk-sand); color: var(--tk-ink); }
 .tk-btn.off { color: #9a9a9a; }
 .tk-status {
-  min-height: 11px;
+  display: flex;
+  align-items: center;
+  min-width: 0;
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.4px;
   color: var(--tk-sand);
-  text-align: center;
 }
+.tk-status:empty { display: none; }
 
 /* ── памятка ── */
 .tk-help {
