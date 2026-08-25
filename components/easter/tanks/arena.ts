@@ -116,36 +116,98 @@ export function buildArena(w: number, h: number, reserved: DOMRect[] = []): Aren
     for (let dy = 0; dy < 2; dy++) for (let dx = 0; dx < 2; dx++) set((r + dy) * cols + c + dx, EMPTY);
   };
 
-  /* ── база внизу по центру, как в классике ── */
-  const baseCol = Math.floor(cols / 2) - 1;
-  const baseRow = rows - 4;
-  const base = baseRow * cols + baseCol;
-  clear2x2(base);
-  // кирпичный воротник — его же лопата превращает в бетон
+  /* ── связность ──
+     Танк занимает 2×2 клетки, поэтому считаем не проходимость клеток, а
+     «стоянки»: позиция годна, если свободны все четыре клетки под корпусом.
+     Раскладка дашборда каждый раз разная, и при узком окне полоса воды легко
+     замыкает пятачок у нижнего края. Танк, поставленный в такой карман, не
+     сдвинется до конца партии: воду не пробить и не объехать. Поэтому база,
+     игрок и точки выезда садятся только в самую большую связную область. */
+  const canStand = (c: number, r: number) => {
+    if (c < 0 || r < 0 || c + 1 >= cols || r + 1 >= rows) return false;
+    for (let dy = 0; dy < 2; dy++) {
+      for (let dx = 0; dx < 2; dx++) {
+        const k = kind[(r + dy) * cols + c + dx];
+        if (k === CONCRETE || k === WATER || k === BRICK) return false;
+      }
+    }
+    return true;
+  };
+
+  const comp = new Int32Array(n).fill(-1);
+  const sizes: number[] = [];
+  const stack: number[] = [];
+  for (let r = 0; r + 1 < rows; r++) {
+    for (let c = 0; c + 1 < cols; c++) {
+      if (comp[r * cols + c] !== -1 || !canStand(c, r)) continue;
+      const id = sizes.length;
+      let size = 0;
+      comp[r * cols + c] = id;
+      stack.push(r * cols + c);
+      while (stack.length) {
+        const i = stack.pop()!;
+        size++;
+        const cc = i % cols;
+        const rr = (i / cols) | 0;
+        const nb: [number, number][] = [[cc - 1, rr], [cc + 1, rr], [cc, rr - 1], [cc, rr + 1]];
+        for (const [nc, nr] of nb) {
+          if (nc < 0 || nr < 0 || nc + 1 >= cols || nr + 1 >= rows) continue;
+          const j = nr * cols + nc;
+          if (comp[j] !== -1 || !canStand(nc, nr)) continue;
+          comp[j] = id;
+          stack.push(j);
+        }
+      }
+      sizes.push(size);
+    }
+  }
+  let field = 0;
+  for (let i = 1; i < sizes.length; i++) if (sizes[i] > sizes[field]) field = i;
+
+  /** Ближайшая к желаемому месту стоянка на главном поле. */
+  const spotNear = (col: number, row: number) => {
+    let best = -1;
+    let bd = Infinity;
+    for (let i = 0; i < n; i++) {
+      if (comp[i] !== field) continue;
+      const dc = (i % cols) - col;
+      const dr = ((i / cols) | 0) - row;
+      const d = dc * dc + dr * dr;
+      if (d < bd) { bd = d; best = i; }
+    }
+    if (best >= 0) return best;
+    // вырожденный случай: свободных стоянок нет вовсе — расчищаем принудительно
+    const c = Math.max(1, Math.min(cols - 3, col));
+    const r = Math.max(1, Math.min(rows - 3, row));
+    return r * cols + c;
+  };
+
+  /* ── база внизу по центру, игрок слева от неё, враги приходят сверху ── */
+  const base = spotNear(Math.floor(cols / 2) - 1, rows - 4);
+  const baseCol = base % cols;
+  const baseRow = (base / cols) | 0;
+  const playerSpawn = spotNear(baseCol - 4, baseRow);
+  const enemySpawns = [
+    spotNear(2, 1),
+    spotNear(Math.floor(cols / 2) - 1, 1),
+    spotNear(cols - 4, 1),
+  ];
+
+  for (const i of [base, playerSpawn, ...enemySpawns]) clear2x2(i);
+
+  /* Кирпичный воротник базы — его же лопата превращает в бетон. Кладём его
+     последним и не трогаем пятачки выезда, иначе можно замуровать спавн. */
+  const pads = [playerSpawn, ...enemySpawns].map((i) => [i % cols, (i / cols) | 0]);
   for (let dy = -1; dy <= 2; dy++) {
     for (let dx = -1; dx <= 2; dx++) {
       if (dx >= 0 && dx <= 1 && dy >= 0 && dy <= 1) continue;
       const x = baseCol + dx;
       const y = baseRow + dy;
       if (x < 0 || y < 0 || x >= cols || y >= rows) continue;
+      if (pads.some(([pc, pr]) => x >= pc && x <= pc + 1 && y >= pr && y <= pr + 1)) continue;
       set(y * cols + x, BRICK);
     }
   }
-
-  /* ── игрок стартует слева от базы, враги приходят сверху ── */
-  const openAt = (col: number, row: number) => {
-    const c = Math.max(1, Math.min(cols - 3, col));
-    const r = Math.max(1, Math.min(rows - 3, row));
-    const i = r * cols + c;
-    clear2x2(i);
-    return i;
-  };
-  const playerSpawn = openAt(baseCol - 4, baseRow);
-  const enemySpawns = [
-    openAt(2, 1),
-    openAt(Math.floor(cols / 2) - 1, 1),
-    openAt(cols - 4, 1),
-  ];
 
   return {
     cell, cols, rows, w, h, kind, mask,
