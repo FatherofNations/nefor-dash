@@ -71,7 +71,11 @@ export interface Arena {
   seams: Seam[];
 }
 
-export interface Seam { x0: number; x1: number; y0: number; y1: number }
+export interface Seam {
+  x0: number; x1: number; y0: number; y1: number;
+  /** прорезь лежит на водяной плите — её заливаем водой, а не оставляем дыркой */
+  water: boolean;
+}
 
 interface Box { x: number; y: number; w: number; h: number; kind: number }
 
@@ -95,16 +99,18 @@ function collect(w: number, h: number): Box[] {
   /* Вода в баннере — окном РОВНО ПО ЦЕНТРУ. Раньше она бралась по подписи
      .b-sub, а та прижата влево, и окно съезжало к краю вместо того, чтобы
      стоять в кирпичной рамке. Кладём последней, чтобы легла поверх кирпича. */
-  document.querySelectorAll<HTMLElement>(".banners > .banner").forEach((el) => {
+  document.querySelectorAll<HTMLElement>(".banners > .banner").forEach((el, i) => {
     if (!visible(el)) return;
     const r = el.getBoundingClientRect();
     if (r.width < 60 || r.height < 40) return;
     if (r.right <= 0 || r.bottom <= 0 || r.left >= w || r.top >= h) return;
     const iw = Math.round(r.width * 0.52);
     const ih = Math.round(r.height * 0.4);
+    // у первого баннера окно тянем левее: иначе подпись на карточке обрезается
+    const left = i === 0 ? CELL : 0;
     out.push({
-      x: r.left + (r.width - iw) / 2, y: r.top + (r.height - ih) / 2,
-      w: iw, h: ih, kind: WATER,
+      x: r.left + (r.width - iw) / 2 - left, y: r.top + (r.height - ih) / 2,
+      w: iw + left, h: ih, kind: WATER,
     });
   });
   return out;
@@ -397,6 +403,9 @@ export function buildArena(w: number, h: number, reserved: DOMRect[] = []): Aren
      баннеры всё равно висели сцепленными. */
   const seams: Seam[] = [];
   const dense = (k: number) => k === BRICK || k === FOREST;
+  /** Прорезь посреди водяной плиты должна остаться водой, а не дыркой в карте. */
+  const onWater = (px: number, py: number) =>
+    boxes.some((b) => b.kind === WATER && px > b.x && px < b.x + b.w && py > b.y && py < b.y + b.h);
   const merges = (px: number, py: number, ka: number, kb: number) => {
     const c = Math.floor(px / cell);
     const r = Math.floor(py / cell);
@@ -412,16 +421,18 @@ export function buildArena(w: number, h: number, reserved: DOMRect[] = []): Aren
       if (gapX > 0 && gapX <= cell && A.r1 >= B.r0 && B.r1 >= A.r0) {
         const y0 = Math.min(A.r0, B.r0) * cell;
         const y1 = (Math.max(A.r1, B.r1) + 1) * cell;
-        if (merges(A.b.x + A.b.w + gapX / 2, (y0 + y1) / 2, A.b.kind, B.b.kind)) {
-          seams.push({ x0: A.b.x + A.b.w, x1: B.b.x, y0, y1 });
+        const mx = A.b.x + A.b.w + gapX / 2;
+        if (merges(mx, (y0 + y1) / 2, A.b.kind, B.b.kind)) {
+          seams.push({ x0: A.b.x + A.b.w, x1: B.b.x, y0, y1, water: onWater(mx, (y0 + y1) / 2) });
         }
       }
       const gapY = B.b.y - (A.b.y + A.b.h);
       if (gapY > 0 && gapY <= cell && A.c1 >= B.c0 && B.c1 >= A.c0) {
         const x0 = Math.min(A.c0, B.c0) * cell;
         const x1 = (Math.max(A.c1, B.c1) + 1) * cell;
-        if (merges((x0 + x1) / 2, A.b.y + A.b.h + gapY / 2, A.b.kind, B.b.kind)) {
-          seams.push({ x0, x1, y0: A.b.y + A.b.h, y1: B.b.y });
+        const my = A.b.y + A.b.h + gapY / 2;
+        if (merges((x0 + x1) / 2, my, A.b.kind, B.b.kind)) {
+          seams.push({ x0, x1, y0: A.b.y + A.b.h, y1: B.b.y, water: onWater((x0 + x1) / 2, my) });
         }
       }
     }

@@ -1004,6 +1004,22 @@ export class Game {
       ctx.fillRect(x + 2, y + 4 + ph, c - 6, 1);
       ctx.fillRect(x + 4, y + 10 - ph, c - 8, 1);
     }
+    /* Прорези посреди водяной плиты заливаем водой: в плитке они прорезаны
+       насквозь, и без этого посреди воды зияла бы дырка до дашборда. */
+    for (const s of a.seams) {
+      if (!s.water) continue;
+      const x = Math.round(s.x0);
+      const y = Math.round(s.y0);
+      const wid = Math.round(s.x1) - x;
+      const hei = Math.round(s.y1) - y;
+      ctx.fillStyle = "rgba(24, 68, 150, 0.72)";
+      ctx.fillRect(x, y, wid, hei);
+      ctx.fillStyle = "rgba(90, 160, 230, 0.85)";
+      for (let ry = 4; ry < hei; ry += 6) {
+        const ph = Math.sin(this.time * 2.2 + (x + y + ry) * 0.05) * 2;
+        ctx.fillRect(x + 2, y + ry + ph, Math.max(1, wid - 6), 1);
+      }
+    }
   }
 
   private drawBase() {
