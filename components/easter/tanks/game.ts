@@ -849,6 +849,9 @@ export class Game {
     this.ground = gc;
     this.canopy = cc;
     for (let i = 0; i < this.a.kind.length; i++) this.paint(gg, cg, i);
+    // швы кладём поверх плитки: они отделяют блоки, которые в сетке слиплись
+    gg.fillStyle = "rgba(24, 12, 5, 0.85)";
+    for (const s of this.a.seams) gg.fillRect(Math.round(s.x) - 1, s.y0, 2, s.y1 - s.y0);
   }
 
   private repaint(i: number) {

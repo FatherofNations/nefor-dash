@@ -67,7 +67,11 @@ export interface Arena {
   baseWall: number;
   playerSpawn: number;
   enemySpawns: number[];
+  /** тонкие швы поверх плитки — там, где в вёрстке зазор, а в сетке его нет */
+  seams: Seam[];
 }
+
+export interface Seam { x: number; y0: number; y1: number }
 
 interface Box { x: number; y: number; w: number; h: number; kind: number }
 
@@ -87,6 +91,17 @@ function collect(w: number, h: number): Box[] {
       out.push({ x: r.left - ax, y: r.top - ay, w: r.width + ax * 2, h: r.height + ay * 2, kind });
     });
   }
+
+  /* Средний баннер при зазоре в пол-клетки не дотягивается до собственных
+     краёв, и сквозь кирпич проглядывает карточка. Даём ему по клетке с каждой
+     стороны: соседей он при этом касается, пустой колонки между ними не будет. */
+  const banners = [...document.querySelectorAll<HTMLElement>(".banners > .banner")];
+  banners.forEach((el, i) => {
+    if (i === 0 || i === banners.length - 1 || !visible(el)) return;
+    const r = el.getBoundingClientRect();
+    if (r.right <= 0 || r.bottom <= 0 || r.left >= w || r.top >= h) return;
+    out.push({ x: r.left - CELL, y: r.top, w: r.width + CELL * 2, h: r.height, kind: BRICK });
+  });
 
   /* Вода в баннере — окном РОВНО ПО ЦЕНТРУ. Раньше она бралась по подписи
      .b-sub, а та прижата влево, и окно съезжало к краю вместо того, чтобы
@@ -133,10 +148,13 @@ export function buildArena(w: number, h: number, reserved: DOMRect[] = []): Aren
   const GAP = 4; // с какого зазора в вёрстке считаем, что блоки надо разделить
   for (const A of gb) {
     for (const B of gb) {
-      /* Разделяем только ОДНОТИПНЫЕ блоки: два кирпичных баннера рядом слились
-         бы в одну плиту, а кирпич с бетоном и так различимы — там полоса
-         пустоты только обгрызала бы край. */
-      if (A === B || A.b.kind !== B.b.kind) continue;
+      /* Разделяем однотипные блоки и вдобавок кирпич с травой: обе фактуры
+         плотные и вплотную читаются как одна плита. Бетон и вода в разделении
+         не участвуют — они и так отличаются, а полоса пустоты только
+         обгрызала бы край соседа. */
+      if (A === B) continue;
+      const solid = (k: number) => k === BRICK || k === FOREST;
+      if (A.b.kind !== B.b.kind && !(solid(A.b.kind) && solid(B.b.kind))) continue;
       const ar = A.b.x + A.b.w;
       if (ar + GAP <= B.b.x && A.r1 >= B.r0 && B.r1 >= A.r0) {
         const sep = Math.floor((ar + B.b.x) / 2 / cell);
@@ -251,7 +269,8 @@ export function buildArena(w: number, h: number, reserved: DOMRect[] = []): Aren
   /* База по центру двора, но не выше, чем нужно: над её воротником должно
      остаться два ряда под пятачок игрока, иначе он оказывается замурован в
      собственной стене. Снизу воротник тоже держим внутри двора. */
-  const baseWishCol = (iceC0 + iceC1 - 1) >> 1;
+  // делитель без поправки: двор нечётной ширины, и так база стоит ровнее
+  const baseWishCol = (iceC0 + iceC1) >> 1;
   const baseWishRow = Math.min(
     Math.max(iceR1 - COLLAR - 1, iceR0),
     Math.max((iceR0 + iceR1 - 1) >> 1, iceR0 + COLLAR + 2)
@@ -403,8 +422,23 @@ export function buildArena(w: number, h: number, reserved: DOMRect[] = []): Aren
     }
   }
 
+  /* Швы между баннерами. Средний баннер занимает и зазорные клетки — иначе его
+     края остаются голыми и сквозь кирпич проглядывает карточка. Но тогда три
+     баннера сливаются в одну плиту, поэтому границу рисуем отдельной линией
+     ровно по месту зазора в вёрстке: покрытие полное, а деление видно. */
+  const seams: Seam[] = [];
+  const bn = [...document.querySelectorAll<HTMLElement>(".banners > .banner")].filter((el) =>
+    el.checkVisibility({ opacityProperty: true, visibilityProperty: true })
+  );
+  for (let i = 0; i + 1 < bn.length; i++) {
+    const l = bn[i].getBoundingClientRect();
+    const r = bn[i + 1].getBoundingClientRect();
+    if (r.left - l.right < 1 || r.left - l.right > cell) continue;
+    seams.push({ x: (l.right + r.left) / 2, y0: Math.min(l.top, r.top), y1: Math.max(l.bottom, r.bottom) });
+  }
+
   return {
-    cell, cols, rows, w, h, kind, mask,
+    cell, cols, rows, w, h, kind, mask, seams,
     base, baseAlive: true, baseWall: BRICK,
     playerSpawn, enemySpawns,
   };
