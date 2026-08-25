@@ -7,7 +7,9 @@
    Кирпич хранится ЧЕТВЕРТЯМИ: попадание сносит две со стороны выстрела, и из
    этого получается характерное прогрызание стены сегмент за сегментом. */
 
-export const CELL = 16;
+/* Клетка крупная нарочно: на 16 px карта расползалась в пустое поле, по
+   которому нечего обходить. Танк по-прежнему ровно 2×2 клетки. */
+export const CELL = 24;
 
 export const EMPTY = 0;
 export const BRICK = 1;
@@ -22,20 +24,27 @@ export const BL = 4;
 export const BR = 8;
 export const FULL = TL | TR | BL | BR;
 
-/* Раскладка дашборда → местность. Порядок важен: что ниже, то и побеждает при
-   наложении. Поэтому крупный блок объявляется раньше своей начинки — карточка
-   онбординга разливается водой, а плитки на ней остаются островками. Бетона
-   намеренно мало: он неразрушим и быстро превращает карту в коридоры. */
+/* Раскладка дашборда → местность, по схеме от дизайнера.
+   Порядок важен: что ниже, то и побеждает при наложении. Поэтому крупная плита
+   объявляется раньше своей начинки — карточка онбординга разливается водой, а
+   иконки и подписи на ней остаются островками кирпича и травы. Сайдбар взят
+   одной бетонной плитой целиком: внутренние .sb-* нарочно не перечислены,
+   иначе они разбили бы её на лоскуты. */
 const TERRAIN: [string, number][] = [
-  [".ob-card, .feed .filters, .sb-search, .sb2-promo", WATER],
-  [".hello, .sb2-card", ICE],
-  [".feed .table, .tasks-row .tasks, .ob-cell .ob-txt", FOREST],
+  [".ob-card, .feed .filters", WATER],
+  [".sidebar", CONCRETE],
   [
-    ".banners > .banner, .chips .chip, .ai-card, .sb-mi, .sb-ico, .widget, .wg2, .wg3, .m2-card, .sec-head, .ob-cell .ob-ico, .ob-cell .progress",
+    ".banners > .banner, .chips .chip, .sec-head, .rail-pill, .ai-card, .widget, .wg2, .wg3, .m2-card, .ob-cell .ob-ico, .ob-cell .progress",
     BRICK,
   ],
-  [".tabs, .sb-logo, .sb-burger, .rail-pill", CONCRETE],
+  [".hello, .chip.luck, .ob-cell .ob-txt, .feed .table", FOREST],
+  [".tabs, .tasks-row .tasks", CONCRETE],
+  // вода внутри кирпичного баннера — окно в стене
+  [".banner .b-sub", WATER],
 ];
+
+/** Толщина кирпичного воротника базы в клетках. */
+export const COLLAR = 2;
 
 export interface Arena {
   cell: number;
@@ -118,10 +127,38 @@ export function buildArena(w: number, h: number, reserved: DOMRect[] = []): Aren
     for (let dy = 0; dy < 2; dy++) for (let dx = 0; dx < 2; dx++) set((r + dy) * cols + c + dx, EMPTY);
   };
 
-  /* ── случайные кладки ──
-     Одной вёрстки мало: между блоками остаются широкие пустые проспекты, по
-     которым нечего обходить. Раскидываем короткие кирпичные стенки — они
-     разрушаемы, так что тупиков не создают, зато дают за чем прятаться. */
+  /* ── кладки в пустых полях ──
+     На схеме между сайдбаром и контентом и справа от контента стоят кирпичные
+     колонны: без них поля по краям — голый асфальт, где нечего обходить.
+     Считаем зазоры по факту вёрстки, чтобы это работало на любом окне. */
+  const column = (x0: number, x1: number, yf0: number, yf1: number) => {
+    const c0 = Math.ceil(x0 / cell);
+    const c1 = Math.floor(x1 / cell);
+    if (c1 - c0 < 2) return;
+    const wid = Math.min(3, c1 - c0);
+    const cx = c0 + (((c1 - c0 - wid) / 2) | 0);
+    for (let r = Math.round(rows * yf0); r < Math.round(rows * yf1); r++) {
+      if (r < 1 || r >= rows - 1) continue;
+      for (let x = cx; x < cx + wid; x++) if (kind[r * cols + x] === EMPTY) set(r * cols + x, BRICK);
+    }
+  };
+  const rectOf = (sel: string) => {
+    const el = document.querySelector<HTMLElement>(sel);
+    return el ? el.getBoundingClientRect() : null;
+  };
+  const sb = rectOf(".sidebar");
+  const ct = rectOf(".content");
+  if (sb && ct && ct.left - sb.right > cell * 2) {
+    column(sb.right + 4, ct.left - 4, 0.02, 0.22);
+    column(sb.right + 4, ct.left - 4, 0.26, 0.36);
+  }
+  if (ct && w - ct.right > cell * 2) {
+    column(ct.right + 4, w - 4, 0.02, 0.22);
+    column(ct.right + 4, w - 4, 0.26, 0.36);
+  }
+
+  /* Плюс немного случайных стенок по остаткам простора — они разрушаемы, так
+     что тупиков не создают, зато есть за чем прятаться. */
   const freeAt = (c: number, r: number, wid: number, hei: number) => {
     for (let y = r - 1; y <= r + hei; y++) {
       for (let x = c - 1; x <= c + wid; x++) {
@@ -131,7 +168,7 @@ export function buildArena(w: number, h: number, reserved: DOMRect[] = []): Aren
     }
     return true;
   };
-  const clumps = Math.round((cols * rows) / 190);
+  const clumps = Math.round((cols * rows) / 150);
   for (let done = 0, tries = 0; done < clumps && tries < clumps * 40; tries++) {
     const horiz = Math.random() < 0.5;
     const long = 2 + ((Math.random() * 3) | 0) * 2;
@@ -142,6 +179,25 @@ export function buildArena(w: number, h: number, reserved: DOMRect[] = []): Aren
     if (!freeAt(c, r, bw, bh)) continue;
     for (let y = r; y < r + bh; y++) for (let x = c; x < c + bw; x++) set(y * cols + x, BRICK);
     done++;
+  }
+
+  /* ── площадка базы ──
+     На схеме под базой лёд, и он выходит из-под кирпичного квадрата по бокам.
+     Кладём его ДО расчёта связности: центр карточки онбординга — вода, а по
+     воде ставить нельзя, и база уехала бы на ближайшую сушу. */
+  const obc = rectOf(".ob-card");
+  const wishCol = obc ? Math.round((obc.left + obc.width / 2) / cell) : (cols / 2) | 0;
+  const wishRow = obc ? Math.round((obc.top + obc.height / 2) / cell) : (rows / 2) | 0;
+  for (let dy = -COLLAR - 4; dy <= COLLAR + 3; dy++) {
+    for (let dx = -COLLAR - 7; dx <= COLLAR + 8; dx++) {
+      const x = wishCol + dx;
+      const y = wishRow + dy;
+      if (x < 1 || y < 1 || x >= cols - 1 || y >= rows - 1) continue;
+      // стелем поверх всего, кроме бетона: на схеме середина нижней полосы —
+      // чистый лёд, островки остались только в боковых водяных третях
+      if (kind[y * cols + x] === CONCRETE) continue;
+      set(y * cols + x, ICE);
+    }
   }
 
   /* ── связность ──
@@ -156,7 +212,8 @@ export function buildArena(w: number, h: number, reserved: DOMRect[] = []): Aren
     for (let dy = 0; dy < 2; dy++) {
       for (let dx = 0; dx < 2; dx++) {
         const k = kind[(r + dy) * cols + c + dx];
-        if (k === CONCRETE || k === WATER || k === BRICK) return false;
+        // кирпич преградой не считаем: он простреливается, а вода и бетон — нет
+        if (k === CONCRETE || k === WATER) return false;
       }
     }
     return true;
@@ -211,37 +268,51 @@ export function buildArena(w: number, h: number, reserved: DOMRect[] = []): Aren
     return r * cols + c;
   };
 
-  /* ── база в середине дашборда, игрок под ней, враги с трёх сторон ──
-     База стоит по центру, поэтому и заходить к ней должны с разных краёв:
-     два выезда сверху по углам и один снизу по центру. Иначе половина карты
-     не участвовала бы в игре вовсе. */
-  const base = spotNear((cols / 2) | 0, (rows / 2) | 0);
+  /* ── база, игрок над ней, выезды по схеме ──
+     База стоит в середине карточки онбординга — как нарисовано: по центру
+     контента и в нижней трети. Если карточки нет (узкое окно, другой таб),
+     падаем на центр экрана. */
+  const base = spotNear(wishCol, wishRow);
   const baseCol = base % cols;
   const baseRow = (base / cols) | 0;
 
   /* Пятачок выезда не должен задевать воротник базы. Воротник кладётся заново
      при рестарте и от лопаты — и тогда он замуровал бы стоящего вплотную. */
   const inCollar = (c: number, r: number) =>
-    c + 1 >= baseCol - 1 && c <= baseCol + 2 && r + 1 >= baseRow - 1 && r <= baseRow + 2;
+    c + 1 >= baseCol - COLLAR && c <= baseCol + COLLAR + 1 &&
+    r + 1 >= baseRow - COLLAR && r <= baseRow + COLLAR + 1;
 
-  const playerSpawn = spotNear(baseCol, baseRow + 5, inCollar);
-  const enemySpawns = [
-    spotNear(2, 1, inCollar),
-    spotNear(cols - 4, 1, inCollar),
-    spotNear((cols / 2) | 0, rows - 3, inCollar),
-  ];
+  const playerSpawn = spotNear(baseCol, baseRow - COLLAR - 3, inCollar);
+  // семь точек выезда, доли взяты со схемы: верх, оба поля и середина
+  const enemySpawns = ([
+    [0.32, 0.07], [0.89, 0.07], [0.39, 0.19], [0.82, 0.19],
+    [0.24, 0.39], [0.60, 0.41], [0.96, 0.39],
+  ] as [number, number][]).map(([fx, fy]) =>
+    spotNear(Math.round(cols * fx), Math.round(rows * fy), inCollar));
 
   for (const i of [base, playerSpawn, ...enemySpawns]) clear2x2(i);
 
   /* Кирпичный воротник базы — его же лопата превращает в бетон. Пятачки выезда
      сюда не заходят по построению, так что класть можно без оглядки. */
-  for (let dy = -1; dy <= 2; dy++) {
-    for (let dx = -1; dx <= 2; dx++) {
+  for (let dy = -COLLAR; dy <= COLLAR + 1; dy++) {
+    for (let dx = -COLLAR; dx <= COLLAR + 1; dx++) {
       if (dx >= 0 && dx <= 1 && dy >= 0 && dy <= 1) continue;
       const x = baseCol + dx;
       const y = baseRow + dy;
       if (x < 0 || y < 0 || x >= cols || y >= rows) continue;
       set(y * cols + x, BRICK);
+    }
+  }
+
+  /* Бетонная затычка над пятачком игрока — на схеме серый кусок в кирпичной
+     стене ровно над жёлтым квадратом: укрытие на старте. */
+  {
+    const pc = playerSpawn % cols;
+    const pr = (playerSpawn / cols) | 0;
+    for (let x = pc; x <= pc + 1; x++) {
+      const y = pr - 1;
+      if (y < 0 || x >= cols) continue;
+      if (kind[y * cols + x] === BRICK) set(y * cols + x, CONCRETE);
     }
   }
 
@@ -322,8 +393,8 @@ export function setBaseWall(a: Arena, k: number) {
   a.baseWall = k;
   const c = a.base % a.cols;
   const r = (a.base / a.cols) | 0;
-  for (let dy = -1; dy <= 2; dy++) {
-    for (let dx = -1; dx <= 2; dx++) {
+  for (let dy = -COLLAR; dy <= COLLAR + 1; dy++) {
+    for (let dx = -COLLAR; dx <= COLLAR + 1; dx++) {
       if (dx >= 0 && dx <= 1 && dy >= 0 && dy <= 1) continue;
       const x = c + dx;
       const y = r + dy;

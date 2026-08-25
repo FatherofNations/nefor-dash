@@ -12,13 +12,16 @@ import {
   PowerKind, TANK_ART, TANK_FLASH, TankKind,
 } from "./art";
 import {
-  Arena, BRICK, CONCRETE, EMPTY, FOREST, FULL, ICE, WATER, TL, TR, BL, BR,
+  Arena, BRICK, COLLAR, CONCRETE, EMPTY, FOREST, FULL, ICE, WATER, TL, TR, BL, BR,
   damage, drivable, setBaseWall, shootable, slippery,
 } from "./arena";
 
-const PX = 2;
-const S = 2;
-const TANK = 32;
+/* Всё игровое крупнее вёрстки в полтора раза: клетка 24, танк 48, спрайты
+   пекутся с шагом 3. Скорости подняты тем же множителем, иначе на большой
+   карте всё поехало бы медленнее. */
+const PX = 3;
+const S = 3;
+const TANK = 48;
 const TAU = Math.PI * 2;
 const rnd = (a: number, b: number) => a + Math.random() * (b - a);
 const DX = [0, 1, 0, -1];
@@ -76,11 +79,11 @@ interface Crumb { x: number; y: number; vx: number; vy: number; t: number }
 const SPEC: Record<TankKind, {
   speed: number; hp: number; cd: number; bullet: number; power: number; score: number;
 }> = {
-  player: { speed: 104, hp: 1, cd: 0.40, bullet: 400, power: 1, score: 0 },
-  grunt:  { speed: 52,  hp: 1, cd: 1.5,  bullet: 290, power: 1, score: 100 },
-  swift:  { speed: 108, hp: 1, cd: 1.3,  bullet: 340, power: 1, score: 200 },
-  armor:  { speed: 38,  hp: 4, cd: 1.4,  bullet: 300, power: 1, score: 300 },
-  heavy:  { speed: 44,  hp: 2, cd: 0.9,  bullet: 360, power: 2, score: 400 },
+  player: { speed: 156, hp: 1, cd: 0.40, bullet: 600, power: 1, score: 0 },
+  grunt:  { speed: 78,  hp: 1, cd: 1.5,  bullet: 435, power: 1, score: 100 },
+  swift:  { speed: 162, hp: 1, cd: 1.3,  bullet: 510, power: 1, score: 200 },
+  armor:  { speed: 57,  hp: 4, cd: 1.4,  bullet: 450, power: 1, score: 300 },
+  heavy:  { speed: 66,  hp: 2, cd: 0.9,  bullet: 540, power: 2, score: 400 },
 };
 
 export const LEVELS = 8;
@@ -477,7 +480,7 @@ export class Game {
       x: t.x + TANK / 2 + DX[t.dir] * (TANK / 2),
       y: t.y + TANK / 2 + DY[t.dir] * (TANK / 2),
       dir: t.dir, enemy: t.enemy,
-      speed: sp.bullet + (t.enemy ? 0 : (this.weapon - 1) * 40),
+      speed: sp.bullet + (t.enemy ? 0 : (this.weapon - 1) * 60),
       power, dead: false,
     });
     this.hooks.sfx("shot");
@@ -501,7 +504,7 @@ export class Game {
         const c = this.bullets[j];
         // гасят друг друга только встречные — два вражеских летят каждый своим
         if (c.dead || c.enemy === a.enemy) continue;
-        if (Math.abs(a.x - c.x) > 7 || Math.abs(a.y - c.y) > 7) continue;
+        if (Math.abs(a.x - c.x) > 10 || Math.abs(a.y - c.y) > 10) continue;
         a.dead = c.dead = true;
         this.booms.push({ x: (a.x + c.x) / 2, y: (a.y + c.y) / 2, t: 0, kind: "hit" });
         this.hooks.sfx("clink");
@@ -539,7 +542,7 @@ export class Game {
         this.hooks.sfx("brick");
         for (let i = 0; i < 5; i++) {
           this.crumbs.push({
-            x: b.x, y: b.y, vx: rnd(-70, 70), vy: rnd(-110, -30), t: 0,
+            x: b.x, y: b.y, vx: rnd(-105, 105), vy: rnd(-165, -45), t: 0,
           });
         }
       } else if (res === "concrete") {
@@ -552,7 +555,7 @@ export class Game {
     }
 
     const box = (t: Tank) =>
-      b.x > t.x + 3 && b.x < t.x + TANK - 3 && b.y > t.y + 3 && b.y < t.y + TANK - 3;
+      b.x > t.x + 5 && b.x < t.x + TANK - 5 && b.y > t.y + 5 && b.y < t.y + TANK - 5;
     if (!b.enemy) {
       for (const e of this.enemies) {
         if (!box(e)) continue;
@@ -610,7 +613,7 @@ export class Game {
       p.t += dt;
       if (p.t >= p.life) continue;
       const pl = this.player;
-      if (pl && Math.abs(pl.x + TANK / 2 - p.x) < 26 && Math.abs(pl.y + TANK / 2 - p.y) < 26) {
+      if (pl && Math.abs(pl.x + TANK / 2 - p.x) < 38 && Math.abs(pl.y + TANK / 2 - p.y) < 38) {
         this.takePower(p.kind);
         continue;
       }
@@ -780,8 +783,8 @@ export class Game {
     const bc = a.base % a.cols;
     const br = (a.base / a.cols) | 0;
     const out: number[] = [];
-    for (let dy = -1; dy <= 2; dy++) {
-      for (let dx = -1; dx <= 2; dx++) {
+    for (let dy = -COLLAR; dy <= COLLAR + 1; dy++) {
+      for (let dx = -COLLAR; dx <= COLLAR + 1; dx++) {
         if (dx >= 0 && dx <= 1 && dy >= 0 && dy <= 1) continue;
         const x = bc + dx;
         const y = br + dy;
@@ -859,7 +862,7 @@ export class Game {
     for (const m of this.marks) {
       // предупреждение: точка спавна мигает звездой перед выездом
       const k = m.t / 1;
-      const r = 8 + Math.sin(this.time * 30) * 4;
+      const r = 12 + Math.sin(this.time * 30) * 6;
       this.ctx.save();
       this.ctx.globalAlpha = 1 - k * 0.4;
       this.ctx.strokeStyle = "#f0c419";
@@ -867,8 +870,8 @@ export class Game {
       this.ctx.beginPath();
       for (let s = 0; s < 4; s++) {
         const ang = (s / 4) * TAU + this.time * 6;
-        this.ctx.moveTo(m.x + 16, m.y + 16);
-        this.ctx.lineTo(m.x + 16 + Math.cos(ang) * r, m.y + 16 + Math.sin(ang) * r);
+        this.ctx.moveTo(m.x + TANK / 2, m.y + TANK / 2);
+        this.ctx.lineTo(m.x + TANK / 2 + Math.cos(ang) * r, m.y + TANK / 2 + Math.sin(ang) * r);
       }
       this.ctx.stroke();
       this.ctx.restore();
@@ -937,7 +940,7 @@ export class Game {
       const dur = b.kind === "hit" ? 0.22 : 0.6;
       const k = b.t / dur;
       const big = b.kind === "heavy";
-      const r = (b.kind === "hit" ? 8 : big ? 30 : 18) * (0.35 + k);
+      const r = (b.kind === "hit" ? 12 : big ? 45 : 27) * (0.35 + k);
       ctx.save();
       ctx.globalAlpha = 1 - k;
       ctx.globalCompositeOperation = "lighter";
