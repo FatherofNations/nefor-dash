@@ -15,7 +15,7 @@ const pal = (a: [string, string, string]) => [
 
 export type TankKind = "player" | "grunt" | "swift" | "armor" | "heavy";
 
-export const TANK_COLOR: Record<TankKind, [string, string, string]> = {
+const TANK_COLOR: Record<TankKind, [string, string, string]> = {
   player: ["#b8860b", "#f0c419", "#fff3b0"], // жёлтый, как у первого игрока
   grunt: ["#6b6f76", "#9aa1ab", "#d7dce3"], // серый рядовой
   swift: ["#1c6f9c", "#3fb5e8", "#bdeaff"], // быстрый — голубой

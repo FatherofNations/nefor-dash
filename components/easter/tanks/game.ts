@@ -12,7 +12,7 @@ import {
   PowerKind, TANK_ART, TANK_FLASH, TankKind,
 } from "./art";
 import {
-  Arena, BRICK, COLLAR, CONCRETE, EMPTY, FOREST, FULL, ICE, WATER, TL, TR, BL, BR,
+  Arena, BRICK, COLLAR, CONCRETE, FOREST, FULL, ICE, WATER, TL, TR, BL, BR,
   damage, drivable, setBaseWall, shootable, slippery,
 } from "./arena";
 
@@ -196,7 +196,7 @@ export class Game {
 
   destroy() { this.dead = true; cancelAnimationFrame(this.raf); }
 
-  resize() {
+  private resize() {
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     this.canvas.width = Math.round(this.a.w * dpr);
     this.canvas.height = Math.round(this.a.h * dpr);
@@ -208,7 +208,6 @@ export class Game {
     this.canopy = null;
   }
 
-  setArena(a: Arena) { this.a = a; this.resize(); this.buildFlow(); this.flowDirty = false; }
   setHidden(v: boolean) {
     if (this.hidden === v) return;
     this.hidden = v;
@@ -218,18 +217,6 @@ export class Game {
   key(code: string, down: boolean) {
     if (down) this.keys.add(code);
     else this.keys.delete(code);
-  }
-
-  restart() {
-    this.enemies = []; this.bullets = []; this.powers = [];
-    this.booms = []; this.marks = []; this.crumbs = []; this.hatching = [];
-    this.lives = 3; this.score = 0; this.weapon = 1;
-    this.over = null; this.freezeT = 0; this.shovelT = 0;
-    this.a.baseAlive = true;
-    setBaseWall(this.a, BRICK);
-    this.flowDirty = true;
-    this.startLevel(1);
-    this.pushStats();
   }
 
   private startLevel(n: number) {
@@ -1113,5 +1100,3 @@ export class Game {
     }
   }
 }
-
-export { EMPTY };

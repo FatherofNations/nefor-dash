@@ -482,11 +482,6 @@ export function slippery(a: Arena, col: number, row: number): boolean {
   return a.kind[row * a.cols + col] === ICE;
 }
 
-export function isForest(a: Arena, col: number, row: number): boolean {
-  if (col < 0 || row < 0 || col >= a.cols || row >= a.rows) return false;
-  return a.kind[row * a.cols + col] === FOREST;
-}
-
 /**
  * Попадание в стену.
  * @param power 1 — обычный снаряд, 2+ — усиленный (берёт бетон)
