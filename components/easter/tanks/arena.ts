@@ -30,21 +30,20 @@ export const FULL = TL | TR | BL | BR;
    иконки и подписи на ней остаются островками кирпича и травы. Сайдбар взят
    одной бетонной плитой целиком: внутренние .sb-* нарочно не перечислены,
    иначе они разбили бы её на лоскуты. */
-const TERRAIN: [string, number, number?][] = [
+const TERRAIN: [string, number, number?, number?][] = [
   [".ob-card", WATER],
   [
-    ".banners > .banner, .chips .chip, .sec-head, .rail-pill, .ai-card, .widget, .wg2, .wg3, .m2-card, .feed .filters, .feed .table, .spot, .nb-ico",
+    ".banners > .banner, .chips .chip, .sec-head, .rail-pill, .rail-app, .ai-card, .widget, .wg2, .wg3, .m2-card, .feed .filters, .feed .table",
     BRICK,
   ],
   // островки на воде: иконка мелкая, поэтому раздуваем её до трёх клеток
-  [".ob-cell .ob-ico, .ob-cell .progress", BRICK, 12],
+  [".ob-cell .ob-ico, .ob-cell .progress", BRICK, 12, 12],
   // трава должна закрывать подпись целиком, а не половину строки
   [".hello, .chip.luck", FOREST],
-  [".ob-cell .ob-txt", FOREST, 10],
-  // строка задач вместе со звёздочкой и «Больше» — одна бетонная полоса
-  [".tabs, .tasks-row", CONCRETE],
-  // вода внутри кирпичного баннера — окно в стене
-  [".banner .b-sub", WATER],
+  [".ob-cell .ob-txt", FOREST, 10, 10],
+  [".tabs", CONCRETE],
+  // бетонная полоса задач укорочена с торцов на четыре клетки
+  [".tasks-row", CONCRETE, -4 * CELL, 0],
   /* Сайдбар кладём ПОСЛЕДНИМ, чтобы он перекрыл всё, что внутри него лежит:
      иначе любая мелкая карточка в меню выступает кирпичом посреди бетона. */
   [".sidebar", CONCRETE],
@@ -74,17 +73,36 @@ interface Box { x: number; y: number; w: number; h: number; kind: number }
 
 function collect(w: number, h: number): Box[] {
   const out: Box[] = [];
-  for (const [sel, kind, grow] of TERRAIN) {
+  const visible = (el: HTMLElement) =>
+    el.checkVisibility({ opacityProperty: true, visibilityProperty: true });
+  for (const [sel, kind, gx, gy] of TERRAIN) {
     document.querySelectorAll<HTMLElement>(sel).forEach((el) => {
       // скрытые пейны лежат в DOM поверх активного — иначе замуруют пол-карты
-      if (!el.checkVisibility({ opacityProperty: true, visibilityProperty: true })) return;
+      if (!visible(el)) return;
       const r = el.getBoundingClientRect();
       if (r.width < 10 || r.height < 8) return;
       if (r.right <= 0 || r.bottom <= 0 || r.left >= w || r.top >= h) return;
-      const g = grow ?? 0;
-      out.push({ x: r.left - g, y: r.top - g, w: r.width + g * 2, h: r.height + g * 2, kind });
+      const ax = gx ?? 0;
+      const ay = gy ?? gx ?? 0;
+      out.push({ x: r.left - ax, y: r.top - ay, w: r.width + ax * 2, h: r.height + ay * 2, kind });
     });
   }
+
+  /* Вода в баннере — окном РОВНО ПО ЦЕНТРУ. Раньше она бралась по подписи
+     .b-sub, а та прижата влево, и окно съезжало к краю вместо того, чтобы
+     стоять в кирпичной рамке. Кладём последней, чтобы легла поверх кирпича. */
+  document.querySelectorAll<HTMLElement>(".banners > .banner").forEach((el) => {
+    if (!visible(el)) return;
+    const r = el.getBoundingClientRect();
+    if (r.width < 60 || r.height < 40) return;
+    if (r.right <= 0 || r.bottom <= 0 || r.left >= w || r.top >= h) return;
+    const iw = Math.round(r.width * 0.52);
+    const ih = Math.round(r.height * 0.4);
+    out.push({
+      x: r.left + (r.width - iw) / 2, y: r.top + (r.height - ih) / 2,
+      w: iw, h: ih, kind: WATER,
+    });
+  });
   return out;
 }
 
@@ -377,12 +395,12 @@ export function buildArena(w: number, h: number, reserved: DOMRect[] = []): Aren
     }
   }
 
-  /* Бетонная затычка в кирпичной стене ровно над базой — как на схеме.
-     Ищем ближайший кирпичный ряд выше двора и врезаем в него две клетки. */
-  for (let y = iceR0 - 1; y >= Math.max(0, iceR0 - 4); y--) {
-    if (kind[y * cols + baseCol] !== BRICK) continue;
-    for (let x = baseCol; x <= baseCol + 1 && x < cols; x++) set(y * cols + x, CONCRETE);
-    break;
+  /* Стена перед двором: над льдом её сносим, над водой оставляем. Иначе
+     игрок заперт в собственном дворе и выезжать ему приходится прострелом. */
+  for (let y = Math.max(0, iceR0 - 3); y < iceR0; y++) {
+    for (let x = Math.max(0, iceC0); x <= Math.min(cols - 1, iceC1); x++) {
+      if (kind[y * cols + x] === BRICK) set(y * cols + x, EMPTY);
+    }
   }
 
   return {
