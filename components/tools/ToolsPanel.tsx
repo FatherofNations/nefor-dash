@@ -110,9 +110,8 @@ export default function ToolsPanel() {
               <img src="/assets/easter/tank-icon.svg" alt="" width="40" height="40" />
             </button>
             <p className="twk-egg-hint">
-              Броневик: дашборд становится полигоном. Карточки — кирпич, его
-              простреливают; сайдбар и табы — сталь. Стрелки или WASD — ехать,
-              пробел — огонь. Не пустите их к хранилищу у баланса.
+              Танчики: дашборд становится полигоном. Не пустите врагов к своему
+              штабу!
             </p>
             {SHOW_PICKAXE && <p className="twk-egg-count">Добыто: {minedCount}/4</p>}
           </div>
